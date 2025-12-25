@@ -1,10 +1,14 @@
 'use client';
 
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import {
     LayoutDashboard,
-    Wallet,
-    TrendingUp,
-    Shield,
+    Users,
+    UserPlus,
+    BarChart3,
+    Scale,
+    PiggyBank,
     Clock,
     Settings,
     HelpCircle,
@@ -12,56 +16,65 @@ import {
 } from 'lucide-react';
 
 const menuItems = [
-    { icon: LayoutDashboard, label: 'Dashboard', active: true },
-    { icon: Wallet, label: 'Portfolio', active: false },
-    { icon: TrendingUp, label: 'Trading', active: false },
-    { icon: Shield, label: 'Security', active: false },
-    { icon: Clock, label: 'History', active: false },
-    { icon: Settings, label: 'Settings', active: false },
-    { icon: HelpCircle, label: 'Help Center', active: false },
+    { icon: LayoutDashboard, label: 'Dashboard', href: '/' },
+    { icon: Users, label: 'Clients', href: '/clients' },
+    { icon: UserPlus, label: 'Manage Clients', href: '/manage' },
+    { icon: BarChart3, label: 'Portfolio', href: '/portfolio' },
+    { icon: Scale, label: 'Compare Funds', href: '/compare' },
+    { icon: PiggyBank, label: 'Mutual Funds', href: '/mutual-funds' },
+    { icon: Clock, label: 'History', href: '/history' },
+    { icon: Settings, label: 'Settings', href: '/settings' },
+    { icon: HelpCircle, label: 'Help Center', href: '/help' },
 ];
 
 export default function Sidebar() {
+    const pathname = usePathname();
+
     return (
-        <aside className="w-[280px] bg-[#151A21] rounded-2xl border border-white/5 p-6 flex flex-col">
+        <aside className="w-[280px] glass-card rounded-2xl p-6 flex flex-col mint-glow sticky top-6 h-fit max-h-[calc(100vh-48px)] overflow-y-auto transition-colors duration-300">
             {/* Logo */}
             <div className="mb-10">
-                <h1 className="text-2xl font-bold text-white tracking-tight">
-                    <span className="text-[#10B981]">Z</span>EEX
+                <h1 className="text-xl font-bold text-[var(--text-primary)] tracking-tight">
+                    <span className="bg-gradient-to-r from-[var(--accent-mint)] to-[#34D399] bg-clip-text text-transparent">MF</span> Nexus
                 </h1>
+                <p className="text-[var(--text-secondary)] text-xs mt-1">Mutual Fund Portfolio</p>
             </div>
 
             {/* Navigation */}
             <nav className="flex-1">
                 <ul className="space-y-2">
-                    {menuItems.map((item) => (
-                        <li key={item.label}>
-                            <button
-                                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${item.active
-                                        ? 'bg-[#10B981]/10 text-[#10B981]'
-                                        : 'text-[#9CA3AF] hover:bg-white/5 hover:text-white'
-                                    }`}
-                            >
-                                <item.icon size={20} />
-                                <span className="font-medium">{item.label}</span>
-                            </button>
-                        </li>
-                    ))}
+                    {menuItems.map((item) => {
+                        const isActive = pathname === item.href;
+                        return (
+                            <li key={item.label}>
+                                <Link
+                                    href={item.href}
+                                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${isActive
+                                        ? 'bg-gradient-to-r from-[var(--accent-mint)]/20 to-[var(--accent-mint)]/5 text-[var(--accent-mint)] border border-[var(--accent-mint)]/20'
+                                        : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]'
+                                        }`}
+                                >
+                                    <item.icon size={20} />
+                                    <span className="font-medium">{item.label}</span>
+                                </Link>
+                            </li>
+                        );
+                    })}
                 </ul>
             </nav>
 
             {/* User Profile */}
-            <div className="pt-6 border-t border-white/5">
-                <div className="flex items-center gap-3 mb-4">
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#10B981] to-[#8B5CF6] flex items-center justify-center text-white font-semibold">
-                        JD
+            <div className="pt-6 border-t border-[var(--border-primary)]">
+                <div className="flex items-center gap-3 mb-4 p-3 rounded-xl bg-gradient-to-r from-[var(--accent-mint)]/10 to-[var(--accent-purple)]/10">
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[var(--accent-mint)] to-[var(--accent-purple)] flex items-center justify-center text-white font-semibold shadow-lg shadow-[var(--glow-mint)]">
+                        HF
                     </div>
                     <div>
-                        <p className="text-white font-medium text-sm">John Doe</p>
-                        <p className="text-[#9CA3AF] text-xs">Pro Account</p>
+                        <p className="text-[var(--text-primary)] font-medium text-sm">Hedge Fund Admin</p>
+                        <p className="text-[var(--accent-mint)] text-xs">Enterprise Account</p>
                     </div>
                 </div>
-                <button className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-[#9CA3AF] hover:bg-white/5 hover:text-white transition-all duration-200">
+                <button className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] transition-all duration-200">
                     <LogOut size={20} />
                     <span className="font-medium">Log Out</span>
                 </button>

@@ -1,37 +1,52 @@
+'use client';
+
 import Sidebar from '@/components/Sidebar';
+import DashboardHeader from '@/components/DashboardHeader';
 import AssetChartCard from '@/components/AssetChartCard';
 import DistributionCard from '@/components/DistributionCard';
 import PortfolioCard from '@/components/PortfolioCard';
 import MarketSnapshot from '@/components/MarketSnapshot';
+import MarketIndicesTracker from '@/components/MarketIndicesTracker';
 import ActivitySection from '@/components/ActivitySection';
 import StakingCard from '@/components/StakingCard';
+import MarketNewsCard from '@/components/MarketNewsCard';
 
 export default function Home() {
   return (
-    <div className="min-h-screen bg-[#0B0E11] text-white p-6 flex gap-6">
+    <div className="min-h-screen bg-[var(--bg-primary)] text-[var(--text-primary)] p-6 flex gap-6 transition-colors duration-300">
       {/* Main Content Area - Left Side */}
       <main className="flex-1">
-        {/* Header */}
-        <header className="mb-6">
-          <h1 className="text-2xl font-bold">Dashboard</h1>
-          <p className="text-[#9CA3AF] text-sm">Welcome back, John! Here&apos;s your portfolio overview.</p>
-        </header>
+        {/* Header with Quick Stats, Theme Toggle, Notifications */}
+        <DashboardHeader
+          title="Dashboard"
+          subtitle="Welcome back! Here's your mutual fund portfolio overview."
+        />
 
         {/* Bento Grid Layout */}
-        <div className="grid grid-cols-4 gap-4">
-          {/* Row 1 */}
-          <AssetChartCard />
-          <DistributionCard />
+        <div className="space-y-4">
+          {/* Row 1: Asset Chart + Distribution */}
+          <div className="grid grid-cols-3 gap-4">
+            <AssetChartCard />
+            <DistributionCard />
+          </div>
+
+          {/* Row 2: Top Holdings (Full Width) */}
           <PortfolioCard />
 
-          {/* Row 2 */}
-          <div className="col-span-2 space-y-4">
-            <MarketSnapshot />
+          {/* Row 3: Market Indices (Full Width) */}
+          <MarketIndicesTracker />
+
+          {/* Row 4: Top Performing Funds (Full Width) */}
+          <MarketSnapshot />
+
+          {/* Row 5: Activity + SIPs */}
+          <div className="grid grid-cols-2 gap-4">
             <ActivitySection />
-          </div>
-          <div className="col-span-2">
             <StakingCard />
           </div>
+
+          {/* Row 6: Market News (Full Width) */}
+          <MarketNewsCard />
         </div>
       </main>
 
@@ -40,3 +55,5 @@ export default function Home() {
     </div>
   );
 }
+
+

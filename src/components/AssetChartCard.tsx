@@ -9,54 +9,96 @@ import {
     Tooltip,
     ResponsiveContainer,
 } from 'recharts';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 
-const chartData = [
-    { name: 'Jan', value: 85000 },
-    { name: 'Feb', value: 92000 },
-    { name: 'Mar', value: 88000 },
-    { name: 'Apr', value: 105000 },
-    { name: 'May', value: 98000 },
-    { name: 'Jun', value: 110000 },
-    { name: 'Jul', value: 103000 },
-    { name: 'Aug', value: 115000 },
-    { name: 'Sep', value: 108000 },
-    { name: 'Oct', value: 118000 },
-    { name: 'Nov', value: 120000 },
-    { name: 'Dec', value: 123000 },
-];
+// Different data for each time period
+const chartDataSets = {
+    '1M': [
+        { name: 'Week 1', value: 11800000 },
+        { name: 'Week 2', value: 12100000 },
+        { name: 'Week 3', value: 11950000 },
+        { name: 'Week 4', value: 12300000 },
+    ],
+    '3M': [
+        { name: 'Oct', value: 10500000 },
+        { name: 'Nov', value: 11200000 },
+        { name: 'Dec', value: 12300000 },
+    ],
+    '6M': [
+        { name: 'Jul', value: 9200000 },
+        { name: 'Aug', value: 9800000 },
+        { name: 'Sep', value: 10100000 },
+        { name: 'Oct', value: 10500000 },
+        { name: 'Nov', value: 11200000 },
+        { name: 'Dec', value: 12300000 },
+    ],
+    '1Y': [
+        { name: 'Jan', value: 8500000 },
+        { name: 'Feb', value: 9200000 },
+        { name: 'Mar', value: 8800000 },
+        { name: 'Apr', value: 10500000 },
+        { name: 'May', value: 9800000 },
+        { name: 'Jun', value: 11000000 },
+        { name: 'Jul', value: 10300000 },
+        { name: 'Aug', value: 11500000 },
+        { name: 'Sep', value: 10800000 },
+        { name: 'Oct', value: 11800000 },
+        { name: 'Nov', value: 12000000 },
+        { name: 'Dec', value: 12300000 },
+    ],
+};
 
-const timeFilters = ['24H', '7D', '30D', '1Y'];
+// AUM values for each period
+const aumValues = {
+    '1M': { current: 12.3, change: 4.2 },
+    '3M': { current: 12.3, change: 17.1 },
+    '6M': { current: 12.3, change: 33.7 },
+    '1Y': { current: 12.3, change: 44.7 },
+};
+
+const timeFilters = ['1M', '3M', '6M', '1Y'] as const;
+type TimeFilter = typeof timeFilters[number];
 
 export default function AssetChartCard() {
-    const [activeFilter, setActiveFilter] = useState('1Y');
+    const [activeFilter, setActiveFilter] = useState<TimeFilter>('1Y');
+
+    const chartData = useMemo(() => chartDataSets[activeFilter], [activeFilter]);
+    const aumInfo = useMemo(() => aumValues[activeFilter], [activeFilter]);
+
+    // Calculate starting value for the period
+    const startValue = chartData[0]?.value || 0;
+    const endValue = chartData[chartData.length - 1]?.value || 0;
+    const periodChange = ((endValue - startValue) / startValue * 100).toFixed(1);
 
     return (
-        <div className="bg-[#151A21] rounded-2xl border border-white/5 p-6 col-span-2">
+        <div className="glass-card rounded-2xl p-6 col-span-2 gradient-border mint-glow relative overflow-hidden transition-colors duration-300">
+            {/* Gradient overlay */}
+            <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent-mint)]/10 via-transparent to-[var(--accent-purple)]/5 pointer-events-none" />
+
             {/* Header */}
-            <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center justify-between mb-6 relative z-10">
                 <div>
-                    <p className="text-[#9CA3AF] text-sm mb-1">Total Asset Value</p>
+                    <p className="text-[var(--text-secondary)] text-sm mb-1">Portfolio Value (AUM)</p>
                     <div className="flex items-baseline gap-3">
-                        <h2 className="text-3xl font-bold text-white">$123,000</h2>
-                        <span className="text-[#9CA3AF] text-lg">USD</span>
+                        <h2 className="text-3xl font-bold text-[var(--text-primary)]">₹{aumInfo.current} Cr</h2>
+                        <span className="text-[var(--text-secondary)] text-lg">INR</span>
                     </div>
                 </div>
-                <div className="flex items-center gap-2">
-                    <span className="text-[#10B981] text-sm font-medium">+12.5%</span>
-                    <span className="text-[#9CA3AF] text-sm">vs last month</span>
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-[var(--accent-mint)]/10 border border-[var(--accent-mint)]/20">
+                    <span className="text-[var(--accent-mint)] text-sm font-medium">+{periodChange}%</span>
+                    <span className="text-[var(--text-secondary)] text-xs">{activeFilter}</span>
                 </div>
             </div>
 
             {/* Time Filters */}
-            <div className="flex gap-2 mb-6">
+            <div className="flex gap-2 mb-6 relative z-10">
                 {timeFilters.map((filter) => (
                     <button
                         key={filter}
                         onClick={() => setActiveFilter(filter)}
                         className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${activeFilter === filter
-                                ? 'bg-[#10B981]/10 text-[#10B981]'
-                                : 'text-[#9CA3AF] hover:bg-white/5 hover:text-white'
+                            ? 'bg-gradient-to-r from-[var(--accent-mint)]/20 to-[var(--accent-mint)]/10 text-[var(--accent-mint)] border border-[var(--accent-mint)]/30 shadow-lg shadow-[var(--accent-mint)]/10'
+                            : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]'
                             }`}
                     >
                         {filter}
@@ -65,42 +107,52 @@ export default function AssetChartCard() {
             </div>
 
             {/* Chart */}
-            <div className="h-[200px]">
+            <div className="h-[200px] relative z-10">
                 <ResponsiveContainer width="100%" height="100%">
                     <AreaChart data={chartData}>
                         <defs>
                             <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="5%" stopColor="#10B981" stopOpacity={0.3} />
-                                <stop offset="95%" stopColor="#10B981" stopOpacity={0} />
+                                <stop offset="0%" stopColor="#10B981" stopOpacity={0.4} />
+                                <stop offset="50%" stopColor="#10B981" stopOpacity={0.15} />
+                                <stop offset="100%" stopColor="#10B981" stopOpacity={0} />
+                            </linearGradient>
+                            <linearGradient id="strokeGradient" x1="0" y1="0" x2="1" y2="0">
+                                <stop offset="0%" stopColor="#10B981" />
+                                <stop offset="100%" stopColor="#34D399" />
                             </linearGradient>
                         </defs>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" vertical={false} />
+                        <CartesianGrid strokeDasharray="3 3" stroke="var(--border-primary)" vertical={false} />
                         <XAxis
                             dataKey="name"
                             axisLine={false}
                             tickLine={false}
-                            tick={{ fill: '#9CA3AF', fontSize: 12 }}
+                            tick={{ fill: 'var(--text-secondary)', fontSize: 12 }}
                         />
                         <YAxis
                             axisLine={false}
                             tickLine={false}
-                            tick={{ fill: '#9CA3AF', fontSize: 12 }}
-                            tickFormatter={(value) => `$${value / 1000}k`}
+                            tick={{ fill: 'var(--text-secondary)', fontSize: 12 }}
+                            tickFormatter={(value) => `₹${(value / 10000000).toFixed(1)}Cr`}
                         />
                         <Tooltip
                             contentStyle={{
-                                backgroundColor: '#151A21',
-                                border: '1px solid rgba(255,255,255,0.1)',
-                                borderRadius: '8px',
-                                color: '#fff',
+                                backgroundColor: 'var(--bg-secondary)',
+                                backdropFilter: 'blur(10px)',
+                                border: '1px solid var(--border-primary)',
+                                borderRadius: '12px',
+                                color: 'var(--text-primary)',
+                                boxShadow: '0 4px 20px rgba(16, 185, 129, 0.2)',
                             }}
-                            formatter={(value: number) => [`$${value.toLocaleString()}`, 'Value']}
+                            formatter={(value: number | undefined) => {
+                                const val = value ?? 0;
+                                return [`₹${(val / 10000000).toFixed(2)} Cr`, 'AUM'];
+                            }}
                         />
                         <Area
                             type="monotone"
                             dataKey="value"
-                            stroke="#10B981"
-                            strokeWidth={2}
+                            stroke="url(#strokeGradient)"
+                            strokeWidth={3}
                             fillOpacity={1}
                             fill="url(#colorValue)"
                         />
