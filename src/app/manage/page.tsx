@@ -194,7 +194,7 @@ export default function ManageClientsPage() {
                     </div>
                     <button
                         onClick={() => setShowAddModal(true)}
-                        className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#10B981] to-[#34D399] text-white font-medium flex items-center gap-2 hover:shadow-lg hover:shadow-[#10B981]/30 transition-all"
+                        className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#48cae4] to-[#90e0ef] text-white font-medium flex items-center gap-2 hover:shadow-lg hover:shadow-[#48cae4]/30 transition-all"
                     >
                         <Plus size={20} />
                         Add Client
@@ -210,7 +210,7 @@ export default function ManageClientsPage() {
                             placeholder="Search clients..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            className="w-full pl-12 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-[#9CA3AF] focus:outline-none focus:border-[#10B981]/50 transition-all"
+                            className="w-full pl-12 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-[#9CA3AF] focus:outline-none focus:border-[#48cae4]/50 transition-all"
                         />
                     </div>
                 </div>
@@ -233,7 +233,7 @@ export default function ManageClientsPage() {
                             <p className="text-[#9CA3AF]">No clients found</p>
                             <button
                                 onClick={() => setShowAddModal(true)}
-                                className="mt-4 text-[#10B981] hover:underline"
+                                className="mt-4 text-[#48cae4] hover:underline"
                             >
                                 Add your first client
                             </button>
@@ -247,7 +247,7 @@ export default function ManageClientsPage() {
                                 >
                                     <div className="col-span-3">
                                         <div className="flex items-center gap-3">
-                                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#10B981] to-[#8B5CF6] flex items-center justify-center text-white font-semibold text-sm">
+                                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#48cae4] to-[#8B5CF6] flex items-center justify-center text-white font-semibold text-sm">
                                                 {client.name.split(' ').map(n => n[0]).join('')}
                                             </div>
                                             <div>
@@ -262,7 +262,7 @@ export default function ManageClientsPage() {
                                     <div className="col-span-2 flex items-center justify-center">
                                         <span
                                             className={`px-3 py-1 rounded-md text-xs font-medium ${client.investmentType === 'SIP'
-                                                ? 'bg-[#10B981]/10 text-[#10B981]'
+                                                ? 'bg-[#48cae4]/10 text-[#48cae4]'
                                                 : 'bg-[#8B5CF6]/10 text-[#8B5CF6]'
                                                 }`}
                                         >
@@ -302,8 +302,8 @@ export default function ManageClientsPage() {
                         {/* Modal Header */}
                         <div className="p-6 border-b border-white/10 flex items-center justify-between">
                             <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-xl bg-[#10B981]/20 flex items-center justify-center">
-                                    <UserPlus size={20} className="text-[#10B981]" />
+                                <div className="w-10 h-10 rounded-xl bg-[#48cae4]/20 flex items-center justify-center">
+                                    <UserPlus size={20} className="text-[#48cae4]" />
                                 </div>
                                 <div>
                                     <h2 className="text-white text-lg font-semibold">Add New Client</h2>
@@ -328,7 +328,7 @@ export default function ManageClientsPage() {
                                     placeholder="Enter client name"
                                     value={formData.name}
                                     onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-[#9CA3AF] focus:outline-none focus:border-[#10B981]/50"
+                                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-[#9CA3AF] focus:outline-none focus:border-[#48cae4]/50"
                                 />
                             </div>
 
@@ -341,7 +341,7 @@ export default function ManageClientsPage() {
                                         placeholder="email@example.com"
                                         value={formData.email}
                                         onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
-                                        className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-[#9CA3AF] focus:outline-none focus:border-[#10B981]/50"
+                                        className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-[#9CA3AF] focus:outline-none focus:border-[#48cae4]/50"
                                     />
                                 </div>
                                 <div>
@@ -351,7 +351,7 @@ export default function ManageClientsPage() {
                                         placeholder="+91 XXXXX XXXXX"
                                         value={formData.phone}
                                         onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
-                                        className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-[#9CA3AF] focus:outline-none focus:border-[#10B981]/50"
+                                        className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-[#9CA3AF] focus:outline-none focus:border-[#48cae4]/50"
                                     />
                                 </div>
                             </div>
@@ -367,13 +367,13 @@ export default function ManageClientsPage() {
                                         value={fundSearch}
                                         onChange={(e) => { setFundSearch(e.target.value); setShowFundDropdown(true); }}
                                         onFocus={() => setShowFundDropdown(true)}
-                                        className="w-full pl-12 pr-10 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-[#9CA3AF] focus:outline-none focus:border-[#10B981]/50"
+                                        className="w-full pl-12 pr-10 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-[#9CA3AF] focus:outline-none focus:border-[#48cae4]/50"
                                     />
                                     {fundSearching && (
-                                        <Loader2 className="absolute right-4 top-1/2 -translate-y-1/2 text-[#10B981] animate-spin" size={18} />
+                                        <Loader2 className="absolute right-4 top-1/2 -translate-y-1/2 text-[#48cae4] animate-spin" size={18} />
                                     )}
                                     {formData.schemeCode > 0 && !fundSearching && (
-                                        <Check className="absolute right-4 top-1/2 -translate-y-1/2 text-[#10B981]" size={18} />
+                                        <Check className="absolute right-4 top-1/2 -translate-y-1/2 text-[#48cae4]" size={18} />
                                     )}
                                 </div>
 
@@ -401,7 +401,7 @@ export default function ManageClientsPage() {
                                     <button
                                         onClick={() => setFormData(prev => ({ ...prev, investmentType: 'SIP' }))}
                                         className={`p-4 rounded-xl border transition-all ${formData.investmentType === 'SIP'
-                                            ? 'bg-[#10B981]/20 border-[#10B981]/50 text-[#10B981]'
+                                            ? 'bg-[#48cae4]/20 border-[#48cae4]/50 text-[#48cae4]'
                                             : 'bg-white/5 border-white/10 text-[#9CA3AF] hover:bg-white/10'
                                             }`}
                                     >
@@ -432,7 +432,7 @@ export default function ManageClientsPage() {
                                         placeholder="₹ Amount"
                                         value={formData.amount}
                                         onChange={(e) => setFormData(prev => ({ ...prev, amount: e.target.value }))}
-                                        className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-[#9CA3AF] focus:outline-none focus:border-[#10B981]/50"
+                                        className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-[#9CA3AF] focus:outline-none focus:border-[#48cae4]/50"
                                     />
                                 </div>
                                 {formData.investmentType === 'SIP' && (
@@ -443,7 +443,7 @@ export default function ManageClientsPage() {
                                             placeholder="₹ Monthly"
                                             value={formData.sipAmount}
                                             onChange={(e) => setFormData(prev => ({ ...prev, sipAmount: e.target.value }))}
-                                            className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-[#9CA3AF] focus:outline-none focus:border-[#10B981]/50"
+                                            className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-[#9CA3AF] focus:outline-none focus:border-[#48cae4]/50"
                                         />
                                     </div>
                                 )}
@@ -456,7 +456,7 @@ export default function ManageClientsPage() {
                                     type="date"
                                     value={formData.startDate}
                                     onChange={(e) => setFormData(prev => ({ ...prev, startDate: e.target.value }))}
-                                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:border-[#10B981]/50"
+                                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:border-[#48cae4]/50"
                                 />
                             </div>
                         </div>
@@ -471,7 +471,7 @@ export default function ManageClientsPage() {
                             </button>
                             <button
                                 onClick={handleAddClient}
-                                className="flex-1 py-3 rounded-xl bg-gradient-to-r from-[#10B981] to-[#34D399] text-white font-medium hover:shadow-lg hover:shadow-[#10B981]/30 transition-all"
+                                className="flex-1 py-3 rounded-xl bg-gradient-to-r from-[#48cae4] to-[#90e0ef] text-white font-medium hover:shadow-lg hover:shadow-[#48cae4]/30 transition-all"
                             >
                                 Add Client
                             </button>

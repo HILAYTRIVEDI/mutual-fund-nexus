@@ -65,7 +65,7 @@ const typeIcons: Record<NotificationType, React.ElementType> = {
 };
 
 const typeColors: Record<NotificationType, string> = {
-    success: '#10B981',
+    success: '#48cae4',
     warning: '#F59E0B',
     error: '#EF4444',
     info: '#3B82F6',
@@ -141,7 +141,7 @@ export default function NotificationBell() {
                         {unreadCount > 0 && (
                             <button
                                 onClick={markAllAsRead}
-                                className="text-[#10B981] text-xs hover:underline"
+                                className="text-[#48cae4] text-xs hover:underline"
                             >
                                 Mark all as read
                             </button>
@@ -191,7 +191,7 @@ export default function NotificationBell() {
                                                 <p className="text-[#9CA3AF]/60 text-xs mt-1">{getRelativeTime(notification.timestamp)}</p>
                                             </div>
                                             {!notification.read && (
-                                                <div className="w-2 h-2 rounded-full bg-[#10B981] flex-shrink-0 mt-2" />
+                                                <div className="w-2 h-2 rounded-full bg-[#48cae4] flex-shrink-0 mt-2" />
                                             )}
                                         </div>
                                     </div>
@@ -202,7 +202,7 @@ export default function NotificationBell() {
 
                     {/* Footer */}
                     <div className="p-3 border-t border-white/10">
-                        <button className="w-full py-2 text-[#10B981] text-sm font-medium hover:bg-[#10B981]/10 rounded-lg transition-colors">
+                        <button className="w-full py-2 text-[#48cae4] text-sm font-medium hover:bg-[#48cae4]/10 rounded-lg transition-colors">
                             View All Notifications
                         </button>
                     </div>

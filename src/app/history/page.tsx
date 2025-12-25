@@ -162,14 +162,14 @@ const logTypeIcons: Record<LogType, React.ElementType> = {
 };
 
 const logTypeColors: Record<LogType, string> = {
-    client_added: '#10B981',
+    client_added: '#48cae4',
     client_removed: '#EF4444',
-    investment_sip: '#10B981',
+    investment_sip: '#48cae4',
     investment_lumpsum: '#8B5CF6',
     redemption: '#F59E0B',
     switch: '#3B82F6',
     nav_update: '#9CA3AF',
-    sip_executed: '#10B981',
+    sip_executed: '#48cae4',
     dividend: '#8B5CF6',
 };
 
@@ -180,7 +180,7 @@ const statusIcons: Record<LogStatus, React.ElementType> = {
 };
 
 const statusColors: Record<LogStatus, string> = {
-    success: '#10B981',
+    success: '#48cae4',
     pending: '#F59E0B',
     failed: '#EF4444',
 };
@@ -281,7 +281,7 @@ export default function HistoryPage() {
                     </div>
                     <div className="glass-card rounded-2xl p-4 gradient-border">
                         <p className="text-[#9CA3AF] text-xs">Successful</p>
-                        <p className="text-[#10B981] text-xl font-bold">{successLogs}</p>
+                        <p className="text-[#48cae4] text-xl font-bold">{successLogs}</p>
                     </div>
                     <div className="glass-card rounded-2xl p-4 gradient-border">
                         <p className="text-[#9CA3AF] text-xs">Failed</p>
@@ -299,19 +299,19 @@ export default function HistoryPage() {
                                 placeholder="Search logs by title, client, or fund..."
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
-                                className="w-full pl-12 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-[#9CA3AF] focus:outline-none focus:border-[#10B981]/50 transition-all"
+                                className="w-full pl-12 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-[#9CA3AF] focus:outline-none focus:border-[#48cae4]/50 transition-all"
                             />
                         </div>
                         <button
                             onClick={() => setShowFilters(!showFilters)}
                             className={`px-4 py-3 rounded-xl flex items-center gap-2 transition-all ${showFilters || hasActiveFilters
-                                ? 'bg-[#10B981]/20 text-[#10B981] border border-[#10B981]/30'
+                                ? 'bg-[#48cae4]/20 text-[#48cae4] border border-[#48cae4]/30'
                                 : 'bg-white/5 text-[#9CA3AF] border border-white/10 hover:bg-white/10'
                                 }`}
                         >
                             <Filter size={18} />
                             Filters
-                            {hasActiveFilters && <span className="w-2 h-2 rounded-full bg-[#10B981]" />}
+                            {hasActiveFilters && <span className="w-2 h-2 rounded-full bg-[#48cae4]" />}
                         </button>
                         {hasActiveFilters && (
                             <button
@@ -431,7 +431,7 @@ export default function HistoryPage() {
                                                                 </span>
                                                             )}
                                                             {log.amount && (
-                                                                <span className="text-[#10B981] font-medium">
+                                                                <span className="text-[#48cae4] font-medium">
                                                                     {formatCurrency(log.amount)}
                                                                 </span>
                                                             )}

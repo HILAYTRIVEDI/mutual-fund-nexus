@@ -36,7 +36,7 @@ const portfolioHoldings: PortfolioHolding[] = [
         returnsPercentage: 18.05,
         xirr: 22.5,
         allocation: 28.5,
-        color: '#10B981',
+        color: '#48cae4',
     },
     {
         id: '2',
@@ -177,10 +177,17 @@ export default function PortfolioPage() {
             <main className="flex-1">
                 {/* Header */}
                 <header className="mb-6">
-                    <h1 className="text-2xl font-bold">Portfolio Holdings</h1>
-                    <p className="text-[var(--text-secondary)] text-sm">
-                        Compare and analyze all your mutual fund investments
-                    </p>
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <h1 className="text-2xl font-bold">Portfolio Holdings</h1>
+                            <p className="text-[var(--text-secondary)] text-sm">
+                                Compare and analyze all your mutual fund investments
+                            </p>
+                        </div>
+                        <span className="text-[var(--accent-purple)] text-xs px-3 py-1 bg-[var(--accent-purple)]/10 rounded-full border border-[var(--accent-purple)]/20">
+                            Sample Data • Connect database for real portfolio
+                        </span>
+                    </div>
                 </header>
 
                 {/* Summary Cards */}
@@ -301,7 +308,7 @@ export default function PortfolioPage() {
                                     {/* Current Value */}
                                     <div className="col-span-2 flex flex-col items-end justify-center">
                                         <p className="text-[var(--text-primary)] text-sm font-medium">{formatCurrency(holding.currentValue)}</p>
-                                        <p className="text-[var(--text-secondary)] text-xs">NAV: ₹{holding.currentNav.toFixed(2)}</p>
+                                        <p className="text-[var(--text-secondary)] text-xs">NAV: ₹{holding.currentNav.toFixed(2)} (26-12-2025 • Code: 123456)</p>
                                     </div>
 
                                     {/* Returns */}

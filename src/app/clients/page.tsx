@@ -255,14 +255,19 @@ function ClientsPageContent() {
                 {/* Header */}
                 <header className="mb-6 flex items-center justify-between">
                     <div>
-                        <h1 className="text-2xl font-bold">Clients Portfolio</h1>
+                        <div className="flex items-center gap-3 mb-1">
+                            <h1 className="text-2xl font-bold">Clients Portfolio</h1>
+                            <span className="text-[var(--accent-purple)] text-xs px-2 py-0.5 bg-[var(--accent-purple)]/10 rounded-full border border-[var(--accent-purple)]/20">
+                                Sample Data
+                            </span>
+                        </div>
                         <p className="text-[#9CA3AF] text-sm">
                             Manage and monitor all client investments
                         </p>
                     </div>
                     <button
                         onClick={exportToCSV}
-                        className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#10B981]/20 to-[#10B981]/10 border border-[#10B981]/30 text-[#10B981] font-medium flex items-center gap-2 hover:from-[#10B981]/30 hover:to-[#10B981]/20 hover:shadow-lg hover:shadow-[#10B981]/20 transition-all"
+                        className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#48cae4]/20 to-[#48cae4]/10 border border-[#48cae4]/30 text-[#48cae4] font-medium flex items-center gap-2 hover:from-[#48cae4]/30 hover:to-[#48cae4]/20 hover:shadow-lg hover:shadow-[#48cae4]/20 transition-all"
                     >
                         <Download size={18} />
                         Export CSV
@@ -273,8 +278,8 @@ function ClientsPageContent() {
                 <div className="grid grid-cols-5 gap-4 mb-6">
                     <div className="glass-card rounded-2xl p-4 gradient-border">
                         <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-[#10B981]/20 flex items-center justify-center">
-                                <Users size={20} className="text-[#10B981]" />
+                            <div className="w-10 h-10 rounded-xl bg-[#48cae4]/20 flex items-center justify-center">
+                                <Users size={20} className="text-[#48cae4]" />
                             </div>
                             <div>
                                 <p className="text-[#9CA3AF] text-xs">Total Clients</p>
@@ -291,7 +296,7 @@ function ClientsPageContent() {
                     <div className="glass-card rounded-2xl p-4 gradient-border">
                         <div>
                             <p className="text-[#9CA3AF] text-xs">Total P&L</p>
-                            <p className={`text-xl font-bold ${totalPnL >= 0 ? 'text-[#10B981]' : 'text-[#EF4444]'}`}>
+                            <p className={`text-xl font-bold ${totalPnL >= 0 ? 'text-[#48cae4]' : 'text-[#EF4444]'}`}>
                                 {totalPnL >= 0 ? '+' : ''}{formatCurrency(totalPnL)}
                             </p>
                         </div>
@@ -299,7 +304,7 @@ function ClientsPageContent() {
                     <div className="glass-card rounded-2xl p-4 gradient-border">
                         <div>
                             <p className="text-[#9CA3AF] text-xs">SIP Clients</p>
-                            <p className="text-[#10B981] text-xl font-bold">
+                            <p className="text-[#48cae4] text-xl font-bold">
                                 {filteredClients.filter(c => c.investmentType === 'SIP').length}
                             </p>
                         </div>
@@ -316,7 +321,7 @@ function ClientsPageContent() {
 
                 {/* Search & Filters */}
                 <div className="glass-card rounded-2xl p-4 mb-6 relative overflow-hidden">
-                    <div className="absolute inset-0 bg-gradient-to-r from-[#10B981]/5 via-transparent to-[#8B5CF6]/5 pointer-events-none" />
+                    <div className="absolute inset-0 bg-gradient-to-r from-[#48cae4]/5 via-transparent to-[#8B5CF6]/5 pointer-events-none" />
                     <div className="relative z-10 flex items-center gap-4">
                         {/* Search */}
                         <div className="flex-1 relative">
@@ -326,7 +331,7 @@ function ClientsPageContent() {
                                 placeholder="Search by client name, portfolio, or ID..."
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
-                                className="w-full pl-12 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-[#9CA3AF] focus:outline-none focus:border-[#10B981]/50 transition-all"
+                                className="w-full pl-12 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-[#9CA3AF] focus:outline-none focus:border-[#48cae4]/50 transition-all"
                             />
                         </div>
 
@@ -334,14 +339,14 @@ function ClientsPageContent() {
                         <button
                             onClick={() => setShowFilters(!showFilters)}
                             className={`px-4 py-3 rounded-xl flex items-center gap-2 transition-all ${showFilters || hasActiveFilters
-                                ? 'bg-[#10B981]/20 text-[#10B981] border border-[#10B981]/30'
+                                ? 'bg-[#48cae4]/20 text-[#48cae4] border border-[#48cae4]/30'
                                 : 'bg-white/5 text-[#9CA3AF] border border-white/10 hover:bg-white/10'
                                 }`}
                         >
                             <Filter size={18} />
                             Filters
                             {hasActiveFilters && (
-                                <span className="w-2 h-2 rounded-full bg-[#10B981]" />
+                                <span className="w-2 h-2 rounded-full bg-[#48cae4]" />
                             )}
                         </button>
 
@@ -366,7 +371,7 @@ function ClientsPageContent() {
                                     <select
                                         value={fundHouseFilter}
                                         onChange={(e) => setFundHouseFilter(e.target.value)}
-                                        className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white appearance-none cursor-pointer focus:outline-none focus:border-[#10B981]/50"
+                                        className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white appearance-none cursor-pointer focus:outline-none focus:border-[#48cae4]/50"
                                     >
                                         {fundHouses.map((fh) => (
                                             <option key={fh} value={fh} className="bg-[#151A21]">
@@ -385,7 +390,7 @@ function ClientsPageContent() {
                                     <select
                                         value={typeFilter}
                                         onChange={(e) => setTypeFilter(e.target.value)}
-                                        className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white appearance-none cursor-pointer focus:outline-none focus:border-[#10B981]/50"
+                                        className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white appearance-none cursor-pointer focus:outline-none focus:border-[#48cae4]/50"
                                     >
                                         {investmentTypes.map((type) => (
                                             <option key={type} value={type} className="bg-[#151A21]">
@@ -404,7 +409,7 @@ function ClientsPageContent() {
                                     <select
                                         value={pnlFilter}
                                         onChange={(e) => setPnlFilter(e.target.value)}
-                                        className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white appearance-none cursor-pointer focus:outline-none focus:border-[#10B981]/50"
+                                        className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white appearance-none cursor-pointer focus:outline-none focus:border-[#48cae4]/50"
                                     >
                                         {pnlFilters.map((pnl) => (
                                             <option key={pnl} value={pnl} className="bg-[#151A21]">
@@ -449,7 +454,7 @@ function ClientsPageContent() {
                                     {/* Client Info */}
                                     <div className="col-span-2">
                                         <div className="flex items-center gap-2">
-                                            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[#10B981] to-[#8B5CF6] flex items-center justify-center text-white font-semibold text-xs flex-shrink-0">
+                                            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[#48cae4] to-[#8B5CF6] flex items-center justify-center text-white font-semibold text-xs flex-shrink-0">
                                                 {client.name.split(' ').map(n => n[0]).join('')}
                                             </div>
                                             <div className="min-w-0">
@@ -489,7 +494,7 @@ function ClientsPageContent() {
                                     <div className="col-span-1 flex items-center justify-center">
                                         <span
                                             className={`px-2 py-1 rounded-md text-xs font-medium ${client.investmentType === 'SIP'
-                                                ? 'bg-[#10B981]/10 text-[#10B981]'
+                                                ? 'bg-[#48cae4]/10 text-[#48cae4]'
                                                 : 'bg-[#8B5CF6]/10 text-[#8B5CF6]'
                                                 }`}
                                         >
@@ -504,7 +509,7 @@ function ClientsPageContent() {
 
                                     {/* P&L */}
                                     <div className="col-span-2 flex items-center justify-end">
-                                        <div className={`flex items-center gap-1 ${client.pnl >= 0 ? 'text-[#10B981]' : 'text-[#EF4444]'}`}>
+                                        <div className={`flex items-center gap-1 ${client.pnl >= 0 ? 'text-[#48cae4]' : 'text-[#EF4444]'}`}>
                                             {client.pnl >= 0 ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
                                             <div className="text-right">
                                                 <span className="text-sm font-medium block">

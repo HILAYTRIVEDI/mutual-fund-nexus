@@ -12,7 +12,7 @@ const topFunds = [
         aum: '₹45,234 Cr',
         returns1Y: '+28.5%',
         nav: '₹156.78',
-        color: '#10B981',
+        color: '#48cae4',
     },
     {
         id: 2,

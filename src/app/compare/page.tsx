@@ -1,177 +1,194 @@
 'use client';
 
-import { useState, useMemo } from 'react';
-import { Search, X, Plus, Scale, BarChart3 } from 'lucide-react';
+import { useState, useCallback } from 'react';
+import { Search, X, Plus, Scale, BarChart3, Loader2, TrendingUp, TrendingDown } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
+import { searchSchemes, getSchemeLatestNAV, getSchemeHistory, type MutualFundScheme, type SchemeLatestResponse } from '@/lib/mfapi';
 
-interface Fund {
-    id: string;
-    name: string;
+interface FundData {
+    schemeCode: number;
+    schemeName: string;
     fundHouse: string;
-    category: string;
-    nav: number;
-    aum: string;
-    expenseRatio: number;
-    returns1Y: number;
-    returns3Y: number;
-    returns5Y: number;
-    riskLevel: 'Low' | 'Moderate' | 'High';
-    minInvestment: number;
-    exitLoad: string;
-    [key: string]: string | number;
+    schemeCategory: string;
+    schemeType: string;
+    latestNav: number;
+    navDate: string;
+    returns1M: number | null;
+    returns1Y: number | null;
+    returns3Y: number | null;
+    isinGrowth: string | null;
+    [key: string]: string | number | null;
 }
 
-const allFunds: Fund[] = [
-    {
-        id: '1',
-        name: 'HDFC Top 100 Fund - Direct Growth',
-        fundHouse: 'HDFC',
-        category: 'Large Cap',
-        nav: 892.45,
-        aum: '₹32,500 Cr',
-        expenseRatio: 0.95,
-        returns1Y: 18.5,
-        returns3Y: 15.2,
-        returns5Y: 14.8,
-        riskLevel: 'Moderate',
-        minInvestment: 5000,
-        exitLoad: '1% if redeemed within 1 year',
-    },
-    {
-        id: '2',
-        name: 'SBI Bluechip Fund - Direct Growth',
-        fundHouse: 'SBI',
-        category: 'Large Cap',
-        nav: 78.32,
-        aum: '₹45,200 Cr',
-        expenseRatio: 0.85,
-        returns1Y: 16.8,
-        returns3Y: 14.5,
-        returns5Y: 13.9,
-        riskLevel: 'Moderate',
-        minInvestment: 5000,
-        exitLoad: '1% if redeemed within 1 year',
-    },
-    {
-        id: '3',
-        name: 'Axis Small Cap Fund - Direct Growth',
-        fundHouse: 'Axis',
-        category: 'Small Cap',
-        nav: 68.45,
-        aum: '₹18,800 Cr',
-        expenseRatio: 0.48,
-        returns1Y: 32.5,
-        returns3Y: 28.2,
-        returns5Y: 22.5,
-        riskLevel: 'High',
-        minInvestment: 5000,
-        exitLoad: '1% if redeemed within 1 year',
-    },
-    {
-        id: '4',
-        name: 'ICICI Prudential Liquid Fund - Direct Growth',
-        fundHouse: 'ICICI',
-        category: 'Liquid',
-        nav: 345.67,
-        aum: '₹52,100 Cr',
-        expenseRatio: 0.20,
-        returns1Y: 7.2,
-        returns3Y: 6.1,
-        returns5Y: 5.8,
-        riskLevel: 'Low',
-        minInvestment: 100,
-        exitLoad: 'Nil',
-    },
-    {
-        id: '5',
-        name: 'Kotak Emerging Equity Fund - Direct Growth',
-        fundHouse: 'Kotak',
-        category: 'Mid Cap',
-        nav: 89.75,
-        aum: '₹28,600 Cr',
-        expenseRatio: 0.55,
-        returns1Y: 28.5,
-        returns3Y: 22.8,
-        returns5Y: 18.2,
-        riskLevel: 'High',
-        minInvestment: 5000,
-        exitLoad: '1% if redeemed within 1 year',
-    },
-    {
-        id: '6',
-        name: 'Parag Parikh Flexi Cap Fund - Direct Growth',
-        fundHouse: 'PPFAS',
-        category: 'Flexi Cap',
-        nav: 62.45,
-        aum: '₹42,800 Cr',
-        expenseRatio: 0.63,
-        returns1Y: 24.8,
-        returns3Y: 20.5,
-        returns5Y: 19.2,
-        riskLevel: 'Moderate',
-        minInvestment: 1000,
-        exitLoad: '2% if redeemed within 365 days',
-    },
-    {
-        id: '7',
-        name: 'Mirae Asset Large Cap Fund - Direct Growth',
-        fundHouse: 'Mirae',
-        category: 'Large Cap',
-        nav: 95.28,
-        aum: '₹38,200 Cr',
-        expenseRatio: 0.52,
-        returns1Y: 19.2,
-        returns3Y: 16.8,
-        returns5Y: 15.5,
-        riskLevel: 'Moderate',
-        minInvestment: 5000,
-        exitLoad: '1% if redeemed within 1 year',
-    },
+interface ComparisonMetric {
+    key: string;
+    label: string;
+    format: (v: unknown) => string;
+    highlight?: 'high' | 'low';
+}
+
+const comparisonMetrics: ComparisonMetric[] = [
+    { key: 'latestNav', label: 'Latest NAV', format: (v) => `₹${(v as number).toFixed(4)}` },
+    { key: 'navDate', label: 'NAV Date', format: (v) => v as string },
+    { key: 'fundHouse', label: 'Fund House', format: (v) => v as string },
+    { key: 'schemeCategory', label: 'Category', format: (v) => v as string },
+    { key: 'schemeType', label: 'Scheme Type', format: (v) => v as string },
+    { key: 'returns1M', label: '1 Month Return', format: (v) => v !== null ? `${(v as number) >= 0 ? '+' : ''}${(v as number).toFixed(2)}%` : 'N/A', highlight: 'high' },
+    { key: 'returns1Y', label: '1 Year Return', format: (v) => v !== null ? `${(v as number) >= 0 ? '+' : ''}${(v as number).toFixed(2)}%` : 'N/A', highlight: 'high' },
+    { key: 'returns3Y', label: '3 Year Return (CAGR)', format: (v) => v !== null ? `${(v as number) >= 0 ? '+' : ''}${(v as number).toFixed(2)}%` : 'N/A', highlight: 'high' },
+    { key: 'isinGrowth', label: 'ISIN', format: (v) => (v as string) || 'N/A' },
 ];
 
-const comparisonMetrics = [
-    { key: 'nav', label: 'NAV', format: (v: number) => `₹${v.toFixed(2)}` },
-    { key: 'aum', label: 'AUM', format: (v: string) => v },
-    { key: 'expenseRatio', label: 'Expense Ratio', format: (v: number) => `${v}%`, highlight: 'low' },
-    { key: 'returns1Y', label: '1Y Returns', format: (v: number) => `${v > 0 ? '+' : ''}${v}%`, highlight: 'high' },
-    { key: 'returns3Y', label: '3Y Returns', format: (v: number) => `${v > 0 ? '+' : ''}${v}%`, highlight: 'high' },
-    { key: 'returns5Y', label: '5Y Returns', format: (v: number) => `${v > 0 ? '+' : ''}${v}%`, highlight: 'high' },
-    { key: 'riskLevel', label: 'Risk Level', format: (v: string) => v },
-    { key: 'minInvestment', label: 'Min Investment', format: (v: number) => `₹${v.toLocaleString()}` },
-    { key: 'exitLoad', label: 'Exit Load', format: (v: string) => v },
-];
+function calculateReturns(currentNav: number, historicalNav: number, years: number = 1): number {
+    if (historicalNav === 0) return 0;
+    if (years === 1) {
+        return ((currentNav - historicalNav) / historicalNav) * 100;
+    }
+    // CAGR calculation for multi-year returns
+    return (Math.pow(currentNav / historicalNav, 1 / years) - 1) * 100;
+}
 
 export default function CompareFundsPage() {
-    const [selectedFunds, setSelectedFunds] = useState<Fund[]>([]);
+    const [selectedFunds, setSelectedFunds] = useState<FundData[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
+    const [searchResults, setSearchResults] = useState<MutualFundScheme[]>([]);
     const [isSearchOpen, setIsSearchOpen] = useState(false);
+    const [isSearching, setIsSearching] = useState(false);
+    const [loadingFunds, setLoadingFunds] = useState<Set<number>>(new Set());
 
-    const searchResults = useMemo(() => {
-        if (!searchQuery.trim()) return [];
-        return allFunds.filter(
-            fund =>
-                !selectedFunds.find(f => f.id === fund.id) &&
-                (fund.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                    fund.fundHouse.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                    fund.category.toLowerCase().includes(searchQuery.toLowerCase()))
-        );
-    }, [searchQuery, selectedFunds]);
+    const handleSearch = useCallback(async (query: string) => {
+        setSearchQuery(query);
+        if (!query.trim() || query.length < 2) {
+            setSearchResults([]);
+            return;
+        }
 
-    const addFund = (fund: Fund) => {
-        if (selectedFunds.length < 4) {
-            setSelectedFunds([...selectedFunds, fund]);
-            setSearchQuery('');
-            setIsSearchOpen(false);
+        setIsSearching(true);
+        try {
+            const results = await searchSchemes(query);
+            // Filter out already selected funds
+            const filtered = results.filter(
+                r => !selectedFunds.find(f => f.schemeCode === r.schemeCode)
+            );
+            setSearchResults(filtered.slice(0, 20)); // Limit to 20 results
+        } catch (error) {
+            console.error('Search failed:', error);
+            setSearchResults([]);
+        } finally {
+            setIsSearching(false);
+        }
+    }, [selectedFunds]);
+
+    const addFund = async (scheme: MutualFundScheme) => {
+        if (selectedFunds.length >= 4) return;
+
+        setLoadingFunds(prev => new Set(prev).add(scheme.schemeCode));
+        setSearchQuery('');
+        setSearchResults([]);
+        setIsSearchOpen(false);
+
+        try {
+            // Fetch latest NAV and metadata
+            const latestData: SchemeLatestResponse = await getSchemeLatestNAV(scheme.schemeCode);
+
+            // Calculate date ranges for returns
+            const today = new Date();
+            const oneMonthAgo = new Date(today);
+            oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+            const oneYearAgo = new Date(today);
+            oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+            const threeYearsAgo = new Date(today);
+            threeYearsAgo.setFullYear(threeYearsAgo.getFullYear() - 3);
+
+            const formatDate = (d: Date) =>
+                `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+            // Fetch historical data for returns calculation
+            let returns1M: number | null = null;
+            let returns1Y: number | null = null;
+            let returns3Y: number | null = null;
+
+            const currentNav = parseFloat(latestData.data[0].nav);
+
+            try {
+                // Get 3 years of history (covers all return periods)
+                const history = await getSchemeHistory(
+                    scheme.schemeCode,
+                    formatDate(threeYearsAgo),
+                    formatDate(today)
+                );
+
+                if (history.data && history.data.length > 0) {
+                    // Find NAV closest to 1 month ago
+                    const oneMonthData = history.data.find(d => {
+                        const navDate = new Date(d.date.split('-').reverse().join('-'));
+                        const diffDays = Math.abs((today.getTime() - navDate.getTime()) / (1000 * 60 * 60 * 24));
+                        return diffDays >= 28 && diffDays <= 35;
+                    });
+                    if (oneMonthData) {
+                        returns1M = calculateReturns(currentNav, parseFloat(oneMonthData.nav), 1 / 12);
+                    }
+
+                    // Find NAV closest to 1 year ago
+                    const oneYearData = history.data.find(d => {
+                        const navDate = new Date(d.date.split('-').reverse().join('-'));
+                        const diffDays = Math.abs((today.getTime() - navDate.getTime()) / (1000 * 60 * 60 * 24));
+                        return diffDays >= 360 && diffDays <= 370;
+                    });
+                    if (oneYearData) {
+                        returns1Y = calculateReturns(currentNav, parseFloat(oneYearData.nav), 1);
+                    }
+
+                    // Find NAV closest to 3 years ago
+                    const threeYearData = history.data.find(d => {
+                        const navDate = new Date(d.date.split('-').reverse().join('-'));
+                        const diffDays = Math.abs((today.getTime() - navDate.getTime()) / (1000 * 60 * 60 * 24));
+                        return diffDays >= 1090 && diffDays <= 1100;
+                    });
+                    if (threeYearData) {
+                        returns3Y = calculateReturns(currentNav, parseFloat(threeYearData.nav), 3);
+                    }
+                }
+            } catch (historyError) {
+                console.error('Failed to fetch history:', historyError);
+            }
+
+            const fundData: FundData = {
+                schemeCode: latestData.meta.scheme_code,
+                schemeName: latestData.meta.scheme_name,
+                fundHouse: latestData.meta.fund_house,
+                schemeCategory: latestData.meta.scheme_category,
+                schemeType: latestData.meta.scheme_type,
+                latestNav: currentNav,
+                navDate: latestData.data[0].date,
+                returns1M,
+                returns1Y,
+                returns3Y,
+                isinGrowth: latestData.meta.isin_growth,
+            };
+
+            setSelectedFunds(prev => [...prev, fundData]);
+        } catch (error) {
+            console.error('Failed to fetch fund data:', error);
+        } finally {
+            setLoadingFunds(prev => {
+                const next = new Set(prev);
+                next.delete(scheme.schemeCode);
+                return next;
+            });
         }
     };
 
-    const removeFund = (fundId: string) => {
-        setSelectedFunds(selectedFunds.filter(f => f.id !== fundId));
+    const removeFund = (schemeCode: number) => {
+        setSelectedFunds(selectedFunds.filter(f => f.schemeCode !== schemeCode));
     };
 
-    const getBestValue = (metricKey: string, highlightType?: string) => {
+    const getBestValue = (metricKey: string, highlightType?: 'high' | 'low') => {
         if (!highlightType || selectedFunds.length < 2) return null;
-        const values = selectedFunds.map(f => (f as Record<string, unknown>)[metricKey] as number);
+        const values = selectedFunds
+            .map(f => (f as Record<string, unknown>)[metricKey] as number)
+            .filter(v => v !== null && typeof v === 'number');
+        if (values.length === 0) return null;
         if (highlightType === 'high') return Math.max(...values);
         if (highlightType === 'low') return Math.min(...values);
         return null;
@@ -188,7 +205,7 @@ export default function CompareFundsPage() {
                         <h1 className="text-2xl font-bold">Fund Comparison Tool</h1>
                     </div>
                     <p className="text-[var(--text-secondary)]">
-                        Compare up to 4 mutual funds side by side to make informed investment decisions
+                        Compare up to 4 mutual funds side by side with real-time data from MFAPI.in
                     </p>
                 </header>
 
@@ -198,13 +215,13 @@ export default function CompareFundsPage() {
                         {/* Selected Funds */}
                         {selectedFunds.map((fund) => (
                             <div
-                                key={fund.id}
+                                key={fund.schemeCode}
                                 className="flex items-center gap-2 px-3 py-2 rounded-xl bg-[var(--accent-mint)]/10 border border-[var(--accent-mint)]/30"
                             >
-                                <span className="text-[var(--text-primary)] text-sm font-medium">{fund.fundHouse}</span>
-                                <span className="text-[var(--text-secondary)] text-xs">{fund.category}</span>
+                                <span className="text-[var(--text-primary)] text-sm font-medium">{fund.fundHouse.split(' ')[0]}</span>
+                                <span className="text-[var(--text-secondary)] text-xs">{fund.schemeCategory?.split(' - ')[0] || 'Fund'}</span>
                                 <button
-                                    onClick={() => removeFund(fund.id)}
+                                    onClick={() => removeFund(fund.schemeCode)}
                                     className="p-1 rounded-full hover:bg-[var(--accent-red)]/20 text-[var(--text-secondary)] hover:text-[var(--accent-red)] transition-colors"
                                 >
                                     <X size={14} />
@@ -212,8 +229,19 @@ export default function CompareFundsPage() {
                             </div>
                         ))}
 
+                        {/* Loading indicators for funds being added */}
+                        {Array.from(loadingFunds).map((code) => (
+                            <div
+                                key={code}
+                                className="flex items-center gap-2 px-3 py-2 rounded-xl bg-[var(--bg-hover)] border border-[var(--border-primary)]"
+                            >
+                                <Loader2 size={14} className="animate-spin text-[var(--accent-mint)]" />
+                                <span className="text-[var(--text-secondary)] text-sm">Loading...</span>
+                            </div>
+                        ))}
+
                         {/* Add Fund Button */}
-                        {selectedFunds.length < 4 && (
+                        {selectedFunds.length + loadingFunds.size < 4 && (
                             <div className="relative">
                                 <button
                                     onClick={() => setIsSearchOpen(!isSearchOpen)}
@@ -225,32 +253,45 @@ export default function CompareFundsPage() {
 
                                 {/* Search Dropdown */}
                                 {isSearchOpen && (
-                                    <div className="absolute top-full mt-2 left-0 w-80 bg-[var(--bg-secondary)] rounded-xl shadow-xl border border-[var(--border-primary)] z-50">
+                                    <div className="absolute top-full mt-2 left-0 w-96 bg-[var(--bg-secondary)] rounded-xl shadow-xl border border-[var(--border-primary)] z-50">
                                         <div className="p-3 border-b border-[var(--border-primary)]">
                                             <div className="relative">
                                                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-secondary)]" size={16} />
                                                 <input
                                                     type="text"
-                                                    placeholder="Search funds..."
+                                                    placeholder="Search by fund name (e.g., HDFC, SBI, Axis)..."
                                                     value={searchQuery}
-                                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                                    onChange={(e) => handleSearch(e.target.value)}
                                                     autoFocus
                                                     className="w-full pl-10 pr-4 py-2 bg-[var(--bg-input)] border border-[var(--border-primary)] rounded-lg text-[var(--text-primary)] text-sm placeholder-[var(--text-secondary)] focus:outline-none focus:border-[var(--accent-mint)]/50"
                                                 />
+                                                {isSearching && (
+                                                    <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 animate-spin text-[var(--accent-mint)]" size={16} />
+                                                )}
                                             </div>
                                         </div>
-                                        <div className="max-h-60 overflow-y-auto">
-                                            {searchQuery && searchResults.length === 0 ? (
+                                        <div className="max-h-72 overflow-y-auto">
+                                            {!searchQuery ? (
+                                                <p className="p-4 text-[var(--text-secondary)] text-sm text-center">
+                                                    Type at least 2 characters to search
+                                                </p>
+                                            ) : isSearching ? (
+                                                <div className="p-4 flex items-center justify-center gap-2">
+                                                    <Loader2 className="animate-spin text-[var(--accent-mint)]" size={20} />
+                                                    <span className="text-[var(--text-secondary)] text-sm">Searching...</span>
+                                                </div>
+                                            ) : searchResults.length === 0 ? (
                                                 <p className="p-4 text-[var(--text-secondary)] text-sm text-center">No funds found</p>
                                             ) : (
-                                                searchResults.map((fund) => (
+                                                searchResults.map((scheme) => (
                                                     <button
-                                                        key={fund.id}
-                                                        onClick={() => addFund(fund)}
-                                                        className="w-full p-3 text-left hover:bg-[var(--bg-hover)] transition-colors"
+                                                        key={scheme.schemeCode}
+                                                        onClick={() => addFund(scheme)}
+                                                        disabled={loadingFunds.has(scheme.schemeCode)}
+                                                        className="w-full p-3 text-left hover:bg-[var(--bg-hover)] transition-colors disabled:opacity-50"
                                                     >
-                                                        <p className="text-[var(--text-primary)] text-sm font-medium truncate">{fund.name}</p>
-                                                        <p className="text-[var(--text-secondary)] text-xs">{fund.category} • {fund.aum}</p>
+                                                        <p className="text-[var(--text-primary)] text-sm font-medium">{scheme.schemeName}</p>
+                                                        <p className="text-[var(--text-secondary)] text-xs">Code: {scheme.schemeCode}</p>
                                                     </button>
                                                 ))
                                             )}
@@ -267,61 +308,73 @@ export default function CompareFundsPage() {
                     <div className="glass-card rounded-2xl p-16 text-center">
                         <BarChart3 className="mx-auto text-[var(--text-secondary)] mb-4" size={64} />
                         <h3 className="text-[var(--text-primary)] font-semibold text-lg mb-2">No Funds Selected</h3>
-                        <p className="text-[var(--text-secondary)]">
+                        <p className="text-[var(--text-secondary)] mb-4">
                             Click &quot;Add Fund&quot; above to start comparing mutual funds
+                        </p>
+                        <p className="text-[var(--text-muted)] text-sm">
+                            All data is fetched live from MFAPI.in - no placeholders!
                         </p>
                     </div>
                 ) : (
                     <div className="glass-card rounded-2xl overflow-hidden">
-                        {/* Fund Names Header */}
-                        <div className="grid" style={{ gridTemplateColumns: `200px repeat(${selectedFunds.length}, 1fr)` }}>
-                            <div className="p-4 bg-[var(--bg-hover)] border-b border-r border-[var(--border-primary)]">
-                                <span className="text-[var(--text-secondary)] text-sm font-medium">Metric</span>
-                            </div>
-                            {selectedFunds.map((fund) => (
-                                <div key={fund.id} className="p-4 bg-[var(--bg-hover)] border-b border-[var(--border-primary)]">
-                                    <p className="text-[var(--text-primary)] font-semibold text-sm truncate">{fund.name}</p>
-                                    <p className="text-[var(--text-secondary)] text-xs">{fund.category}</p>
+                        <div className="overflow-x-auto">
+                            {/* Fund Names Header */}
+                            <div className="grid min-w-[600px]" style={{ gridTemplateColumns: `180px repeat(${selectedFunds.length}, minmax(180px, 1fr))` }}>
+                                <div className="p-4 bg-[var(--bg-hover)] border-b border-r border-[var(--border-primary)]">
+                                    <span className="text-[var(--text-secondary)] text-sm font-medium">Metric</span>
                                 </div>
-                            ))}
-                        </div>
-
-                        {/* Comparison Rows */}
-                        {comparisonMetrics.map((metric) => {
-                            const bestValue = getBestValue(metric.key, metric.highlight);
-                            return (
-                                <div
-                                    key={metric.key}
-                                    className="grid hover:bg-[var(--bg-hover)] transition-colors"
-                                    style={{ gridTemplateColumns: `200px repeat(${selectedFunds.length}, 1fr)` }}
-                                >
-                                    <div className="p-4 border-b border-r border-[var(--border-primary)]">
-                                        <span className="text-[var(--text-secondary)] text-sm">{metric.label}</span>
+                                {selectedFunds.map((fund) => (
+                                    <div key={fund.schemeCode} className="p-4 bg-[var(--bg-hover)] border-b border-[var(--border-primary)]">
+                                        <p className="text-[var(--text-primary)] font-semibold text-sm">{fund.schemeName}</p>
+                                        <p className="text-[var(--accent-mint)] text-xs mt-1">Code: {fund.schemeCode}</p>
                                     </div>
-                                    {selectedFunds.map((fund) => {
-                                        const value = (fund as Record<string, unknown>)[metric.key];
-                                        const isBest = bestValue !== null && value === bestValue;
-                                        const isReturn = metric.key.includes('returns');
-                                        const numValue = typeof value === 'number' ? value : 0;
+                                ))}
+                            </div>
 
-                                        return (
-                                            <div key={fund.id} className="p-4 border-b border-[var(--border-primary)]">
-                                                <span
-                                                    className={`text-sm font-medium ${isBest ? 'text-[var(--accent-mint)]' :
-                                                        isReturn && numValue > 0 ? 'text-[var(--accent-mint)]' :
-                                                            isReturn && numValue < 0 ? 'text-[var(--accent-red)]' :
-                                                                'text-[var(--text-primary)]'
-                                                        }`}
-                                                >
-                                                    {metric.format(value as never)}
-                                                    {isBest && <span className="ml-1">✓</span>}
-                                                </span>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                            );
-                        })}
+                            {/* Comparison Rows */}
+                            {comparisonMetrics.map((metric) => {
+                                const bestValue = getBestValue(metric.key, metric.highlight);
+                                return (
+                                    <div
+                                        key={metric.key}
+                                        className="grid hover:bg-[var(--bg-hover)] transition-colors min-w-[600px]"
+                                        style={{ gridTemplateColumns: `180px repeat(${selectedFunds.length}, minmax(180px, 1fr))` }}
+                                    >
+                                        <div className="p-4 border-b border-r border-[var(--border-primary)]">
+                                            <span className="text-[var(--text-secondary)] text-sm">{metric.label}</span>
+                                        </div>
+                                        {selectedFunds.map((fund) => {
+                                            const value = (fund as Record<string, unknown>)[metric.key];
+                                            const isBest = bestValue !== null && value === bestValue;
+                                            const isReturn = metric.key.includes('returns');
+                                            const numValue = typeof value === 'number' ? value : null;
+
+                                            return (
+                                                <div key={fund.schemeCode} className="p-4 border-b border-[var(--border-primary)]">
+                                                    <div className="flex items-center gap-1">
+                                                        {isReturn && numValue !== null && (
+                                                            numValue >= 0
+                                                                ? <TrendingUp size={14} className="text-[var(--accent-mint)]" />
+                                                                : <TrendingDown size={14} className="text-[var(--accent-red)]" />
+                                                        )}
+                                                        <span
+                                                            className={`text-sm font-medium ${isBest ? 'text-[var(--accent-mint)]' :
+                                                                isReturn && numValue !== null && numValue > 0 ? 'text-[var(--accent-mint)]' :
+                                                                    isReturn && numValue !== null && numValue < 0 ? 'text-[var(--accent-red)]' :
+                                                                        'text-[var(--text-primary)]'
+                                                                }`}
+                                                        >
+                                                            {metric.format(value)}
+                                                            {isBest && <span className="ml-1">✓</span>}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                );
+                            })}
+                        </div>
                     </div>
                 )}
             </main>

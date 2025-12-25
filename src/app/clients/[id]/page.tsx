@@ -233,7 +233,7 @@ export default function ClientDetailPage() {
                                             </div>
                                             <div>
                                                 <p className="text-[var(--text-primary)] text-sm font-medium">{inv.fundName}</p>
-                                                <p className="text-[var(--text-secondary)] text-xs">{inv.units.toLocaleString()} units @ ₹{inv.currentNav}</p>
+                                                <p className="text-[var(--text-secondary)] text-xs">{inv.units.toLocaleString()} units @ ₹{inv.currentNav} (26-12-2025 • Code: 123456)</p>
                                             </div>
                                         </div>
                                         <div className="col-span-2 flex flex-col items-end justify-center">

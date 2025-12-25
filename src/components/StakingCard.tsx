@@ -11,7 +11,7 @@ const upcomingSIPs = [
         amount: 50000,
         sipDate: '2024-12-28',
         daysUntil: 2,
-        color: '#10B981',
+        color: '#48cae4',
     },
     {
         id: 2,
@@ -78,9 +78,14 @@ export default function StakingCard() {
                         <Calendar size={18} className="text-[var(--accent-mint)]" />
                         <p className="text-[var(--text-secondary)] text-sm">Upcoming SIPs</p>
                     </div>
-                    <span className="text-[var(--text-secondary)] text-xs px-2 py-1 bg-[var(--bg-hover)] rounded-full">
-                        Next {upcomingSIPs.length} installments
-                    </span>
+                    <div className="flex items-center gap-2">
+                        <span className="text-[var(--accent-purple)] text-xs px-2 py-0.5 bg-[var(--accent-purple)]/10 rounded-full border border-[var(--accent-purple)]/20">
+                            Sample Data
+                        </span>
+                        <span className="text-[var(--text-secondary)] text-xs px-2 py-1 bg-[var(--bg-hover)] rounded-full">
+                            Next {upcomingSIPs.length}
+                        </span>
+                    </div>
                 </div>
                 <h2 className="text-2xl font-bold bg-gradient-to-r from-[var(--text-primary)] to-[var(--text-secondary)] bg-clip-text text-transparent">
                     {formatCurrency(totalUpcoming)}

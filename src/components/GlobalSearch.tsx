@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { Search, X, User, PiggyBank, Clock, FileText } from 'lucide-react';
+import { Search, X, User, PiggyBank, Clock, FileText, Loader2 } from 'lucide-react';
+import { searchSchemes, getSchemeLatestNAV, type MutualFundScheme } from '@/lib/mfapi';
 
 type SearchResultType = 'client' | 'fund' | 'transaction' | 'page';
 
@@ -14,27 +15,23 @@ interface SearchResult {
     href: string;
 }
 
-// Mock search data
-const searchData: SearchResult[] = [
-    // Clients
-    { id: 'c1', type: 'client', title: 'Rajesh Kumar', subtitle: 'CLT001 • ₹31.2L invested', href: '/clients/CLT001' },
-    { id: 'c2', type: 'client', title: 'Priya Sharma', subtitle: 'CLT002 • ₹18.5L invested', href: '/clients/CLT002' },
-    { id: 'c3', type: 'client', title: 'Amit Patel', subtitle: 'CLT003 • ₹45.8L invested', href: '/clients/CLT003' },
-    { id: 'c4', type: 'client', title: 'Sneha Reddy', subtitle: 'CLT004 • ₹22.3L invested', href: '/clients/CLT004' },
-    { id: 'c5', type: 'client', title: 'Vikram Singh', subtitle: 'CLT005 • ₹56.7L invested', href: '/clients/CLT005' },
-    // Funds
-    { id: 'f1', type: 'fund', title: 'HDFC Top 100 Fund', subtitle: 'Large Cap • NAV ₹892.45', href: '/mutual-funds?search=HDFC' },
-    { id: 'f2', type: 'fund', title: 'SBI Bluechip Fund', subtitle: 'Large Cap • NAV ₹78.32', href: '/mutual-funds?search=SBI' },
-    { id: 'f3', type: 'fund', title: 'Axis Small Cap Fund', subtitle: 'Small Cap • NAV ₹68.45', href: '/mutual-funds?search=Axis' },
-    { id: 'f4', type: 'fund', title: 'ICICI Prudential Liquid Fund', subtitle: 'Liquid • NAV ₹345.67', href: '/mutual-funds?search=ICICI' },
-    { id: 'f5', type: 'fund', title: 'Kotak Emerging Equity', subtitle: 'Mid Cap • NAV ₹89.75', href: '/mutual-funds?search=Kotak' },
+// Static search data (clients & pages - require database for real data)
+const staticSearchData: SearchResult[] = [
+    // Clients (Demo Data)
+    { id: 'c1', type: 'client', title: 'Rajesh Kumar', subtitle: 'CLT001 • Demo', href: '/clients/CLT001' },
+    { id: 'c2', type: 'client', title: 'Priya Sharma', subtitle: 'CLT002 • Demo', href: '/clients/CLT002' },
+    { id: 'c3', type: 'client', title: 'Amit Patel', subtitle: 'CLT003 • Demo', href: '/clients/CLT003' },
+    { id: 'c4', type: 'client', title: 'Sneha Reddy', subtitle: 'CLT004 • Demo', href: '/clients/CLT004' },
+    { id: 'c5', type: 'client', title: 'Vikram Singh', subtitle: 'CLT005 • Demo', href: '/clients/CLT005' },
     // Pages
     { id: 'p1', type: 'page', title: 'Dashboard', subtitle: 'Portfolio overview and analytics', href: '/' },
     { id: 'p2', type: 'page', title: 'Clients', subtitle: 'View and manage all clients', href: '/clients' },
     { id: 'p3', type: 'page', title: 'Manage Clients', subtitle: 'Add or remove clients', href: '/manage' },
     { id: 'p4', type: 'page', title: 'Portfolio', subtitle: 'All holdings and comparison', href: '/portfolio' },
     { id: 'p5', type: 'page', title: 'Mutual Funds', subtitle: 'Browse fund catalog', href: '/mutual-funds' },
-    { id: 'p6', type: 'page', title: 'History', subtitle: 'Activity logs and timeline', href: '/history' },
+    { id: 'p6', type: 'page', title: 'Fund Comparison', subtitle: 'Compare funds side by side', href: '/compare' },
+    { id: 'p7', type: 'page', title: 'History', subtitle: 'Activity logs and timeline', href: '/history' },
+    { id: 'p8', type: 'page', title: 'Help Center', subtitle: 'Guides and documentation', href: '/help' },
 ];
 
 const typeIcons: Record<SearchResultType, React.ElementType> = {
@@ -46,7 +43,7 @@ const typeIcons: Record<SearchResultType, React.ElementType> = {
 
 const typeLabels: Record<SearchResultType, string> = {
     client: 'Client',
-    fund: 'Fund',
+    fund: 'Fund (Live)',
     transaction: 'Transaction',
     page: 'Page',
 };
@@ -55,175 +52,262 @@ export default function GlobalSearch() {
     const [isOpen, setIsOpen] = useState(false);
     const [query, setQuery] = useState('');
     const [selectedIndex, setSelectedIndex] = useState(0);
+    const [fundResults, setFundResults] = useState<SearchResult[]>([]);
+    const [isLoadingFunds, setIsLoadingFunds] = useState(false);
     const inputRef = useRef<HTMLInputElement>(null);
     const router = useRouter();
 
-    const results = useMemo(() => {
-        if (!query.trim()) return [];
-        const lowerQuery = query.toLowerCase();
-        return searchData.filter(
-            item =>
-                item.title.toLowerCase().includes(lowerQuery) ||
-                item.subtitle.toLowerCase().includes(lowerQuery)
-        ).slice(0, 8);
+    // Search static data + live funds from API
+    const staticResults = query.trim()
+        ? staticSearchData.filter(
+            (item) =>
+                item.title.toLowerCase().includes(query.toLowerCase()) ||
+                item.subtitle.toLowerCase().includes(query.toLowerCase())
+        )
+        : [];
+
+    // Combine static and API results
+    const results = [...fundResults, ...staticResults];
+
+    // Fetch funds from MFAPI when query changes
+    const fetchFunds = useCallback(async (searchQuery: string) => {
+        if (!searchQuery.trim() || searchQuery.length < 2) {
+            setFundResults([]);
+            return;
+        }
+
+        setIsLoadingFunds(true);
+        try {
+            const schemes = await searchSchemes(searchQuery);
+            // Limit to top 8 results and fetch NAV for top 3
+            const topSchemes = schemes.slice(0, 8);
+
+            const fundSearchResults: SearchResult[] = await Promise.all(
+                topSchemes.map(async (scheme: MutualFundScheme, index: number) => {
+                    let subtitle = `Code: ${scheme.schemeCode}`;
+
+                    // Fetch NAV for top 3 results only (to avoid rate limiting)
+                    if (index < 3) {
+                        try {
+                            const navData = await getSchemeLatestNAV(scheme.schemeCode);
+                            const nav = parseFloat(navData.data[0].nav).toFixed(2);
+                            subtitle = `NAV: ₹${nav} (${navData.data[0].date}) • Code: ${scheme.schemeCode}`;
+                        } catch {
+                            // Use scheme code as fallback
+                        }
+                    }
+
+                    return {
+                        id: `fund-${scheme.schemeCode}`,
+                        type: 'fund' as SearchResultType,
+                        title: scheme.schemeName,
+                        subtitle,
+                        href: `/mutual-funds?search=${encodeURIComponent(scheme.schemeName.split(' ')[0])}`,
+                    };
+                })
+            );
+
+            setFundResults(fundSearchResults);
+        } catch (error) {
+            console.error('Fund search failed:', error);
+            setFundResults([]);
+        } finally {
+            setIsLoadingFunds(false);
+        }
+    }, []);
+
+    // Debounced fund search
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            if (query.length >= 2) {
+                fetchFunds(query);
+            } else {
+                setFundResults([]);
+            }
+        }, 300);
+
+        return () => clearTimeout(timer);
+    }, [query, fetchFunds]);
+
+    useEffect(() => {
+        setSelectedIndex(0);
     }, [query]);
 
-    // Keyboard shortcut to open search
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
+            // Open on Cmd/Ctrl + K
             if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
                 e.preventDefault();
                 setIsOpen(true);
             }
+            // Close on Escape
             if (e.key === 'Escape') {
                 setIsOpen(false);
+                setQuery('');
             }
         };
+
         document.addEventListener('keydown', handleKeyDown);
         return () => document.removeEventListener('keydown', handleKeyDown);
     }, []);
 
-    // Focus input when opened
     useEffect(() => {
         if (isOpen && inputRef.current) {
             inputRef.current.focus();
         }
     }, [isOpen]);
 
-    // Handle keyboard navigation
-    const handleKeyDown = (e: React.KeyboardEvent) => {
-        if (e.key === 'ArrowDown') {
-            e.preventDefault();
-            setSelectedIndex(prev => (prev < results.length - 1 ? prev + 1 : prev));
-        } else if (e.key === 'ArrowUp') {
-            e.preventDefault();
-            setSelectedIndex(prev => (prev > 0 ? prev - 1 : prev));
-        } else if (e.key === 'Enter' && results[selectedIndex]) {
-            router.push(results[selectedIndex].href);
-            setIsOpen(false);
-            setQuery('');
-        }
-    };
-
-    const handleSelect = (href: string) => {
-        router.push(href);
+    const handleSelect = (result: SearchResult) => {
+        router.push(result.href);
         setIsOpen(false);
         setQuery('');
     };
 
-    if (!isOpen) {
-        return (
-            <button
-                onClick={() => setIsOpen(true)}
-                className="w-full flex items-center justify-between gap-3 px-4 py-2.5 rounded-xl bg-[var(--bg-hover)] border border-[var(--border-primary)] text-[var(--text-secondary)] hover:border-[var(--border-hover)] transition-all"
-            >
-                <div className="flex items-center gap-2">
-                    <Search size={18} />
-                    <span className="text-sm">Search clients, funds, pages...</span>
-                </div>
-                <kbd className="hidden md:inline-flex items-center gap-1 px-2 py-1 rounded text-xs bg-[var(--bg-secondary)] border border-[var(--border-primary)]">
-                    ⌘K
-                </kbd>
-            </button>
-        );
-    }
+    const handleKeyDown = (e: React.KeyboardEvent) => {
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            setSelectedIndex((prev) => (prev < results.length - 1 ? prev + 1 : 0));
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            setSelectedIndex((prev) => (prev > 0 ? prev - 1 : results.length - 1));
+        } else if (e.key === 'Enter' && results[selectedIndex]) {
+            handleSelect(results[selectedIndex]);
+        }
+    };
 
     return (
         <>
-            {/* Backdrop */}
-            <div
-                className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50"
-                onClick={() => setIsOpen(false)}
-            />
+            {/* Search Trigger Button */}
+            <button
+                onClick={() => setIsOpen(true)}
+                className="flex items-center gap-2 px-4 py-2 bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl text-[var(--text-secondary)] hover:border-[var(--accent-mint)]/30 transition-all group"
+            >
+                <Search size={16} />
+                <span className="text-sm">Search...</span>
+                <kbd className="ml-2 px-2 py-0.5 bg-[var(--bg-hover)] rounded text-xs text-[var(--text-muted)] group-hover:text-[var(--accent-mint)]">
+                    ⌘K
+                </kbd>
+            </button>
 
-            {/* Search Modal */}
-            <div className="fixed top-[20%] left-1/2 -translate-x-1/2 w-full max-w-xl z-50">
-                <div className="bg-[var(--bg-secondary)] rounded-2xl shadow-2xl border border-[var(--border-primary)] overflow-hidden">
-                    {/* Search Input */}
-                    <div className="flex items-center gap-3 p-4 border-b border-[var(--border-primary)]">
-                        <Search size={20} className="text-[var(--text-secondary)]" />
-                        <input
-                            ref={inputRef}
-                            type="text"
-                            value={query}
-                            onChange={(e) => {
-                                setQuery(e.target.value);
-                                setSelectedIndex(0);
-                            }}
-                            onKeyDown={handleKeyDown}
-                            placeholder="Search clients, funds, pages..."
-                            className="flex-1 bg-transparent text-[var(--text-primary)] placeholder-[var(--text-secondary)] focus:outline-none text-lg"
-                        />
-                        <button
-                            onClick={() => setIsOpen(false)}
-                            className="p-1 rounded-lg hover:bg-[var(--bg-hover)] text-[var(--text-secondary)]"
-                        >
-                            <X size={18} />
-                        </button>
-                    </div>
-
-                    {/* Results */}
-                    {query && (
-                        <div className="max-h-80 overflow-y-auto">
-                            {results.length === 0 ? (
-                                <div className="p-8 text-center">
-                                    <p className="text-[var(--text-secondary)]">No results found for &quot;{query}&quot;</p>
-                                </div>
-                            ) : (
-                                <div className="py-2">
-                                    {results.map((result, index) => {
-                                        const Icon = typeIcons[result.type];
-                                        return (
-                                            <button
-                                                key={result.id}
-                                                onClick={() => handleSelect(result.href)}
-                                                className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors ${index === selectedIndex
-                                                    ? 'bg-[var(--accent-mint)]/10'
-                                                    : 'hover:bg-[var(--bg-hover)]'
-                                                    }`}
-                                            >
-                                                <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${result.type === 'client' ? 'bg-[var(--accent-blue)]/10' :
-                                                    result.type === 'fund' ? 'bg-[var(--accent-mint)]/10' :
-                                                        result.type === 'page' ? 'bg-[var(--accent-purple)]/10' :
-                                                            'bg-[var(--bg-hover)]'
-                                                    }`}>
-                                                    <Icon size={16} className={
-                                                        result.type === 'client' ? 'text-[var(--accent-blue)]' :
-                                                            result.type === 'fund' ? 'text-[var(--accent-mint)]' :
-                                                                result.type === 'page' ? 'text-[var(--accent-purple)]' :
-                                                                    'text-[var(--text-secondary)]'
-                                                    } />
-                                                </div>
-                                                <div className="flex-1 min-w-0">
-                                                    <p className="text-[var(--text-primary)] font-medium truncate">{result.title}</p>
-                                                    <p className="text-[var(--text-secondary)] text-xs truncate">{result.subtitle}</p>
-                                                </div>
-                                                <span className="text-[var(--text-muted)] text-xs">{typeLabels[result.type]}</span>
-                                            </button>
-                                        );
-                                    })}
-                                </div>
+            {/* Modal Overlay */}
+            {isOpen && (
+                <div
+                    className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-start justify-center pt-24"
+                    onClick={() => {
+                        setIsOpen(false);
+                        setQuery('');
+                    }}
+                >
+                    {/* Search Modal */}
+                    <div
+                        className="w-full max-w-xl bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-2xl shadow-2xl overflow-hidden"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        {/* Search Input */}
+                        <div className="flex items-center gap-3 p-4 border-b border-[var(--border-primary)]">
+                            <Search size={20} className="text-[var(--text-secondary)]" />
+                            <input
+                                ref={inputRef}
+                                type="text"
+                                placeholder="Search funds, clients, pages..."
+                                value={query}
+                                onChange={(e) => setQuery(e.target.value)}
+                                onKeyDown={handleKeyDown}
+                                className="flex-1 bg-transparent text-[var(--text-primary)] placeholder-[var(--text-secondary)] outline-none"
+                            />
+                            {isLoadingFunds && (
+                                <Loader2 size={16} className="animate-spin text-[var(--accent-mint)]" />
+                            )}
+                            {query && (
+                                <button
+                                    onClick={() => setQuery('')}
+                                    className="p-1 rounded-lg hover:bg-[var(--bg-hover)] text-[var(--text-secondary)]"
+                                >
+                                    <X size={16} />
+                                </button>
                             )}
                         </div>
-                    )}
 
-                    {/* Footer */}
-                    <div className="px-4 py-2 border-t border-[var(--border-primary)] flex items-center gap-4 text-xs text-[var(--text-muted)]">
-                        <span className="flex items-center gap-1">
-                            <kbd className="px-1.5 py-0.5 rounded bg-[var(--bg-hover)] border border-[var(--border-primary)]">↑↓</kbd>
-                            navigate
-                        </span>
-                        <span className="flex items-center gap-1">
-                            <kbd className="px-1.5 py-0.5 rounded bg-[var(--bg-hover)] border border-[var(--border-primary)]">↵</kbd>
-                            select
-                        </span>
-                        <span className="flex items-center gap-1">
-                            <kbd className="px-1.5 py-0.5 rounded bg-[var(--bg-hover)] border border-[var(--border-primary)]">esc</kbd>
-                            close
-                        </span>
+                        {/* Results */}
+                        {query && (
+                            <div className="max-h-80 overflow-y-auto">
+                                {results.length === 0 && !isLoadingFunds ? (
+                                    <div className="p-8 text-center">
+                                        <p className="text-[var(--text-secondary)]">No results found for &quot;{query}&quot;</p>
+                                    </div>
+                                ) : (
+                                    <div className="py-2">
+                                        {results.map((result, index) => {
+                                            const Icon = typeIcons[result.type];
+                                            return (
+                                                <button
+                                                    key={result.id}
+                                                    onClick={() => handleSelect(result)}
+                                                    className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors ${index === selectedIndex
+                                                        ? 'bg-[var(--accent-mint)]/10'
+                                                        : 'hover:bg-[var(--bg-hover)]'
+                                                        }`}
+                                                >
+                                                    <div
+                                                        className={`p-2 rounded-lg ${result.type === 'fund'
+                                                            ? 'bg-[var(--accent-mint)]/10'
+                                                            : 'bg-[var(--bg-hover)]'
+                                                            }`}
+                                                    >
+                                                        <Icon
+                                                            size={18}
+                                                            className={
+                                                                result.type === 'fund'
+                                                                    ? 'text-[var(--accent-mint)]'
+                                                                    : 'text-[var(--text-secondary)]'
+                                                            }
+                                                        />
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <p className="text-[var(--text-primary)] font-medium truncate">
+                                                            {result.title}
+                                                        </p>
+                                                        <p className="text-[var(--text-secondary)] text-sm truncate">
+                                                            {result.subtitle}
+                                                        </p>
+                                                    </div>
+                                                    <span
+                                                        className={`text-xs px-2 py-1 rounded-full ${result.type === 'fund'
+                                                            ? 'bg-[var(--accent-mint)]/10 text-[var(--accent-mint)]'
+                                                            : 'bg-[var(--bg-hover)] text-[var(--text-muted)]'
+                                                            }`}
+                                                    >
+                                                        {typeLabels[result.type]}
+                                                    </span>
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {/* Footer */}
+                        <div className="p-3 border-t border-[var(--border-primary)] flex items-center justify-between text-[var(--text-muted)] text-xs">
+                            <div className="flex items-center gap-4">
+                                <span className="flex items-center gap-1">
+                                    <kbd className="px-1.5 py-0.5 bg-[var(--bg-hover)] rounded">↑↓</kbd>
+                                    Navigate
+                                </span>
+                                <span className="flex items-center gap-1">
+                                    <kbd className="px-1.5 py-0.5 bg-[var(--bg-hover)] rounded">↵</kbd>
+                                    Select
+                                </span>
+                                <span className="flex items-center gap-1">
+                                    <kbd className="px-1.5 py-0.5 bg-[var(--bg-hover)] rounded">Esc</kbd>
+                                    Close
+                                </span>
+                            </div>
+                            <span className="text-[var(--accent-mint)]">Fund data from MFAPI.in</span>
+                        </div>
                     </div>
                 </div>
-            </div>
+            )}
         </>
     );
 }

@@ -13,6 +13,7 @@ import {
     Settings,
     HelpCircle,
     LogOut,
+    Newspaper,
 } from 'lucide-react';
 
 const menuItems = [
@@ -24,6 +25,7 @@ const menuItems = [
     { icon: PiggyBank, label: 'Mutual Funds', href: '/mutual-funds' },
     { icon: Clock, label: 'History', href: '/history' },
     { icon: Settings, label: 'Settings', href: '/settings' },
+    { icon: Newspaper, label: 'News', href: '/news' },
     { icon: HelpCircle, label: 'Help Center', href: '/help' },
 ];
 
@@ -35,7 +37,7 @@ export default function Sidebar() {
             {/* Logo */}
             <div className="mb-10">
                 <h1 className="text-xl font-bold text-[var(--text-primary)] tracking-tight">
-                    <span className="bg-gradient-to-r from-[var(--accent-mint)] to-[#34D399] bg-clip-text text-transparent">MF</span> Nexus
+                    <span className="bg-gradient-to-r from-[var(--accent-mint)] to-[#90e0ef] bg-clip-text text-transparent">MF</span> Nexus
                 </h1>
                 <p className="text-[var(--text-secondary)] text-xs mt-1">Mutual Fund Portfolio</p>
             </div>

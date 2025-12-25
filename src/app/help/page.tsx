@@ -23,7 +23,7 @@ const guides: Guide[] = [
         category: 'Beginner',
         duration: '5 min read',
         icon: Book,
-        color: '#10B981',
+        color: '#48cae4',
         steps: [
             'Navigate to "Manage Clients" from the sidebar',
             'Enter client details (name, email, phone)',
