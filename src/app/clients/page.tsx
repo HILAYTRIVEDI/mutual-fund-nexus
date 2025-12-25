@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { Search, Filter, TrendingUp, TrendingDown, Users, ChevronDown, X, Calendar, Download } from 'lucide-react';
+import { Search, Filter, TrendingUp, TrendingDown, Users, ChevronDown, X, Calendar, Download, Loader2 } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
 
 function formatDate(dateStr: string): string {
@@ -159,7 +159,7 @@ function formatCurrency(amount: number): string {
     return `₹${amount.toLocaleString('en-IN')}`;
 }
 
-export default function ClientsPage() {
+function ClientsPageContent() {
     const searchParams = useSearchParams();
     const [searchQuery, setSearchQuery] = useState('');
     const [fundHouseFilter, setFundHouseFilter] = useState('All');
@@ -522,9 +522,20 @@ export default function ClientsPage() {
                     )}
                 </div>
             </main>
-
             {/* Sidebar */}
             <Sidebar />
         </div>
+    );
+}
+
+export default function ClientsPage() {
+    return (
+        <Suspense fallback={
+            <div className="min-h-screen bg-[var(--bg-primary)] flex items-center justify-center">
+                <Loader2 className="animate-spin text-[var(--accent-mint)]" size={32} />
+            </div>
+        }>
+            <ClientsPageContent />
+        </Suspense>
     );
 }
