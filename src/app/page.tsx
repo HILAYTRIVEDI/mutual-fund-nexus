@@ -5,11 +5,11 @@ import DashboardHeader from '@/components/DashboardHeader';
 import AssetChartCard from '@/components/AssetChartCard';
 import DistributionCard from '@/components/DistributionCard';
 import PortfolioCard from '@/components/PortfolioCard';
-import MarketSnapshot from '@/components/MarketSnapshot';
-import MarketIndicesTracker from '@/components/MarketIndicesTracker';
+
 import ActivitySection from '@/components/ActivitySection';
 import StakingCard from '@/components/StakingCard';
 import MarketNewsCard from '@/components/MarketNewsCard';
+import MonthlySIPCard from '@/components/MonthlySIPCard';
 
 export default function Home() {
   return (
@@ -33,17 +33,16 @@ export default function Home() {
           {/* Row 2: Top Holdings (Full Width) */}
           <PortfolioCard />
 
-          {/* Row 3: Market Indices (Full Width) */}
-          <MarketIndicesTracker />
 
-          {/* Row 4: Top Performing Funds (Full Width) */}
-          <MarketSnapshot />
 
-          {/* Row 5: Activity + SIPs */}
+          {/* Row 4: Monthly SIP + Activity */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <MonthlySIPCard />
             <ActivitySection />
-            <StakingCard />
           </div>
+
+          {/* Row 5: Upcoming SIPs (Full Width) */}
+          <StakingCard />
 
           {/* Row 6: Market News (Full Width) */}
           <MarketNewsCard />

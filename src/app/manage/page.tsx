@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Search, Plus, Trash2, X, UserPlus, PiggyBank, Loader2, Check } from 'lucide-react';
+import { Search, Plus, Trash2, X, UserPlus, PiggyBank, Loader2, Check, Edit2 } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
 import { searchSchemes, type MutualFundScheme } from '@/lib/mfapi';
 
@@ -10,6 +10,7 @@ interface Client {
     name: string;
     email: string;
     phone: string;
+    panCard: string;
     portfolio: string;
     schemeCode: number;
     investmentType: 'SIP' | 'Lumpsum';
@@ -25,6 +26,7 @@ const initialClients: Client[] = [
         name: 'Rajesh Kumar',
         email: 'rajesh.kumar@email.com',
         phone: '+91 98765 43210',
+        panCard: 'ABCDE1234F',
         portfolio: 'HDFC Top 100 Fund',
         schemeCode: 125497,
         investmentType: 'SIP',
@@ -37,6 +39,7 @@ const initialClients: Client[] = [
         name: 'Priya Sharma',
         email: 'priya.sharma@email.com',
         phone: '+91 87654 32109',
+        panCard: 'FGHIJ5678K',
         portfolio: 'SBI Bluechip Fund',
         schemeCode: 119598,
         investmentType: 'Lumpsum',
@@ -62,12 +65,14 @@ export default function ManageClientsPage() {
     const [clients, setClients] = useState<Client[]>(initialClients);
     const [showAddModal, setShowAddModal] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
+    const [editingClient, setEditingClient] = useState<Client | null>(null);
 
     // Form state
     const [formData, setFormData] = useState({
         name: '',
         email: '',
         phone: '',
+        panCard: '',
         investmentType: 'SIP' as 'SIP' | 'Lumpsum',
         amount: '',
         sipAmount: '',
@@ -143,27 +148,66 @@ export default function ManageClientsPage() {
     };
 
     const handleAddClient = () => {
-        if (!formData.name || !formData.schemeCode || !formData.amount || !formData.startDate) {
+        if (!formData.name || !formData.schemeCode || !formData.amount || !formData.startDate || !formData.panCard) {
             alert('Please fill in all required fields');
             return;
         }
 
-        const newClient: Client = {
-            id: generateClientId(),
-            name: formData.name,
-            email: formData.email,
-            phone: formData.phone,
-            portfolio: formData.schemeName,
-            schemeCode: formData.schemeCode,
-            investmentType: formData.investmentType,
-            amount: parseFloat(formData.amount),
-            sipAmount: formData.investmentType === 'SIP' ? parseFloat(formData.sipAmount) : undefined,
-            startDate: formData.startDate,
-        };
+        if (editingClient) {
+            setClients(prev => prev.map(c =>
+                c.id === editingClient.id
+                    ? {
+                        ...c,
+                        name: formData.name,
+                        email: formData.email,
+                        phone: formData.phone,
+                        panCard: formData.panCard,
+                        portfolio: formData.schemeName,
+                        schemeCode: formData.schemeCode,
+                        investmentType: formData.investmentType,
+                        amount: parseFloat(formData.amount),
+                        sipAmount: formData.investmentType === 'SIP' ? parseFloat(formData.sipAmount) : undefined,
+                        startDate: formData.startDate,
+                    }
+                    : c
+            ));
+        } else {
+            const newClient: Client = {
+                id: generateClientId(),
+                name: formData.name,
+                email: formData.email,
+                phone: formData.phone,
+                panCard: formData.panCard,
+                portfolio: formData.schemeName,
+                schemeCode: formData.schemeCode,
+                investmentType: formData.investmentType,
+                amount: parseFloat(formData.amount),
+                sipAmount: formData.investmentType === 'SIP' ? parseFloat(formData.sipAmount) : undefined,
+                startDate: formData.startDate,
+            };
+            setClients(prev => [...prev, newClient]);
+        }
 
-        setClients(prev => [...prev, newClient]);
         setShowAddModal(false);
         resetForm();
+    };
+
+    const handleEditClient = (client: Client) => {
+        setEditingClient(client);
+        setFormData({
+            name: client.name,
+            email: client.email,
+            phone: client.phone,
+            panCard: client.panCard,
+            investmentType: client.investmentType,
+            amount: client.amount.toString(),
+            sipAmount: client.sipAmount?.toString() || '',
+            startDate: client.startDate,
+            schemeCode: client.schemeCode,
+            schemeName: client.portfolio,
+        });
+        setFundSearch(client.portfolio);
+        setShowAddModal(true);
     };
 
     const handleDeleteClient = (clientId: string) => {
@@ -177,6 +221,7 @@ export default function ManageClientsPage() {
             name: '',
             email: '',
             phone: '',
+            panCard: '',
             investmentType: 'SIP',
             amount: '',
             sipAmount: '',
@@ -186,6 +231,7 @@ export default function ManageClientsPage() {
         });
         setFundSearch('');
         setFundResults([]);
+        setEditingClient(null);
     };
 
     const filteredClients = clients.filter(client =>
@@ -266,12 +312,20 @@ export default function ManageClientsPage() {
                                                     <p className="text-[#9CA3AF] text-xs">{client.id}</p>
                                                 </div>
                                             </div>
-                                            <button
-                                                onClick={() => handleDeleteClient(client.id)}
-                                                className="p-2 rounded-lg bg-[#EF4444]/10 text-[#EF4444] hover:bg-[#EF4444]/20 transition-colors flex-shrink-0"
-                                            >
-                                                <Trash2 size={14} />
-                                            </button>
+                                            <div className="flex items-center gap-2">
+                                                <button
+                                                    onClick={() => handleEditClient(client)}
+                                                    className="p-2 rounded-lg bg-[#48cae4]/10 text-[#48cae4] hover:bg-[#48cae4]/20 transition-colors flex-shrink-0"
+                                                >
+                                                    <Edit2 size={14} />
+                                                </button>
+                                                <button
+                                                    onClick={() => handleDeleteClient(client.id)}
+                                                    className="p-2 rounded-lg bg-[#EF4444]/10 text-[#EF4444] hover:bg-[#EF4444]/20 transition-colors flex-shrink-0"
+                                                >
+                                                    <Trash2 size={14} />
+                                                </button>
+                                            </div>
                                         </div>
                                         <p className="text-white text-sm mb-3 line-clamp-2">{client.portfolio}</p>
                                         <div className="flex items-center justify-between text-xs">
@@ -328,6 +382,12 @@ export default function ManageClientsPage() {
                                         </div>
                                         <div className="col-span-2 flex items-center justify-center gap-2">
                                             <button
+                                                onClick={() => handleEditClient(client)}
+                                                className="p-2 rounded-lg bg-[#48cae4]/10 text-[#48cae4] hover:bg-[#48cae4]/20 transition-colors"
+                                            >
+                                                <Edit2 size={16} />
+                                            </button>
+                                            <button
                                                 onClick={() => handleDeleteClient(client.id)}
                                                 className="p-2 rounded-lg bg-[#EF4444]/10 text-[#EF4444] hover:bg-[#EF4444]/20 transition-colors"
                                             >
@@ -356,8 +416,12 @@ export default function ManageClientsPage() {
                                     <UserPlus size={20} className="text-[#48cae4]" />
                                 </div>
                                 <div>
-                                    <h2 className="text-white text-base md:text-lg font-semibold">Add New Client</h2>
-                                    <p className="text-[#9CA3AF] text-xs">Enter client investment details</p>
+                                    <h2 className="text-white text-base md:text-lg font-semibold">
+                                        {editingClient ? 'Edit Client' : 'Add New Client'}
+                                    </h2>
+                                    <p className="text-[#9CA3AF] text-xs">
+                                        {editingClient ? 'Update client investment details' : 'Enter client investment details'}
+                                    </p>
                                 </div>
                             </div>
                             <button
@@ -404,6 +468,19 @@ export default function ManageClientsPage() {
                                         className="w-full px-4 py-2.5 md:py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-[#9CA3AF] focus:outline-none focus:border-[#48cae4]/50 text-sm"
                                     />
                                 </div>
+                            </div>
+
+                            {/* PAN Card */}
+                            <div>
+                                <label className="text-[#9CA3AF] text-xs mb-2 block">PAN Card *</label>
+                                <input
+                                    type="text"
+                                    placeholder="ABCDE1234F"
+                                    value={formData.panCard}
+                                    onChange={(e) => setFormData(prev => ({ ...prev, panCard: e.target.value.toUpperCase() }))}
+                                    maxLength={10}
+                                    className="w-full px-4 py-2.5 md:py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-[#9CA3AF] focus:outline-none focus:border-[#48cae4]/50 text-sm"
+                                />
                             </div>
 
                             {/* Mutual Fund Search */}
@@ -523,7 +600,7 @@ export default function ManageClientsPage() {
                                 onClick={handleAddClient}
                                 className="flex-1 py-2.5 md:py-3 rounded-xl bg-gradient-to-r from-[#48cae4] to-[#90e0ef] text-white font-medium hover:shadow-lg hover:shadow-[#48cae4]/30 transition-all text-sm"
                             >
-                                Add Client
+                                {editingClient ? 'Update Client' : 'Add Client'}
                             </button>
                         </div>
                     </div>
