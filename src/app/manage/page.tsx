@@ -4,49 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { Search, Plus, Trash2, X, UserPlus, PiggyBank, Loader2, Check, Edit2 } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
 import { searchSchemes, type MutualFundScheme } from '@/lib/mfapi';
-
-interface Client {
-    id: string;
-    name: string;
-    email: string;
-    phone: string;
-    panCard: string;
-    portfolio: string;
-    schemeCode: number;
-    investmentType: 'SIP' | 'Lumpsum';
-    amount: number;
-    sipAmount?: number;
-    startDate: string;
-}
-
-// Mock initial clients data
-const initialClients: Client[] = [
-    {
-        id: 'CLT001',
-        name: 'Rajesh Kumar',
-        email: 'rajesh.kumar@email.com',
-        phone: '+91 98765 43210',
-        panCard: 'ABCDE1234F',
-        portfolio: 'HDFC Top 100 Fund',
-        schemeCode: 125497,
-        investmentType: 'SIP',
-        amount: 1500000,
-        sipAmount: 50000,
-        startDate: '2023-01-15',
-    },
-    {
-        id: 'CLT002',
-        name: 'Priya Sharma',
-        email: 'priya.sharma@email.com',
-        phone: '+91 87654 32109',
-        panCard: 'FGHIJ5678K',
-        portfolio: 'SBI Bluechip Fund',
-        schemeCode: 119598,
-        investmentType: 'Lumpsum',
-        amount: 2500000,
-        startDate: '2022-06-20',
-    },
-];
+import { useClientContext, type Client } from '@/context/ClientContext';
 
 function generateClientId(): string {
     return `CLT${String(Math.floor(Math.random() * 10000)).padStart(4, '0')}`;
@@ -62,7 +20,7 @@ function formatCurrency(amount: number): string {
 }
 
 export default function ManageClientsPage() {
-    const [clients, setClients] = useState<Client[]>(initialClients);
+    const { clients, addClient, updateClient, deleteClient } = useClientContext();
     const [showAddModal, setShowAddModal] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const [editingClient, setEditingClient] = useState<Client | null>(null);
@@ -73,6 +31,7 @@ export default function ManageClientsPage() {
         email: '',
         phone: '',
         panCard: '',
+        aadharCard: '',
         investmentType: 'SIP' as 'SIP' | 'Lumpsum',
         amount: '',
         sipAmount: '',
@@ -148,29 +107,26 @@ export default function ManageClientsPage() {
     };
 
     const handleAddClient = () => {
-        if (!formData.name || !formData.schemeCode || !formData.amount || !formData.startDate || !formData.panCard) {
+        if (!formData.name || !formData.schemeCode || !formData.amount || !formData.startDate || !formData.panCard || !formData.aadharCard) {
             alert('Please fill in all required fields');
             return;
         }
 
         if (editingClient) {
-            setClients(prev => prev.map(c =>
-                c.id === editingClient.id
-                    ? {
-                        ...c,
-                        name: formData.name,
-                        email: formData.email,
-                        phone: formData.phone,
-                        panCard: formData.panCard,
-                        portfolio: formData.schemeName,
-                        schemeCode: formData.schemeCode,
-                        investmentType: formData.investmentType,
-                        amount: parseFloat(formData.amount),
-                        sipAmount: formData.investmentType === 'SIP' ? parseFloat(formData.sipAmount) : undefined,
-                        startDate: formData.startDate,
-                    }
-                    : c
-            ));
+            updateClient({
+                ...editingClient,
+                name: formData.name,
+                email: formData.email,
+                phone: formData.phone,
+                panCard: formData.panCard,
+                aadharCard: formData.aadharCard,
+                portfolio: formData.schemeName,
+                schemeCode: formData.schemeCode,
+                investmentType: formData.investmentType,
+                amount: parseFloat(formData.amount),
+                sipAmount: formData.investmentType === 'SIP' ? parseFloat(formData.sipAmount) : undefined,
+                startDate: formData.startDate,
+            });
         } else {
             const newClient: Client = {
                 id: generateClientId(),
@@ -178,6 +134,7 @@ export default function ManageClientsPage() {
                 email: formData.email,
                 phone: formData.phone,
                 panCard: formData.panCard,
+                aadharCard: formData.aadharCard,
                 portfolio: formData.schemeName,
                 schemeCode: formData.schemeCode,
                 investmentType: formData.investmentType,
@@ -185,7 +142,7 @@ export default function ManageClientsPage() {
                 sipAmount: formData.investmentType === 'SIP' ? parseFloat(formData.sipAmount) : undefined,
                 startDate: formData.startDate,
             };
-            setClients(prev => [...prev, newClient]);
+            addClient(newClient);
         }
 
         setShowAddModal(false);
@@ -199,6 +156,7 @@ export default function ManageClientsPage() {
             email: client.email,
             phone: client.phone,
             panCard: client.panCard,
+            aadharCard: client.aadharCard,
             investmentType: client.investmentType,
             amount: client.amount.toString(),
             sipAmount: client.sipAmount?.toString() || '',
@@ -212,7 +170,7 @@ export default function ManageClientsPage() {
 
     const handleDeleteClient = (clientId: string) => {
         if (confirm('Are you sure you want to remove this client?')) {
-            setClients(prev => prev.filter(c => c.id !== clientId));
+            deleteClient(clientId);
         }
     };
 
@@ -222,6 +180,7 @@ export default function ManageClientsPage() {
             email: '',
             phone: '',
             panCard: '',
+            aadharCard: '',
             investmentType: 'SIP',
             amount: '',
             sipAmount: '',
@@ -470,17 +429,34 @@ export default function ManageClientsPage() {
                                 </div>
                             </div>
 
-                            {/* PAN Card */}
-                            <div>
-                                <label className="text-[#9CA3AF] text-xs mb-2 block">PAN Card *</label>
-                                <input
-                                    type="text"
-                                    placeholder="ABCDE1234F"
-                                    value={formData.panCard}
-                                    onChange={(e) => setFormData(prev => ({ ...prev, panCard: e.target.value.toUpperCase() }))}
-                                    maxLength={10}
-                                    className="w-full px-4 py-2.5 md:py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-[#9CA3AF] focus:outline-none focus:border-[#48cae4]/50 text-sm"
-                                />
+                            {/* PAN Card & Aadhar Card */}
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div>
+                                    <label className="text-[#9CA3AF] text-xs mb-2 block">PAN Card *</label>
+                                    <input
+                                        type="text"
+                                        placeholder="ABCDE1234F"
+                                        value={formData.panCard}
+                                        onChange={(e) => setFormData(prev => ({ ...prev, panCard: e.target.value.toUpperCase() }))}
+                                        maxLength={10}
+                                        className="w-full px-4 py-2.5 md:py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-[#9CA3AF] focus:outline-none focus:border-[#48cae4]/50 text-sm"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="text-[#9CA3AF] text-xs mb-2 block">Aadhar Card *</label>
+                                    <input
+                                        type="text"
+                                        placeholder="XXXX XXXX XXXX"
+                                        value={formData.aadharCard}
+                                        onChange={(e) => {
+                                            const val = e.target.value.replace(/\D/g, '').slice(0, 12);
+                                            // Format as 1234 5678 9012
+                                            const formatted = val.replace(/(\d{4})(?=\d)/g, '$1 ');
+                                            setFormData(prev => ({ ...prev, aadharCard: formatted }));
+                                        }}
+                                        className="w-full px-4 py-2.5 md:py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-[#9CA3AF] focus:outline-none focus:border-[#48cae4]/50 text-sm"
+                                    />
+                                </div>
                             </div>
 
                             {/* Mutual Fund Search */}

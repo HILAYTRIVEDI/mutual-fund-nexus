@@ -2,8 +2,9 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Mail, Phone, Calendar, PiggyBank, TrendingUp, TrendingDown, FileText, Edit, Trash2, Plus } from 'lucide-react';
+import { ArrowLeft, Mail, Phone, Calendar, PiggyBank, TrendingUp, TrendingDown, FileText, Edit, Trash2, Plus, Calculator } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
+import { useSettings } from '@/context/SettingsContext';
 
 // Mock client data - in production this would come from API/database
 const clientData = {
@@ -89,14 +90,43 @@ function formatDate(dateStr: string): string {
 }
 
 export default function ClientDetailPage() {
+    const { ltcgTax, stcgTax } = useSettings();
     const [activeTab, setActiveTab] = useState<'investments' | 'transactions' | 'notes'>('investments');
     const [notes, setNotes] = useState(clientData.notes);
+    const [showPostTax, setShowPostTax] = useState(false);
+
+    // Calculate returns for a single investment
+    const getInvestmentReturns = (inv: typeof clientInvestments[0]) => {
+        const grossReturnAmount = inv.currentValue - inv.investedAmount;
+        if (!showPostTax || grossReturnAmount <= 0) {
+            return {
+                returnAmount: grossReturnAmount,
+                returnPercentage: (grossReturnAmount / inv.investedAmount) * 100
+            };
+        }
+
+        const startDate = new Date(inv.startDate);
+        const oneYearAgo = new Date();
+        oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+
+        const isLongTerm = startDate < oneYearAgo;
+        const taxRate = isLongTerm ? ltcgTax : stcgTax;
+
+        const taxAmount = grossReturnAmount * (taxRate / 100);
+        const netReturnAmount = grossReturnAmount - taxAmount;
+
+        return {
+            returnAmount: netReturnAmount,
+            returnPercentage: (netReturnAmount / inv.investedAmount) * 100,
+            isLongTerm
+        };
+    };
 
     // Calculate totals
     const totalInvested = clientInvestments.reduce((sum, inv) => sum + inv.investedAmount, 0);
     const totalCurrent = clientInvestments.reduce((sum, inv) => sum + inv.currentValue, 0);
-    const totalReturns = totalCurrent - totalInvested;
-    const returnsPercentage = ((totalReturns / totalInvested) * 100).toFixed(2);
+    const totalReturns = clientInvestments.reduce((sum, inv) => sum + getInvestmentReturns(inv).returnAmount, 0);
+    const returnsPercentage = totalInvested > 0 ? ((totalReturns / totalInvested) * 100).toFixed(2) : '0.00';
 
     return (
         <div className="min-h-screen bg-[var(--bg-primary)] text-[var(--text-primary)] p-6 flex gap-6 transition-colors duration-300">
@@ -173,6 +203,18 @@ export default function ClientDetailPage() {
                 </div>
 
                 {/* Portfolio Summary */}
+                <div className="flex items-center justify-end mb-4">
+                    <button
+                        onClick={() => setShowPostTax(!showPostTax)}
+                        className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border transition-all ${showPostTax
+                                ? 'bg-[var(--accent-mint)]/10 border-[var(--accent-mint)]/20 text-[var(--accent-mint)]'
+                                : 'bg-[var(--bg-hover)] border-[var(--border-primary)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+                            }`}
+                    >
+                        <Calculator size={14} />
+                        <span className="text-xs font-medium">{showPostTax ? 'Post-Tax Returns' : 'Pre-Tax Returns'}</span>
+                    </button>
+                </div>
                 <div className="grid grid-cols-4 gap-4 mb-6">
                     <div className="glass-card rounded-2xl p-4 gradient-border">
                         <p className="text-[var(--text-secondary)] text-xs mb-1">Total Invested</p>
@@ -183,7 +225,7 @@ export default function ClientDetailPage() {
                         <p className="text-[var(--text-primary)] text-xl font-bold">{formatCurrency(totalCurrent)}</p>
                     </div>
                     <div className="glass-card rounded-2xl p-4 gradient-border">
-                        <p className="text-[var(--text-secondary)] text-xs mb-1">Total Returns</p>
+                        <p className="text-[var(--text-secondary)] text-xs mb-1">{showPostTax ? 'Net Returns' : 'Total Returns'}</p>
                         <p className={`text-xl font-bold ${totalReturns >= 0 ? 'text-[var(--accent-mint)]' : 'text-[var(--accent-red)]'}`}>
                             {totalReturns >= 0 ? '+' : ''}{formatCurrency(totalReturns)}
                         </p>
@@ -244,13 +286,18 @@ export default function ClientDetailPage() {
                                             <p className="text-[var(--text-primary)] text-sm font-medium">{formatCurrency(inv.currentValue)}</p>
                                         </div>
                                         <div className="col-span-2 flex flex-col items-end justify-center">
-                                            <p className={`text-sm font-medium flex items-center gap-1 ${inv.returns >= 0 ? 'text-[var(--accent-mint)]' : 'text-[var(--accent-red)]'}`}>
-                                                {inv.returns >= 0 ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
-                                                {inv.returns >= 0 ? '+' : ''}{inv.returns}%
+                                            <p className={`text-sm font-medium flex items-center gap-1 ${getInvestmentReturns(inv).returnPercentage >= 0 ? 'text-[var(--accent-mint)]' : 'text-[var(--accent-red)]'}`}>
+                                                {getInvestmentReturns(inv).returnPercentage >= 0 ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
+                                                {getInvestmentReturns(inv).returnPercentage >= 0 ? '+' : ''}{getInvestmentReturns(inv).returnPercentage.toFixed(2)}%
                                             </p>
-                                            <p className={`text-xs ${inv.returns >= 0 ? 'text-[var(--accent-mint)]' : 'text-[var(--accent-red)]'}`}>
-                                                {inv.returns >= 0 ? '+' : ''}{formatCurrency(inv.currentValue - inv.investedAmount)}
+                                            <p className={`text-xs ${getInvestmentReturns(inv).returnAmount >= 0 ? 'text-[var(--accent-mint)]' : 'text-[var(--accent-red)]'}`}>
+                                                {getInvestmentReturns(inv).returnAmount >= 0 ? '+' : ''}{formatCurrency(getInvestmentReturns(inv).returnAmount)}
                                             </p>
+                                            {showPostTax && (
+                                                <span className="text-[10px] text-[var(--text-secondary)] mt-0.5">
+                                                    {(new Date(inv.startDate) < new Date(new Date().setFullYear(new Date().getFullYear() - 1))) ? 'LTCG' : 'STCG'}
+                                                </span>
+                                            )}
                                         </div>
                                         <div className="col-span-2 flex items-center justify-center">
                                             <span className={`px-2 py-1 rounded text-xs font-medium ${inv.type === 'SIP' ? 'bg-[var(--accent-mint)]/10 text-[var(--accent-mint)]' : 'bg-[var(--accent-purple)]/10 text-[var(--accent-purple)]'

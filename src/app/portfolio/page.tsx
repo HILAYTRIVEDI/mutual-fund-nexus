@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { Search, TrendingUp, TrendingDown, PiggyBank, BarChart3, ArrowUpDown } from 'lucide-react';
+import { Search, TrendingUp, TrendingDown, PiggyBank, BarChart3, ArrowUpDown, Calculator } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
+import { useSettings } from '@/context/SettingsContext';
 
 interface PortfolioHolding {
     id: string;
@@ -19,6 +20,7 @@ interface PortfolioHolding {
     xirr: number;
     allocation: number;
     color: string;
+    investedDate: string; // Added for tax calculation
 }
 
 const portfolioHoldings: PortfolioHolding[] = [
@@ -37,6 +39,7 @@ const portfolioHoldings: PortfolioHolding[] = [
         xirr: 22.5,
         allocation: 28.5,
         color: '#48cae4',
+        investedDate: '2022-01-15', // Long Term
     },
     {
         id: '2',
@@ -53,6 +56,7 @@ const portfolioHoldings: PortfolioHolding[] = [
         xirr: 24.2,
         allocation: 13.9,
         color: '#3B82F6',
+        investedDate: '2021-06-20', // Long Term
     },
     {
         id: '3',
@@ -69,6 +73,7 @@ const portfolioHoldings: PortfolioHolding[] = [
         xirr: 6.8,
         allocation: 18.1,
         color: '#8B5CF6',
+        investedDate: '2024-08-10', // Short Term
     },
     {
         id: '4',
@@ -85,6 +90,7 @@ const portfolioHoldings: PortfolioHolding[] = [
         xirr: 35.2,
         allocation: 17.9,
         color: '#F59E0B',
+        investedDate: '2022-11-05', // Long Term
     },
     {
         id: '5',
@@ -101,6 +107,7 @@ const portfolioHoldings: PortfolioHolding[] = [
         xirr: 28.5,
         allocation: 13.3,
         color: '#EC4899',
+        investedDate: '2023-02-15', // Long Term
     },
     {
         id: '6',
@@ -117,6 +124,7 @@ const portfolioHoldings: PortfolioHolding[] = [
         xirr: 26.8,
         allocation: 10.5,
         color: '#6366F1',
+        investedDate: '2024-05-20', // Short Term
     },
 ];
 
@@ -133,9 +141,11 @@ type SortKey = 'fundName' | 'currentValue' | 'returnsPercentage' | 'xirr' | 'all
 type SortDirection = 'asc' | 'desc';
 
 export default function PortfolioPage() {
+    const { ltcgTax, stcgTax } = useSettings();
     const [searchQuery, setSearchQuery] = useState('');
     const [sortKey, setSortKey] = useState<SortKey>('allocation');
     const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
+    const [showPostTax, setShowPostTax] = useState(false);
 
     const handleSort = (key: SortKey) => {
         if (sortKey === key) {
@@ -166,10 +176,34 @@ export default function PortfolioPage() {
     }, [searchQuery, sortKey, sortDirection]);
 
     // Summary calculations
+    // Summary calculations with Tax logic
+    const calculateReturns = (holding: PortfolioHolding) => {
+        const grossReturns = holding.currentValue - holding.investedValue;
+        if (!showPostTax || grossReturns <= 0) return { returns: grossReturns, returnsPercentage: (grossReturns / holding.investedValue) * 100 };
+
+        // Determine tax rate
+        const purchaseDate = new Date(holding.investedDate);
+        const oneYearAgo = new Date();
+        oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+
+        const isLongTerm = purchaseDate < oneYearAgo;
+        const taxRate = isLongTerm ? ltcgTax : stcgTax;
+
+        const taxAmount = grossReturns * (taxRate / 100);
+        const netReturns = grossReturns - taxAmount;
+
+        return {
+            returns: netReturns,
+            returnsPercentage: (netReturns / holding.investedValue) * 100
+        };
+    };
+
     const totalInvested = portfolioHoldings.reduce((sum, h) => sum + h.investedValue, 0);
     const totalCurrent = portfolioHoldings.reduce((sum, h) => sum + h.currentValue, 0);
-    const totalReturns = totalCurrent - totalInvested;
-    const totalReturnsPercentage = ((totalReturns / totalInvested) * 100).toFixed(2);
+
+    // Calculate total adjusted returns
+    const totalAdjustedReturns = portfolioHoldings.reduce((sum, h) => sum + calculateReturns(h).returns, 0);
+    const totalReturnsPercentage = ((totalAdjustedReturns / totalInvested) * 100).toFixed(2);
 
     return (
         <div className="min-h-screen bg-[var(--bg-primary)] text-[var(--text-primary)] p-4 md:p-6 flex flex-col md:flex-row gap-4 md:gap-6 transition-colors duration-300">
@@ -184,9 +218,22 @@ export default function PortfolioPage() {
                                 Compare and analyze all your mutual fund investments
                             </p>
                         </div>
-                        <span className="text-[var(--accent-purple)] text-[10px] md:text-xs px-2 md:px-3 py-1 bg-[var(--accent-purple)]/10 rounded-full border border-[var(--accent-purple)]/20 self-start sm:self-auto whitespace-nowrap">
-                            Sample Data
-                        </span>
+                        <div className="flex items-center gap-3 self-start sm:self-auto">
+                            {/* Tax Toggle */}
+                            <button
+                                onClick={() => setShowPostTax(!showPostTax)}
+                                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border transition-all ${showPostTax
+                                        ? 'bg-[var(--accent-mint)]/10 border-[var(--accent-mint)]/20 text-[var(--accent-mint)]'
+                                        : 'bg-[var(--bg-hover)] border-[var(--border-primary)] text-[var(--text-secondary)]'
+                                    }`}
+                            >
+                                <Calculator size={14} />
+                                <span className="text-xs font-medium">{showPostTax ? 'Post-Tax' : 'Pre-Tax'}</span>
+                            </button>
+                            <span className="text-[var(--accent-purple)] text-[10px] md:text-xs px-2 md:px-3 py-1 bg-[var(--accent-purple)]/10 rounded-full border border-[var(--accent-purple)]/20 whitespace-nowrap">
+                                Sample Data
+                            </span>
+                        </div>
                     </div>
                 </header>
 
@@ -201,9 +248,11 @@ export default function PortfolioPage() {
                         <p className="text-[var(--text-primary)] text-lg md:text-xl font-bold">{formatCurrency(totalCurrent)}</p>
                     </div>
                     <div className="glass-card rounded-2xl p-3 md:p-4 gradient-border flex-shrink-0 w-[140px] md:w-auto">
-                        <p className="text-[var(--text-secondary)] text-[10px] md:text-xs mb-1">Total Returns</p>
-                        <p className={`text-lg md:text-xl font-bold ${totalReturns >= 0 ? 'text-[var(--accent-mint)]' : 'text-[var(--accent-red)]'}`}>
-                            {totalReturns >= 0 ? '+' : ''}{formatCurrency(totalReturns)}
+                        <p className="text-[var(--text-secondary)] text-[10px] md:text-xs mb-1">
+                            {showPostTax ? 'Returns (Post-Tax)' : 'Total Returns'}
+                        </p>
+                        <p className={`text-lg md:text-xl font-bold ${totalAdjustedReturns >= 0 ? 'text-[var(--accent-mint)]' : 'text-[var(--accent-red)]'}`}>
+                            {totalAdjustedReturns >= 0 ? '+' : ''}{formatCurrency(totalAdjustedReturns)}
                         </p>
                     </div>
                     <div className="glass-card rounded-2xl p-3 md:p-4 gradient-border flex-shrink-0 w-[140px] md:w-auto">
@@ -273,8 +322,8 @@ export default function PortfolioPage() {
                                 key={key}
                                 onClick={() => handleSort(key)}
                                 className={`px-2.5 py-1.5 rounded-lg text-xs whitespace-nowrap transition-colors ${sortKey === key
-                                        ? 'bg-[var(--accent-mint)]/20 text-[var(--accent-mint)]'
-                                        : 'bg-[var(--bg-primary)] text-[var(--text-secondary)]'
+                                    ? 'bg-[var(--accent-mint)]/20 text-[var(--accent-mint)]'
+                                    : 'bg-[var(--bg-primary)] text-[var(--text-secondary)]'
                                     }`}
                             >
                                 {key === 'allocation' ? 'Allocation' : key === 'returnsPercentage' ? 'Returns' : 'Value'}
@@ -310,6 +359,11 @@ export default function PortfolioPage() {
                                                     <span className="px-1.5 py-0.5 rounded text-[10px] bg-[var(--bg-hover)] text-[var(--text-secondary)]">
                                                         {holding.category}
                                                     </span>
+                                                    {showPostTax && (
+                                                        <span className="px-1.5 py-0.5 rounded text-[10px] bg-[var(--bg-hover)] text-[var(--text-secondary)]">
+                                                            Tax: {(new Date(holding.investedDate) < new Date(new Date().setFullYear(new Date().getFullYear() - 1))) ? 'LTCG' : 'STCG'}
+                                                        </span>
+                                                    )}
                                                 </div>
                                             </div>
                                         </div>
@@ -324,10 +378,10 @@ export default function PortfolioPage() {
                                                 <p className="text-[var(--text-primary)] font-medium">{formatCurrency(holding.currentValue)}</p>
                                             </div>
                                             <div>
-                                                <p className="text-[var(--text-secondary)] mb-1">Returns</p>
-                                                <div className={`flex items-center gap-1 ${holding.returnsPercentage >= 0 ? 'text-[var(--accent-mint)]' : 'text-[var(--accent-red)]'}`}>
-                                                    {holding.returnsPercentage >= 0 ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
-                                                    <span className="font-medium">{holding.returnsPercentage >= 0 ? '+' : ''}{holding.returnsPercentage.toFixed(2)}%</span>
+                                                <p className="text-[var(--text-secondary)] mb-1">{showPostTax ? 'Net Returns' : 'Returns'}</p>
+                                                <div className={`flex items-center gap-1 ${calculateReturns(holding).returnsPercentage >= 0 ? 'text-[var(--accent-mint)]' : 'text-[var(--accent-red)]'}`}>
+                                                    {calculateReturns(holding).returnsPercentage >= 0 ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
+                                                    <span className="font-medium">{calculateReturns(holding).returnsPercentage >= 0 ? '+' : ''}{calculateReturns(holding).returnsPercentage.toFixed(2)}%</span>
                                                 </div>
                                             </div>
                                             <div className="text-right">
@@ -385,13 +439,18 @@ export default function PortfolioPage() {
 
                                         {/* Returns */}
                                         <div className="col-span-2 flex flex-col items-end justify-center">
-                                            <div className={`flex items-center gap-1 ${holding.returnsPercentage >= 0 ? 'text-[var(--accent-mint)]' : 'text-[var(--accent-red)]'}`}>
-                                                {holding.returnsPercentage >= 0 ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
-                                                <span className="text-sm font-medium">{holding.returnsPercentage >= 0 ? '+' : ''}{holding.returnsPercentage.toFixed(2)}%</span>
+                                            <div className={`flex items-center gap-1 ${calculateReturns(holding).returnsPercentage >= 0 ? 'text-[var(--accent-mint)]' : 'text-[var(--accent-red)]'}`}>
+                                                {calculateReturns(holding).returnsPercentage >= 0 ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
+                                                <span className="text-sm font-medium">{calculateReturns(holding).returnsPercentage >= 0 ? '+' : ''}{calculateReturns(holding).returnsPercentage.toFixed(2)}%</span>
                                             </div>
-                                            <p className={`text-xs ${holding.returns >= 0 ? 'text-[var(--accent-mint)]' : 'text-[var(--accent-red)]'}`}>
-                                                {holding.returns >= 0 ? '+' : ''}{formatCurrency(holding.returns)}
+                                            <p className={`text-xs ${calculateReturns(holding).returns >= 0 ? 'text-[var(--accent-mint)]' : 'text-[var(--accent-red)]'}`}>
+                                                {calculateReturns(holding).returns >= 0 ? '+' : ''}{formatCurrency(calculateReturns(holding).returns)}
                                             </p>
+                                            {showPostTax && (
+                                                <span className="text-[10px] text-[var(--text-secondary)] mt-0.5">
+                                                    {(new Date(holding.investedDate) < new Date(new Date().setFullYear(new Date().getFullYear() - 1))) ? 'LTCG' : 'STCG'}
+                                                </span>
+                                            )}
                                         </div>
 
                                         {/* Allocation */}

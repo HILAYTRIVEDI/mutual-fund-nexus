@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/context/ThemeContext";
+import { ClientProvider } from "@/context/ClientContext";
+import { SettingsProvider } from "@/context/SettingsContext";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -28,7 +30,11 @@ export default function RootLayout({
     <html lang="en" data-theme="dark" suppressHydrationWarning>
       <body className={`${inter.variable} antialiased`}>
         <ThemeProvider>
-          {children}
+          <SettingsProvider>
+            <ClientProvider>
+              {children}
+            </ClientProvider>
+          </SettingsProvider>
         </ThemeProvider>
       </body>
     </html>
