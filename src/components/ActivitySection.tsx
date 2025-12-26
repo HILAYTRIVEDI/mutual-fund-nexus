@@ -57,48 +57,48 @@ const transactions = [
 
 export default function ActivitySection() {
     return (
-        <div className="glass-card rounded-2xl p-6 gradient-border relative overflow-hidden transition-colors duration-300">
+        <div className="glass-card rounded-2xl p-4 md:p-6 gradient-border relative overflow-hidden transition-colors duration-300">
             {/* Gradient overlay */}
             <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent-mint)]/5 via-transparent to-[var(--accent-purple)]/5 pointer-events-none" />
 
-            <div className="flex items-center justify-between mb-4 relative z-10">
-                <h3 className="text-[var(--text-primary)] font-semibold">Recent Transactions</h3>
-                <button className="text-[var(--accent-mint)] text-sm font-medium hover:underline hover:text-[var(--accent-mint)] transition-colors">
+            <div className="flex items-center justify-between mb-3 md:mb-4 relative z-10">
+                <h3 className="text-[var(--text-primary)] font-semibold text-sm md:text-base">Recent Transactions</h3>
+                <button className="text-[var(--accent-mint)] text-xs md:text-sm font-medium hover:underline hover:text-[var(--accent-mint)] transition-colors">
                     View All
                 </button>
             </div>
 
-            <div className="space-y-3 relative z-10">
+            <div className="space-y-2 md:space-y-3 relative z-10">
                 {transactions.map((tx) => (
                     <div
                         key={tx.id}
-                        className="flex items-center justify-between p-3 rounded-xl hover:bg-gradient-to-r hover:from-[var(--bg-hover)] hover:to-transparent transition-all duration-300 group"
+                        className="flex items-center justify-between p-2.5 md:p-3 rounded-xl hover:bg-gradient-to-r hover:from-[var(--bg-hover)] hover:to-transparent transition-all duration-300 group"
                     >
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-2.5 md:gap-3">
                             <div
-                                className={`w-10 h-10 rounded-full flex items-center justify-center transition-transform group-hover:scale-110 ${tx.isPositive
-                                        ? 'bg-gradient-to-br from-[var(--accent-mint)]/20 to-[var(--accent-mint)]/5 shadow-lg shadow-[var(--accent-mint)]/20'
-                                        : 'bg-gradient-to-br from-[var(--accent-red)]/20 to-[var(--accent-red)]/5 shadow-lg shadow-[var(--accent-red)]/20'
+                                className={`w-8 h-8 md:w-10 md:h-10 rounded-full flex items-center justify-center transition-transform group-hover:scale-110 ${tx.isPositive
+                                    ? 'bg-gradient-to-br from-[var(--accent-mint)]/20 to-[var(--accent-mint)]/5 shadow-lg shadow-[var(--accent-mint)]/20'
+                                    : 'bg-gradient-to-br from-[var(--accent-red)]/20 to-[var(--accent-red)]/5 shadow-lg shadow-[var(--accent-red)]/20'
                                     }`}
                             >
                                 <tx.icon
-                                    size={18}
-                                    className={tx.isPositive ? 'text-[var(--accent-mint)]' : 'text-[var(--accent-red)]'}
+                                    size={14}
+                                    className={`md:w-[18px] md:h-[18px] ${tx.isPositive ? 'text-[var(--accent-mint)]' : 'text-[var(--accent-red)]'}`}
                                 />
                             </div>
                             <div>
-                                <p className="text-[var(--text-primary)] text-sm font-medium">{tx.type}</p>
-                                <p className="text-[var(--text-secondary)] text-xs">{tx.fund}</p>
+                                <p className="text-[var(--text-primary)] text-xs md:text-sm font-medium">{tx.type}</p>
+                                <p className="text-[var(--text-secondary)] text-[10px] md:text-xs">{tx.fund}</p>
                             </div>
                         </div>
                         <div className="text-right">
                             <p
-                                className={`text-sm font-medium ${tx.isPositive ? 'text-[var(--accent-mint)]' : 'text-[var(--accent-red)]'
+                                className={`text-xs md:text-sm font-medium ${tx.isPositive ? 'text-[var(--accent-mint)]' : 'text-[var(--accent-red)]'
                                     }`}
                             >
                                 {tx.amount}
                             </p>
-                            <p className="text-[var(--text-secondary)] text-xs">{tx.time}</p>
+                            <p className="text-[var(--text-secondary)] text-[10px] md:text-xs">{tx.time}</p>
                         </div>
                     </div>
                 ))}

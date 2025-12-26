@@ -134,16 +134,16 @@ export default function MarketIndicesTracker() {
     const marketStatus = new Date().getHours() >= 9 && new Date().getHours() < 16 ? 'Market Open' : 'Market Closed';
 
     return (
-        <div className="glass-card rounded-2xl p-6 gradient-border relative overflow-hidden transition-colors duration-300">
+        <div className="glass-card rounded-2xl p-4 md:p-6 gradient-border relative overflow-hidden transition-colors duration-300">
             {/* Gradient overlay */}
             <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent-blue)]/5 via-transparent to-[var(--accent-mint)]/5 pointer-events-none" />
 
             {/* Header */}
-            <div className="flex items-center justify-between mb-4 relative z-10">
-                <div className="flex items-center gap-2">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4 relative z-10">
+                <div className="flex items-center gap-2 flex-wrap">
                     <Activity size={18} className="text-[var(--accent-blue)]" />
-                    <h3 className="text-[var(--text-primary)] font-semibold">Market Indices</h3>
-                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${marketStatus === 'Market Open'
+                    <h3 className="text-[var(--text-primary)] font-semibold text-sm md:text-base">Market Indices</h3>
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] md:text-xs font-medium ${marketStatus === 'Market Open'
                         ? 'bg-[var(--accent-mint)]/10 text-[var(--accent-mint)]'
                         : 'bg-[var(--accent-red)]/10 text-[var(--accent-red)]'
                         }`}>
@@ -165,42 +165,42 @@ export default function MarketIndicesTracker() {
                 </div>
             </div>
 
-            {/* Indices Grid */}
-            <div className="grid grid-cols-3 gap-4 relative z-10">
+            {/* Indices Grid - Responsive */}
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-2 md:gap-4 relative z-10">
                 {indices.map((index) => {
                     const isPositive = index.change >= 0;
                     return (
                         <div
                             key={index.id}
-                            className="p-4 rounded-xl bg-[var(--bg-hover)] border border-[var(--border-primary)] hover:border-[var(--accent-mint)]/30 transition-all cursor-pointer group"
+                            className="p-3 md:p-4 rounded-xl bg-[var(--bg-hover)] border border-[var(--border-primary)] hover:border-[var(--accent-mint)]/30 transition-all cursor-pointer group"
                         >
                             {/* Header */}
-                            <div className="flex items-center justify-between mb-2">
-                                <div className="flex items-center gap-2">
+                            <div className="flex items-center justify-between mb-1 md:mb-2">
+                                <div className="flex items-center gap-1.5 md:gap-2">
                                     <div
-                                        className="w-2 h-2 rounded-full"
+                                        className="w-1.5 h-1.5 md:w-2 md:h-2 rounded-full"
                                         style={{ backgroundColor: index.color }}
                                     />
-                                    <span className="text-[var(--text-secondary)] text-xs font-medium">{index.symbol}</span>
+                                    <span className="text-[var(--text-secondary)] text-[10px] md:text-xs font-medium">{index.symbol}</span>
                                 </div>
                                 {isPositive ? (
-                                    <TrendingUp size={14} className="text-[var(--accent-mint)]" />
+                                    <TrendingUp size={12} className="md:w-3.5 md:h-3.5 text-[var(--accent-mint)]" />
                                 ) : (
-                                    <TrendingDown size={14} className="text-[var(--accent-red)]" />
+                                    <TrendingDown size={12} className="md:w-3.5 md:h-3.5 text-[var(--accent-red)]" />
                                 )}
                             </div>
 
                             {/* Value */}
-                            <p className="text-[var(--text-primary)] text-lg font-bold mb-1">
+                            <p className="text-[var(--text-primary)] text-sm md:text-lg font-bold mb-0.5 md:mb-1 truncate">
                                 {formatNumber(index.value)}
                             </p>
 
                             {/* Change */}
-                            <div className="flex items-center gap-2">
-                                <span className={`text-sm font-medium ${isPositive ? 'text-[var(--accent-mint)]' : 'text-[var(--accent-red)]'}`}>
+                            <div className="flex flex-wrap items-center gap-1 md:gap-2">
+                                <span className={`text-xs md:text-sm font-medium ${isPositive ? 'text-[var(--accent-mint)]' : 'text-[var(--accent-red)]'}`}>
                                     {isPositive ? '+' : ''}{formatNumber(index.change)}
                                 </span>
-                                <span className={`text-xs px-1.5 py-0.5 rounded ${isPositive
+                                <span className={`text-[10px] md:text-xs px-1 md:px-1.5 py-0.5 rounded ${isPositive
                                     ? 'bg-[var(--accent-mint)]/10 text-[var(--accent-mint)]'
                                     : 'bg-[var(--accent-red)]/10 text-[var(--accent-red)]'
                                     }`}>
@@ -208,8 +208,8 @@ export default function MarketIndicesTracker() {
                                 </span>
                             </div>
 
-                            {/* Day Range (shown on hover) */}
-                            <div className="mt-3 pt-3 border-t border-[var(--border-primary)] opacity-0 group-hover:opacity-100 transition-opacity">
+                            {/* Day Range (shown on hover - hidden on mobile) */}
+                            <div className="hidden md:block mt-3 pt-3 border-t border-[var(--border-primary)] opacity-0 group-hover:opacity-100 transition-opacity">
                                 <div className="flex items-center justify-between text-xs">
                                     <span className="text-[var(--text-secondary)]">L: {formatNumber(index.dayLow)}</span>
                                     <span className="text-[var(--text-secondary)]">H: {formatNumber(index.dayHigh)}</span>
@@ -230,8 +230,8 @@ export default function MarketIndicesTracker() {
             </div>
 
             {/* Footer */}
-            <div className="mt-4 pt-4 border-t border-[var(--border-primary)] relative z-10">
-                <p className="text-[var(--text-muted)] text-xs text-center">
+            <div className="mt-3 md:mt-4 pt-3 md:pt-4 border-t border-[var(--border-primary)] relative z-10">
+                <p className="text-[var(--text-muted)] text-[10px] md:text-xs text-center">
                     Data is indicative and refreshes every 30 seconds. For real-time data, connect to NSE/BSE APIs.
                 </p>
             </div>

@@ -71,32 +71,32 @@ export default function AssetChartCard() {
     const periodChange = ((endValue - startValue) / startValue * 100).toFixed(1);
 
     return (
-        <div className="glass-card rounded-2xl p-6 col-span-2 gradient-border mint-glow relative overflow-hidden transition-colors duration-300">
+        <div className="glass-card rounded-2xl p-4 md:p-6 col-span-1 lg:col-span-2 gradient-border mint-glow relative overflow-hidden transition-colors duration-300">
             {/* Gradient overlay */}
             <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent-mint)]/10 via-transparent to-[var(--accent-purple)]/5 pointer-events-none" />
 
             {/* Header */}
-            <div className="flex items-center justify-between mb-6 relative z-10">
+            <div className="flex items-start md:items-center justify-between mb-4 md:mb-6 relative z-10">
                 <div>
-                    <p className="text-[var(--text-secondary)] text-sm mb-1">Portfolio Value (AUM)</p>
-                    <div className="flex items-baseline gap-3">
-                        <h2 className="text-3xl font-bold text-[var(--text-primary)]">₹{aumInfo.current} Cr</h2>
-                        <span className="text-[var(--text-secondary)] text-lg">INR</span>
+                    <p className="text-[var(--text-secondary)] text-xs md:text-sm mb-1">Portfolio Value (AUM)</p>
+                    <div className="flex items-baseline gap-2 md:gap-3">
+                        <h2 className="text-2xl md:text-3xl font-bold text-[var(--text-primary)]">₹{aumInfo.current} Cr</h2>
+                        <span className="text-[var(--text-secondary)] text-sm md:text-lg">INR</span>
                     </div>
                 </div>
-                <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-[var(--accent-mint)]/10 border border-[var(--accent-mint)]/20">
-                    <span className="text-[var(--accent-mint)] text-sm font-medium">+{periodChange}%</span>
-                    <span className="text-[var(--text-secondary)] text-xs">{activeFilter}</span>
+                <div className="flex items-center gap-1.5 md:gap-2 px-2 md:px-3 py-1 md:py-1.5 rounded-full bg-[var(--accent-mint)]/10 border border-[var(--accent-mint)]/20">
+                    <span className="text-[var(--accent-mint)] text-xs md:text-sm font-medium">+{periodChange}%</span>
+                    <span className="text-[var(--text-secondary)] text-[10px] md:text-xs">{activeFilter}</span>
                 </div>
             </div>
 
             {/* Time Filters */}
-            <div className="flex gap-2 mb-6 relative z-10">
+            <div className="flex gap-1.5 md:gap-2 mb-4 md:mb-6 relative z-10">
                 {timeFilters.map((filter) => (
                     <button
                         key={filter}
                         onClick={() => setActiveFilter(filter)}
-                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${activeFilter === filter
+                        className={`px-2.5 md:px-4 py-1.5 md:py-2 rounded-lg text-xs md:text-sm font-medium transition-all duration-200 ${activeFilter === filter
                             ? 'bg-gradient-to-r from-[var(--accent-mint)]/20 to-[var(--accent-mint)]/10 text-[var(--accent-mint)] border border-[var(--accent-mint)]/30 shadow-lg shadow-[var(--accent-mint)]/10'
                             : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]'
                             }`}
@@ -107,7 +107,7 @@ export default function AssetChartCard() {
             </div>
 
             {/* Chart */}
-            <div className="h-[200px] relative z-10">
+            <div className="h-[160px] md:h-[200px] relative z-10">
                 <ResponsiveContainer width="100%" height="100%">
                     <AreaChart data={chartData}>
                         <defs>
@@ -126,13 +126,14 @@ export default function AssetChartCard() {
                             dataKey="name"
                             axisLine={false}
                             tickLine={false}
-                            tick={{ fill: 'var(--text-secondary)', fontSize: 12 }}
+                            tick={{ fill: 'var(--text-secondary)', fontSize: 10 }}
                         />
                         <YAxis
                             axisLine={false}
                             tickLine={false}
-                            tick={{ fill: 'var(--text-secondary)', fontSize: 12 }}
+                            tick={{ fill: 'var(--text-secondary)', fontSize: 10 }}
                             tickFormatter={(value) => `₹${(value / 10000000).toFixed(1)}Cr`}
+                            width={55}
                         />
                         <Tooltip
                             contentStyle={{

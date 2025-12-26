@@ -172,66 +172,66 @@ export default function PortfolioPage() {
     const totalReturnsPercentage = ((totalReturns / totalInvested) * 100).toFixed(2);
 
     return (
-        <div className="min-h-screen bg-[var(--bg-primary)] text-[var(--text-primary)] p-6 flex gap-6 transition-colors duration-300">
+        <div className="min-h-screen bg-[var(--bg-primary)] text-[var(--text-primary)] p-4 md:p-6 flex flex-col md:flex-row gap-4 md:gap-6 transition-colors duration-300">
             {/* Main Content */}
-            <main className="flex-1">
+            <main className="flex-1 min-w-0">
                 {/* Header */}
-                <header className="mb-6">
-                    <div className="flex items-center justify-between">
+                <header className="mb-4 md:mb-6">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pr-12 md:pr-0">
                         <div>
-                            <h1 className="text-2xl font-bold">Portfolio Holdings</h1>
-                            <p className="text-[var(--text-secondary)] text-sm">
+                            <h1 className="text-xl md:text-2xl font-bold">Portfolio Holdings</h1>
+                            <p className="text-[var(--text-secondary)] text-xs md:text-sm">
                                 Compare and analyze all your mutual fund investments
                             </p>
                         </div>
-                        <span className="text-[var(--accent-purple)] text-xs px-3 py-1 bg-[var(--accent-purple)]/10 rounded-full border border-[var(--accent-purple)]/20">
-                            Sample Data • Connect database for real portfolio
+                        <span className="text-[var(--accent-purple)] text-[10px] md:text-xs px-2 md:px-3 py-1 bg-[var(--accent-purple)]/10 rounded-full border border-[var(--accent-purple)]/20 self-start sm:self-auto whitespace-nowrap">
+                            Sample Data
                         </span>
                     </div>
                 </header>
 
-                {/* Summary Cards */}
-                <div className="grid grid-cols-4 gap-4 mb-6">
-                    <div className="glass-card rounded-2xl p-4 gradient-border">
-                        <p className="text-[var(--text-secondary)] text-xs mb-1">Total Invested</p>
-                        <p className="text-[var(--text-primary)] text-xl font-bold">{formatCurrency(totalInvested)}</p>
+                {/* Summary Cards - Scrollable on mobile */}
+                <div className="flex md:grid md:grid-cols-4 gap-3 md:gap-4 mb-4 md:mb-6 overflow-x-auto pb-2 md:pb-0 -mx-4 px-4 md:mx-0 md:px-0">
+                    <div className="glass-card rounded-2xl p-3 md:p-4 gradient-border flex-shrink-0 w-[140px] md:w-auto">
+                        <p className="text-[var(--text-secondary)] text-[10px] md:text-xs mb-1">Total Invested</p>
+                        <p className="text-[var(--text-primary)] text-lg md:text-xl font-bold">{formatCurrency(totalInvested)}</p>
                     </div>
-                    <div className="glass-card rounded-2xl p-4 gradient-border">
-                        <p className="text-[var(--text-secondary)] text-xs mb-1">Current Value</p>
-                        <p className="text-[var(--text-primary)] text-xl font-bold">{formatCurrency(totalCurrent)}</p>
+                    <div className="glass-card rounded-2xl p-3 md:p-4 gradient-border flex-shrink-0 w-[140px] md:w-auto">
+                        <p className="text-[var(--text-secondary)] text-[10px] md:text-xs mb-1">Current Value</p>
+                        <p className="text-[var(--text-primary)] text-lg md:text-xl font-bold">{formatCurrency(totalCurrent)}</p>
                     </div>
-                    <div className="glass-card rounded-2xl p-4 gradient-border">
-                        <p className="text-[var(--text-secondary)] text-xs mb-1">Total Returns</p>
-                        <p className={`text-xl font-bold ${totalReturns >= 0 ? 'text-[var(--accent-mint)]' : 'text-[var(--accent-red)]'}`}>
+                    <div className="glass-card rounded-2xl p-3 md:p-4 gradient-border flex-shrink-0 w-[140px] md:w-auto">
+                        <p className="text-[var(--text-secondary)] text-[10px] md:text-xs mb-1">Total Returns</p>
+                        <p className={`text-lg md:text-xl font-bold ${totalReturns >= 0 ? 'text-[var(--accent-mint)]' : 'text-[var(--accent-red)]'}`}>
                             {totalReturns >= 0 ? '+' : ''}{formatCurrency(totalReturns)}
                         </p>
                     </div>
-                    <div className="glass-card rounded-2xl p-4 gradient-border">
-                        <p className="text-[var(--text-secondary)] text-xs mb-1">Overall Returns %</p>
-                        <p className={`text-xl font-bold ${parseFloat(totalReturnsPercentage) >= 0 ? 'text-[var(--accent-mint)]' : 'text-[var(--accent-red)]'}`}>
+                    <div className="glass-card rounded-2xl p-3 md:p-4 gradient-border flex-shrink-0 w-[140px] md:w-auto">
+                        <p className="text-[var(--text-secondary)] text-[10px] md:text-xs mb-1">Overall Returns %</p>
+                        <p className={`text-lg md:text-xl font-bold ${parseFloat(totalReturnsPercentage) >= 0 ? 'text-[var(--accent-mint)]' : 'text-[var(--accent-red)]'}`}>
                             {parseFloat(totalReturnsPercentage) >= 0 ? '+' : ''}{totalReturnsPercentage}%
                         </p>
                     </div>
                 </div>
 
                 {/* Search */}
-                <div className="glass-card rounded-2xl p-4 mb-6">
+                <div className="glass-card rounded-2xl p-3 md:p-4 mb-4 md:mb-6">
                     <div className="relative">
-                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-secondary)]" size={20} />
+                        <Search className="absolute left-3 md:left-4 top-1/2 -translate-y-1/2 text-[var(--text-secondary)]" size={18} />
                         <input
                             type="text"
                             placeholder="Search by fund name, house, or category..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            className="w-full pl-12 pr-4 py-3 bg-[var(--bg-input)] border border-[var(--border-primary)] rounded-xl text-[var(--text-primary)] placeholder-[var(--text-secondary)] focus:outline-none focus:border-[var(--accent-mint)]/50 transition-all"
+                            className="w-full pl-10 md:pl-12 pr-4 py-2.5 md:py-3 bg-[var(--bg-input)] border border-[var(--border-primary)] rounded-xl text-[var(--text-primary)] placeholder-[var(--text-secondary)] focus:outline-none focus:border-[var(--accent-mint)]/50 transition-all text-sm"
                         />
                     </div>
                 </div>
 
-                {/* Holdings Table */}
+                {/* Holdings List */}
                 <div className="glass-card rounded-2xl overflow-hidden">
-                    {/* Table Header */}
-                    <div className="grid grid-cols-12 gap-4 p-4 bg-[var(--bg-hover)] border-b border-[var(--border-primary)]">
+                    {/* Desktop Table Header */}
+                    <div className="hidden lg:grid grid-cols-12 gap-4 p-4 bg-[var(--bg-hover)] border-b border-[var(--border-primary)]">
                         <button
                             onClick={() => handleSort('fundName')}
                             className="col-span-4 flex items-center gap-1 text-[var(--text-secondary)] text-xs font-medium uppercase hover:text-[var(--text-primary)]"
@@ -265,74 +265,147 @@ export default function PortfolioPage() {
                         </button>
                     </div>
 
-                    {/* Table Body */}
+                    {/* Mobile Sort Options */}
+                    <div className="lg:hidden flex items-center gap-2 p-3 bg-[var(--bg-hover)] border-b border-[var(--border-primary)] overflow-x-auto">
+                        <span className="text-[var(--text-secondary)] text-xs whitespace-nowrap">Sort:</span>
+                        {(['allocation', 'returnsPercentage', 'currentValue'] as SortKey[]).map((key) => (
+                            <button
+                                key={key}
+                                onClick={() => handleSort(key)}
+                                className={`px-2.5 py-1.5 rounded-lg text-xs whitespace-nowrap transition-colors ${sortKey === key
+                                        ? 'bg-[var(--accent-mint)]/20 text-[var(--accent-mint)]'
+                                        : 'bg-[var(--bg-primary)] text-[var(--text-secondary)]'
+                                    }`}
+                            >
+                                {key === 'allocation' ? 'Allocation' : key === 'returnsPercentage' ? 'Returns' : 'Value'}
+                            </button>
+                        ))}
+                    </div>
+
+                    {/* Empty State */}
                     {filteredAndSortedHoldings.length === 0 ? (
-                        <div className="flex flex-col items-center justify-center py-16">
-                            <BarChart3 className="text-[var(--text-secondary)] mb-3" size={48} />
-                            <p className="text-[var(--text-secondary)]">No holdings found</p>
+                        <div className="flex flex-col items-center justify-center py-12 md:py-16">
+                            <BarChart3 className="text-[var(--text-secondary)] mb-3" size={40} />
+                            <p className="text-[var(--text-secondary)] text-sm">No holdings found</p>
                         </div>
                     ) : (
                         <div className="divide-y divide-[var(--border-primary)]">
                             {filteredAndSortedHoldings.map((holding) => (
-                                <div
-                                    key={holding.id}
-                                    className="grid grid-cols-12 gap-4 p-4 hover:bg-[var(--bg-hover)] transition-all group"
-                                >
-                                    {/* Fund Info */}
-                                    <div className="col-span-4 flex items-center gap-3">
-                                        <div
-                                            className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
-                                            style={{
-                                                background: `linear-gradient(135deg, ${holding.color}30, ${holding.color}10)`,
-                                            }}
-                                        >
-                                            <PiggyBank size={18} style={{ color: holding.color }} />
+                                <div key={holding.id}>
+                                    {/* Mobile Card View */}
+                                    <div className="lg:hidden p-4 hover:bg-[var(--bg-hover)] transition-all">
+                                        <div className="flex items-start gap-3 mb-3">
+                                            <div
+                                                className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
+                                                style={{
+                                                    background: `linear-gradient(135deg, ${holding.color}30, ${holding.color}10)`,
+                                                }}
+                                            >
+                                                <PiggyBank size={18} style={{ color: holding.color }} />
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <p className="text-[var(--text-primary)] font-medium text-sm line-clamp-2">{holding.fundName}</p>
+                                                <div className="flex items-center gap-2 mt-1">
+                                                    <span className="text-[var(--text-secondary)] text-xs">{holding.fundHouse}</span>
+                                                    <span className="px-1.5 py-0.5 rounded text-[10px] bg-[var(--bg-hover)] text-[var(--text-secondary)]">
+                                                        {holding.category}
+                                                    </span>
+                                                </div>
+                                            </div>
                                         </div>
-                                        <div className="min-w-0">
-                                            <p className="text-[var(--text-primary)] font-medium text-sm truncate">{holding.fundName}</p>
-                                            <div className="flex items-center gap-2">
-                                                <span className="text-[var(--text-secondary)] text-xs">{holding.fundHouse}</span>
-                                                <span className="px-1.5 py-0.5 rounded text-xs bg-[var(--bg-hover)] text-[var(--text-secondary)]">
-                                                    {holding.category}
-                                                </span>
+
+                                        <div className="grid grid-cols-2 gap-3 text-xs">
+                                            <div>
+                                                <p className="text-[var(--text-secondary)] mb-1">Invested</p>
+                                                <p className="text-[var(--text-primary)] font-medium">{formatCurrency(holding.investedValue)}</p>
+                                            </div>
+                                            <div className="text-right">
+                                                <p className="text-[var(--text-secondary)] mb-1">Current</p>
+                                                <p className="text-[var(--text-primary)] font-medium">{formatCurrency(holding.currentValue)}</p>
+                                            </div>
+                                            <div>
+                                                <p className="text-[var(--text-secondary)] mb-1">Returns</p>
+                                                <div className={`flex items-center gap-1 ${holding.returnsPercentage >= 0 ? 'text-[var(--accent-mint)]' : 'text-[var(--accent-red)]'}`}>
+                                                    {holding.returnsPercentage >= 0 ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
+                                                    <span className="font-medium">{holding.returnsPercentage >= 0 ? '+' : ''}{holding.returnsPercentage.toFixed(2)}%</span>
+                                                </div>
+                                            </div>
+                                            <div className="text-right">
+                                                <p className="text-[var(--text-secondary)] mb-1">Allocation</p>
+                                                <div className="flex items-center justify-end gap-2">
+                                                    <span className="text-[var(--text-primary)] font-medium">{holding.allocation}%</span>
+                                                    <div className="w-12 h-1.5 bg-[var(--bg-hover)] rounded-full overflow-hidden">
+                                                        <div
+                                                            className="h-full rounded-full"
+                                                            style={{
+                                                                width: `${holding.allocation}%`,
+                                                                backgroundColor: holding.color
+                                                            }}
+                                                        />
+                                                    </div>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
 
-                                    {/* Invested */}
-                                    <div className="col-span-2 flex flex-col items-end justify-center">
-                                        <p className="text-[var(--text-primary)] text-sm">{formatCurrency(holding.investedValue)}</p>
-                                        <p className="text-[var(--text-secondary)] text-xs">{holding.units.toLocaleString()} units</p>
-                                    </div>
-
-                                    {/* Current Value */}
-                                    <div className="col-span-2 flex flex-col items-end justify-center">
-                                        <p className="text-[var(--text-primary)] text-sm font-medium">{formatCurrency(holding.currentValue)}</p>
-                                        <p className="text-[var(--text-secondary)] text-xs">NAV: ₹{holding.currentNav.toFixed(2)} (26-12-2025 • Code: 123456)</p>
-                                    </div>
-
-                                    {/* Returns */}
-                                    <div className="col-span-2 flex flex-col items-end justify-center">
-                                        <div className={`flex items-center gap-1 ${holding.returnsPercentage >= 0 ? 'text-[var(--accent-mint)]' : 'text-[var(--accent-red)]'}`}>
-                                            {holding.returnsPercentage >= 0 ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
-                                            <span className="text-sm font-medium">{holding.returnsPercentage >= 0 ? '+' : ''}{holding.returnsPercentage.toFixed(2)}%</span>
-                                        </div>
-                                        <p className={`text-xs ${holding.returns >= 0 ? 'text-[var(--accent-mint)]' : 'text-[var(--accent-red)]'}`}>
-                                            {holding.returns >= 0 ? '+' : ''}{formatCurrency(holding.returns)}
-                                        </p>
-                                    </div>
-
-                                    {/* Allocation */}
-                                    <div className="col-span-2 flex flex-col items-end justify-center">
-                                        <p className="text-[var(--text-primary)] text-sm font-medium">{holding.allocation}%</p>
-                                        <div className="w-16 h-1.5 bg-[var(--bg-hover)] rounded-full mt-1 overflow-hidden">
+                                    {/* Desktop Table Row */}
+                                    <div className="hidden lg:grid grid-cols-12 gap-4 p-4 hover:bg-[var(--bg-hover)] transition-all group">
+                                        {/* Fund Info */}
+                                        <div className="col-span-4 flex items-center gap-3">
                                             <div
-                                                className="h-full rounded-full"
+                                                className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
                                                 style={{
-                                                    width: `${holding.allocation}%`,
-                                                    backgroundColor: holding.color
+                                                    background: `linear-gradient(135deg, ${holding.color}30, ${holding.color}10)`,
                                                 }}
-                                            />
+                                            >
+                                                <PiggyBank size={18} style={{ color: holding.color }} />
+                                            </div>
+                                            <div className="min-w-0">
+                                                <p className="text-[var(--text-primary)] font-medium text-sm truncate">{holding.fundName}</p>
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-[var(--text-secondary)] text-xs">{holding.fundHouse}</span>
+                                                    <span className="px-1.5 py-0.5 rounded text-xs bg-[var(--bg-hover)] text-[var(--text-secondary)]">
+                                                        {holding.category}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* Invested */}
+                                        <div className="col-span-2 flex flex-col items-end justify-center">
+                                            <p className="text-[var(--text-primary)] text-sm">{formatCurrency(holding.investedValue)}</p>
+                                            <p className="text-[var(--text-secondary)] text-xs">{holding.units.toLocaleString()} units</p>
+                                        </div>
+
+                                        {/* Current Value */}
+                                        <div className="col-span-2 flex flex-col items-end justify-center">
+                                            <p className="text-[var(--text-primary)] text-sm font-medium">{formatCurrency(holding.currentValue)}</p>
+                                            <p className="text-[var(--text-secondary)] text-xs">NAV: ₹{holding.currentNav.toFixed(2)}</p>
+                                        </div>
+
+                                        {/* Returns */}
+                                        <div className="col-span-2 flex flex-col items-end justify-center">
+                                            <div className={`flex items-center gap-1 ${holding.returnsPercentage >= 0 ? 'text-[var(--accent-mint)]' : 'text-[var(--accent-red)]'}`}>
+                                                {holding.returnsPercentage >= 0 ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
+                                                <span className="text-sm font-medium">{holding.returnsPercentage >= 0 ? '+' : ''}{holding.returnsPercentage.toFixed(2)}%</span>
+                                            </div>
+                                            <p className={`text-xs ${holding.returns >= 0 ? 'text-[var(--accent-mint)]' : 'text-[var(--accent-red)]'}`}>
+                                                {holding.returns >= 0 ? '+' : ''}{formatCurrency(holding.returns)}
+                                            </p>
+                                        </div>
+
+                                        {/* Allocation */}
+                                        <div className="col-span-2 flex flex-col items-end justify-center">
+                                            <p className="text-[var(--text-primary)] text-sm font-medium">{holding.allocation}%</p>
+                                            <div className="w-16 h-1.5 bg-[var(--bg-hover)] rounded-full mt-1 overflow-hidden">
+                                                <div
+                                                    className="h-full rounded-full"
+                                                    style={{
+                                                        width: `${holding.allocation}%`,
+                                                        backgroundColor: holding.color
+                                                    }}
+                                                />
+                                            </div>
                                         </div>
                                     </div>
                                 </div>

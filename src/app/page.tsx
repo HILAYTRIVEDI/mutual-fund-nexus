@@ -13,9 +13,9 @@ import MarketNewsCard from '@/components/MarketNewsCard';
 
 export default function Home() {
   return (
-    <div className="min-h-screen bg-[var(--bg-primary)] text-[var(--text-primary)] p-6 flex gap-6 transition-colors duration-300">
-      {/* Main Content Area - Left Side */}
-      <main className="flex-1">
+    <div className="min-h-screen bg-[var(--bg-primary)] text-[var(--text-primary)] p-4 md:p-6 flex flex-col md:flex-row gap-4 md:gap-6 transition-colors duration-300">
+      {/* Main Content Area */}
+      <main className="flex-1 min-w-0">
         {/* Header with Quick Stats, Theme Toggle, Notifications */}
         <DashboardHeader
           title="Dashboard"
@@ -25,7 +25,7 @@ export default function Home() {
         {/* Bento Grid Layout */}
         <div className="space-y-4">
           {/* Row 1: Asset Chart + Distribution */}
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
             <AssetChartCard />
             <DistributionCard />
           </div>
@@ -40,7 +40,7 @@ export default function Home() {
           <MarketSnapshot />
 
           {/* Row 5: Activity + SIPs */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <ActivitySection />
             <StakingCard />
           </div>
@@ -50,10 +50,8 @@ export default function Home() {
         </div>
       </main>
 
-      {/* Sidebar - Right Side */}
+      {/* Sidebar - Right Side (Desktop Only - Mobile uses drawer) */}
       <Sidebar />
     </div>
   );
 }
-
-

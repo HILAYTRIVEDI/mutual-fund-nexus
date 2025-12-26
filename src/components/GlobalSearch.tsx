@@ -133,6 +133,18 @@ export default function GlobalSearch() {
         setSelectedIndex(0);
     }, [query]);
 
+    // Lock body scroll on mobile when search is open
+    useEffect(() => {
+        if (isOpen) {
+            document.body.style.overflow = 'hidden';
+        } else {
+            document.body.style.overflow = '';
+        }
+        return () => {
+            document.body.style.overflow = '';
+        };
+    }, [isOpen]);
+
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
             // Open on Cmd/Ctrl + K
@@ -180,11 +192,11 @@ export default function GlobalSearch() {
             {/* Search Trigger Button */}
             <button
                 onClick={() => setIsOpen(true)}
-                className="flex items-center gap-2 px-4 py-2 bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl text-[var(--text-secondary)] hover:border-[var(--accent-mint)]/30 transition-all group"
+                className="w-full flex items-center gap-2 px-3 md:px-4 py-2 md:py-2.5 bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl text-[var(--text-secondary)] hover:border-[var(--accent-mint)]/30 transition-all group"
             >
                 <Search size={16} />
-                <span className="text-sm">Search...</span>
-                <kbd className="ml-2 px-2 py-0.5 bg-[var(--bg-hover)] rounded text-xs text-[var(--text-muted)] group-hover:text-[var(--accent-mint)]">
+                <span className="text-sm flex-1 text-left">Search...</span>
+                <kbd className="hidden sm:inline-block ml-2 px-2 py-0.5 bg-[var(--bg-hover)] rounded text-xs text-[var(--text-muted)] group-hover:text-[var(--accent-mint)]">
                     ⌘K
                 </kbd>
             </button>
@@ -192,7 +204,7 @@ export default function GlobalSearch() {
             {/* Modal Overlay */}
             {isOpen && (
                 <div
-                    className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-start justify-center pt-24"
+                    className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-start justify-center pt-8 md:pt-24 px-4"
                     onClick={() => {
                         setIsOpen(false);
                         setQuery('');
@@ -200,12 +212,12 @@ export default function GlobalSearch() {
                 >
                     {/* Search Modal */}
                     <div
-                        className="w-full max-w-xl bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-2xl shadow-2xl overflow-hidden"
+                        className="w-full max-w-xl bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-2xl shadow-2xl overflow-hidden max-h-[80vh] flex flex-col"
                         onClick={(e) => e.stopPropagation()}
                     >
                         {/* Search Input */}
-                        <div className="flex items-center gap-3 p-4 border-b border-[var(--border-primary)]">
-                            <Search size={20} className="text-[var(--text-secondary)]" />
+                        <div className="flex items-center gap-3 p-3 md:p-4 border-b border-[var(--border-primary)]">
+                            <Search size={18} className="text-[var(--text-secondary)] flex-shrink-0" />
                             <input
                                 ref={inputRef}
                                 type="text"
@@ -213,15 +225,15 @@ export default function GlobalSearch() {
                                 value={query}
                                 onChange={(e) => setQuery(e.target.value)}
                                 onKeyDown={handleKeyDown}
-                                className="flex-1 bg-transparent text-[var(--text-primary)] placeholder-[var(--text-secondary)] outline-none"
+                                className="flex-1 bg-transparent text-[var(--text-primary)] placeholder-[var(--text-secondary)] outline-none text-sm md:text-base"
                             />
                             {isLoadingFunds && (
-                                <Loader2 size={16} className="animate-spin text-[var(--accent-mint)]" />
+                                <Loader2 size={16} className="animate-spin text-[var(--accent-mint)] flex-shrink-0" />
                             )}
                             {query && (
                                 <button
                                     onClick={() => setQuery('')}
-                                    className="p-1 rounded-lg hover:bg-[var(--bg-hover)] text-[var(--text-secondary)]"
+                                    className="p-1 rounded-lg hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] flex-shrink-0"
                                 >
                                     <X size={16} />
                                 </button>
@@ -230,10 +242,10 @@ export default function GlobalSearch() {
 
                         {/* Results */}
                         {query && (
-                            <div className="max-h-80 overflow-y-auto">
+                            <div className="flex-1 overflow-y-auto">
                                 {results.length === 0 && !isLoadingFunds ? (
-                                    <div className="p-8 text-center">
-                                        <p className="text-[var(--text-secondary)]">No results found for &quot;{query}&quot;</p>
+                                    <div className="p-6 md:p-8 text-center">
+                                        <p className="text-[var(--text-secondary)] text-sm">No results found for &quot;{query}&quot;</p>
                                     </div>
                                 ) : (
                                     <div className="py-2">
@@ -243,19 +255,19 @@ export default function GlobalSearch() {
                                                 <button
                                                     key={result.id}
                                                     onClick={() => handleSelect(result)}
-                                                    className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors ${index === selectedIndex
+                                                    className={`w-full flex items-center gap-3 px-3 md:px-4 py-2.5 md:py-3 text-left transition-colors ${index === selectedIndex
                                                         ? 'bg-[var(--accent-mint)]/10'
                                                         : 'hover:bg-[var(--bg-hover)]'
                                                         }`}
                                                 >
                                                     <div
-                                                        className={`p-2 rounded-lg ${result.type === 'fund'
+                                                        className={`p-1.5 md:p-2 rounded-lg flex-shrink-0 ${result.type === 'fund'
                                                             ? 'bg-[var(--accent-mint)]/10'
                                                             : 'bg-[var(--bg-hover)]'
                                                             }`}
                                                     >
                                                         <Icon
-                                                            size={18}
+                                                            size={16}
                                                             className={
                                                                 result.type === 'fund'
                                                                     ? 'text-[var(--accent-mint)]'
@@ -264,15 +276,15 @@ export default function GlobalSearch() {
                                                         />
                                                     </div>
                                                     <div className="flex-1 min-w-0">
-                                                        <p className="text-[var(--text-primary)] font-medium truncate">
+                                                        <p className="text-[var(--text-primary)] font-medium truncate text-sm">
                                                             {result.title}
                                                         </p>
-                                                        <p className="text-[var(--text-secondary)] text-sm truncate">
+                                                        <p className="text-[var(--text-secondary)] text-xs truncate">
                                                             {result.subtitle}
                                                         </p>
                                                     </div>
                                                     <span
-                                                        className={`text-xs px-2 py-1 rounded-full ${result.type === 'fund'
+                                                        className={`hidden sm:inline text-[10px] md:text-xs px-1.5 md:px-2 py-0.5 md:py-1 rounded-full flex-shrink-0 ${result.type === 'fund'
                                                             ? 'bg-[var(--accent-mint)]/10 text-[var(--accent-mint)]'
                                                             : 'bg-[var(--bg-hover)] text-[var(--text-muted)]'
                                                             }`}
@@ -288,18 +300,18 @@ export default function GlobalSearch() {
                         )}
 
                         {/* Footer */}
-                        <div className="p-3 border-t border-[var(--border-primary)] flex items-center justify-between text-[var(--text-muted)] text-xs">
-                            <div className="flex items-center gap-4">
+                        <div className="p-2 md:p-3 border-t border-[var(--border-primary)] flex items-center justify-between text-[var(--text-muted)] text-[10px] md:text-xs">
+                            <div className="hidden sm:flex items-center gap-3 md:gap-4">
                                 <span className="flex items-center gap-1">
-                                    <kbd className="px-1.5 py-0.5 bg-[var(--bg-hover)] rounded">↑↓</kbd>
+                                    <kbd className="px-1 md:px-1.5 py-0.5 bg-[var(--bg-hover)] rounded">↑↓</kbd>
                                     Navigate
                                 </span>
                                 <span className="flex items-center gap-1">
-                                    <kbd className="px-1.5 py-0.5 bg-[var(--bg-hover)] rounded">↵</kbd>
+                                    <kbd className="px-1 md:px-1.5 py-0.5 bg-[var(--bg-hover)] rounded">↵</kbd>
                                     Select
                                 </span>
                                 <span className="flex items-center gap-1">
-                                    <kbd className="px-1.5 py-0.5 bg-[var(--bg-hover)] rounded">Esc</kbd>
+                                    <kbd className="px-1 md:px-1.5 py-0.5 bg-[var(--bg-hover)] rounded">Esc</kbd>
                                     Close
                                 </span>
                             </div>

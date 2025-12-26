@@ -203,3 +203,165 @@ select {
 [data-theme="light"] .mint-glow {
   box-shadow: 0 4px 20px var(--glow-mint);
 }
+
+/* Mobile Responsive Utilities */
+@media (max-width: 768px) {
+  body {
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .glass-card {
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+  }
+}
+
+/* Prevent scroll when mobile menu is open */
+body.menu-open {
+  overflow: hidden;
+  position: fixed;
+  width: 100%;
+}
+
+/* Mobile-specific smooth scrolling */
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
+/* Touch-friendly tap targets */
+@media (max-width: 768px) {
+
+  button,
+  a,
+  [role="button"] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}
+
+/* Mobile-friendly scrollbar */
+@media (max-width: 768px) {
+  ::-webkit-scrollbar {
+    width: 3px;
+  }
+}
+
+/* Hide on mobile utility */
+.hide-mobile {
+  display: block;
+}
+
+@media (max-width: 768px) {
+  .hide-mobile {
+    display: none !important;
+  }
+}
+
+/* Show only on mobile utility */
+.show-mobile {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .show-mobile {
+    display: block !important;
+  }
+
+  .show-mobile-flex {
+    display: flex !important;
+  }
+}
+
+/* Responsive text sizing */
+@media (max-width: 768px) {
+  h1 {
+    font-size: 1.5rem;
+  }
+
+  h2 {
+    font-size: 1.25rem;
+  }
+
+  h3 {
+    font-size: 1.1rem;
+  }
+}
+
+/* Mobile card shadows for better depth perception */
+@media (max-width: 768px) {
+  .glass-card {
+    box-shadow: 0 2px 10px var(--shadow-color);
+  }
+}
+
+/* Safe area insets for notched phones */
+@supports (padding: max(0px)) {
+  .safe-area-inset {
+    padding-left: max(1rem, env(safe-area-inset-left));
+    padding-right: max(1rem, env(safe-area-inset-right));
+  }
+
+  .safe-area-bottom {
+    padding-bottom: max(1rem, env(safe-area-inset-bottom));
+  }
+}
+
+/* Mobile overlay for drawers */
+.mobile-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  z-index: 40;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.3s ease, visibility 0.3s ease;
+}
+
+.mobile-overlay.active {
+  opacity: 1;
+  visibility: visible;
+}
+
+/* Slide-in animation for mobile drawer */
+@keyframes slideInFromRight {
+  from {
+    transform: translateX(100%);
+  }
+
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes slideOutToRight {
+  from {
+    transform: translateX(0);
+  }
+
+  to {
+    transform: translateX(100%);
+  }
+}
+
+.mobile-drawer {
+  animation: slideInFromRight 0.3s ease forwards;
+}
+
+.mobile-drawer.closing {
+  animation: slideOutToRight 0.3s ease forwards;
+}
+
+/* Improve touch feedback */
+@media (hover: none) and (pointer: coarse) {
+
+  button:active,
+  a:active,
+  [role="button"]:active {
+    opacity: 0.7;
+    transform: scale(0.98);
+  }
+}

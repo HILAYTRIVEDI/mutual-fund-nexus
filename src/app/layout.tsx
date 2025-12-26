@@ -11,6 +11,12 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: "Mutual Fund Nexus - Investment Dashboard",
   description: "Premium mutual fund portfolio management dashboard",
+  viewport: {
+    width: 'device-width',
+    initialScale: 1,
+    maximumScale: 1,
+    viewportFit: 'cover',
+  },
 };
 
 export default function RootLayout({

@@ -35,7 +35,7 @@ const comparisonMetrics: ComparisonMetric[] = [
     { key: 'schemeType', label: 'Scheme Type', format: (v) => v as string },
     { key: 'returns1M', label: '1 Month Return', format: (v) => v !== null ? `${(v as number) >= 0 ? '+' : ''}${(v as number).toFixed(2)}%` : 'N/A', highlight: 'high' },
     { key: 'returns1Y', label: '1 Year Return', format: (v) => v !== null ? `${(v as number) >= 0 ? '+' : ''}${(v as number).toFixed(2)}%` : 'N/A', highlight: 'high' },
-    { key: 'returns3Y', label: '3 Year Return (CAGR)', format: (v) => v !== null ? `${(v as number) >= 0 ? '+' : ''}${(v as number).toFixed(2)}%` : 'N/A', highlight: 'high' },
+    { key: 'returns3Y', label: '3 Year CAGR', format: (v) => v !== null ? `${(v as number) >= 0 ? '+' : ''}${(v as number).toFixed(2)}%` : 'N/A', highlight: 'high' },
     { key: 'isinGrowth', label: 'ISIN', format: (v) => (v as string) || 'N/A' },
 ];
 
@@ -195,36 +195,36 @@ export default function CompareFundsPage() {
     };
 
     return (
-        <div className="min-h-screen bg-[var(--bg-primary)] text-[var(--text-primary)] p-6 flex gap-6 transition-colors duration-300">
+        <div className="min-h-screen bg-[var(--bg-primary)] text-[var(--text-primary)] p-4 md:p-6 flex flex-col md:flex-row gap-4 md:gap-6 transition-colors duration-300">
             {/* Main Content */}
-            <main className="flex-1">
+            <main className="flex-1 min-w-0">
                 {/* Header */}
-                <header className="mb-6">
-                    <div className="flex items-center gap-3 mb-2">
-                        <Scale size={28} className="text-[var(--accent-mint)]" />
-                        <h1 className="text-2xl font-bold">Fund Comparison Tool</h1>
+                <header className="mb-4 md:mb-6 pr-12 md:pr-0">
+                    <div className="flex items-center gap-2 md:gap-3 mb-2">
+                        <Scale size={24} className="md:w-7 md:h-7 text-[var(--accent-mint)]" />
+                        <h1 className="text-xl md:text-2xl font-bold">Fund Comparison</h1>
                     </div>
-                    <p className="text-[var(--text-secondary)]">
-                        Compare up to 4 mutual funds side by side with real-time data from MFAPI.in
+                    <p className="text-[var(--text-secondary)] text-xs md:text-sm">
+                        Compare up to 4 mutual funds with real-time data from MFAPI.in
                     </p>
                 </header>
 
                 {/* Fund Selector */}
-                <div className="glass-card rounded-2xl p-4 mb-6">
-                    <div className="flex items-center gap-4 flex-wrap">
+                <div className="glass-card rounded-2xl p-3 md:p-4 mb-4 md:mb-6">
+                    <div className="flex items-center gap-2 md:gap-4 flex-wrap">
                         {/* Selected Funds */}
                         {selectedFunds.map((fund) => (
                             <div
                                 key={fund.schemeCode}
-                                className="flex items-center gap-2 px-3 py-2 rounded-xl bg-[var(--accent-mint)]/10 border border-[var(--accent-mint)]/30"
+                                className="flex items-center gap-1.5 md:gap-2 px-2 md:px-3 py-1.5 md:py-2 rounded-xl bg-[var(--accent-mint)]/10 border border-[var(--accent-mint)]/30"
                             >
-                                <span className="text-[var(--text-primary)] text-sm font-medium">{fund.fundHouse.split(' ')[0]}</span>
-                                <span className="text-[var(--text-secondary)] text-xs">{fund.schemeCategory?.split(' - ')[0] || 'Fund'}</span>
+                                <span className="text-[var(--text-primary)] text-xs md:text-sm font-medium">{fund.fundHouse.split(' ')[0]}</span>
+                                <span className="hidden sm:inline text-[var(--text-secondary)] text-[10px] md:text-xs">{fund.schemeCategory?.split(' - ')[0] || 'Fund'}</span>
                                 <button
                                     onClick={() => removeFund(fund.schemeCode)}
-                                    className="p-1 rounded-full hover:bg-[var(--accent-red)]/20 text-[var(--text-secondary)] hover:text-[var(--accent-red)] transition-colors"
+                                    className="p-0.5 md:p-1 rounded-full hover:bg-[var(--accent-red)]/20 text-[var(--text-secondary)] hover:text-[var(--accent-red)] transition-colors"
                                 >
-                                    <X size={14} />
+                                    <X size={12} className="md:w-3.5 md:h-3.5" />
                                 </button>
                             </div>
                         ))}
@@ -233,10 +233,10 @@ export default function CompareFundsPage() {
                         {Array.from(loadingFunds).map((code) => (
                             <div
                                 key={code}
-                                className="flex items-center gap-2 px-3 py-2 rounded-xl bg-[var(--bg-hover)] border border-[var(--border-primary)]"
+                                className="flex items-center gap-2 px-2 md:px-3 py-1.5 md:py-2 rounded-xl bg-[var(--bg-hover)] border border-[var(--border-primary)]"
                             >
-                                <Loader2 size={14} className="animate-spin text-[var(--accent-mint)]" />
-                                <span className="text-[var(--text-secondary)] text-sm">Loading...</span>
+                                <Loader2 size={12} className="animate-spin text-[var(--accent-mint)]" />
+                                <span className="text-[var(--text-secondary)] text-xs">Loading...</span>
                             </div>
                         ))}
 
@@ -245,21 +245,21 @@ export default function CompareFundsPage() {
                             <div className="relative">
                                 <button
                                     onClick={() => setIsSearchOpen(!isSearchOpen)}
-                                    className="flex items-center gap-2 px-4 py-2 rounded-xl border-2 border-dashed border-[var(--border-primary)] text-[var(--text-secondary)] hover:border-[var(--accent-mint)]/50 hover:text-[var(--accent-mint)] transition-all"
+                                    className="flex items-center gap-1.5 md:gap-2 px-3 md:px-4 py-1.5 md:py-2 rounded-xl border-2 border-dashed border-[var(--border-primary)] text-[var(--text-secondary)] hover:border-[var(--accent-mint)]/50 hover:text-[var(--accent-mint)] transition-all"
                                 >
-                                    <Plus size={18} />
-                                    <span className="text-sm">Add Fund ({selectedFunds.length}/4)</span>
+                                    <Plus size={16} />
+                                    <span className="text-xs md:text-sm">Add ({selectedFunds.length}/4)</span>
                                 </button>
 
                                 {/* Search Dropdown */}
                                 {isSearchOpen && (
-                                    <div className="absolute top-full mt-2 left-0 w-96 bg-[var(--bg-secondary)] rounded-xl shadow-xl border border-[var(--border-primary)] z-50">
+                                    <div className="absolute top-full mt-2 left-0 right-0 sm:right-auto w-[calc(100vw-2rem)] sm:w-80 md:w-96 bg-[var(--bg-secondary)] rounded-xl shadow-xl border border-[var(--border-primary)] z-50">
                                         <div className="p-3 border-b border-[var(--border-primary)]">
                                             <div className="relative">
                                                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-secondary)]" size={16} />
                                                 <input
                                                     type="text"
-                                                    placeholder="Search by fund name (e.g., HDFC, SBI, Axis)..."
+                                                    placeholder="Search funds (e.g., HDFC, SBI)..."
                                                     value={searchQuery}
                                                     onChange={(e) => handleSearch(e.target.value)}
                                                     autoFocus
@@ -270,9 +270,9 @@ export default function CompareFundsPage() {
                                                 )}
                                             </div>
                                         </div>
-                                        <div className="max-h-72 overflow-y-auto">
+                                        <div className="max-h-60 md:max-h-72 overflow-y-auto">
                                             {!searchQuery ? (
-                                                <p className="p-4 text-[var(--text-secondary)] text-sm text-center">
+                                                <p className="p-4 text-[var(--text-secondary)] text-xs md:text-sm text-center">
                                                     Type at least 2 characters to search
                                                 </p>
                                             ) : isSearching ? (
@@ -290,7 +290,7 @@ export default function CompareFundsPage() {
                                                         disabled={loadingFunds.has(scheme.schemeCode)}
                                                         className="w-full p-3 text-left hover:bg-[var(--bg-hover)] transition-colors disabled:opacity-50"
                                                     >
-                                                        <p className="text-[var(--text-primary)] text-sm font-medium">{scheme.schemeName}</p>
+                                                        <p className="text-[var(--text-primary)] text-sm font-medium truncate">{scheme.schemeName}</p>
                                                         <p className="text-[var(--text-secondary)] text-xs">Code: {scheme.schemeCode}</p>
                                                     </button>
                                                 ))
@@ -303,79 +303,128 @@ export default function CompareFundsPage() {
                     </div>
                 </div>
 
-                {/* Comparison Table */}
+                {/* Comparison Content */}
                 {selectedFunds.length === 0 ? (
-                    <div className="glass-card rounded-2xl p-16 text-center">
-                        <BarChart3 className="mx-auto text-[var(--text-secondary)] mb-4" size={64} />
-                        <h3 className="text-[var(--text-primary)] font-semibold text-lg mb-2">No Funds Selected</h3>
-                        <p className="text-[var(--text-secondary)] mb-4">
-                            Click &quot;Add Fund&quot; above to start comparing mutual funds
+                    <div className="glass-card rounded-2xl p-8 md:p-16 text-center">
+                        <BarChart3 className="mx-auto text-[var(--text-secondary)] mb-4" size={48} />
+                        <h3 className="text-[var(--text-primary)] font-semibold text-base md:text-lg mb-2">No Funds Selected</h3>
+                        <p className="text-[var(--text-secondary)] text-sm mb-4">
+                            Click &quot;Add&quot; above to start comparing mutual funds
                         </p>
-                        <p className="text-[var(--text-muted)] text-sm">
-                            All data is fetched live from MFAPI.in - no placeholders!
+                        <p className="text-[var(--text-muted)] text-xs">
+                            All data is fetched live from MFAPI.in
                         </p>
                     </div>
                 ) : (
-                    <div className="glass-card rounded-2xl overflow-hidden">
-                        <div className="overflow-x-auto">
-                            {/* Fund Names Header */}
-                            <div className="grid min-w-[600px]" style={{ gridTemplateColumns: `180px repeat(${selectedFunds.length}, minmax(180px, 1fr))` }}>
-                                <div className="p-4 bg-[var(--bg-hover)] border-b border-r border-[var(--border-primary)]">
-                                    <span className="text-[var(--text-secondary)] text-sm font-medium">Metric</span>
-                                </div>
-                                {selectedFunds.map((fund) => (
-                                    <div key={fund.schemeCode} className="p-4 bg-[var(--bg-hover)] border-b border-[var(--border-primary)]">
-                                        <p className="text-[var(--text-primary)] font-semibold text-sm">{fund.schemeName}</p>
-                                        <p className="text-[var(--accent-mint)] text-xs mt-1">Code: {fund.schemeCode}</p>
-                                    </div>
-                                ))}
-                            </div>
-
-                            {/* Comparison Rows */}
-                            {comparisonMetrics.map((metric) => {
-                                const bestValue = getBestValue(metric.key, metric.highlight);
-                                return (
-                                    <div
-                                        key={metric.key}
-                                        className="grid hover:bg-[var(--bg-hover)] transition-colors min-w-[600px]"
-                                        style={{ gridTemplateColumns: `180px repeat(${selectedFunds.length}, minmax(180px, 1fr))` }}
-                                    >
-                                        <div className="p-4 border-b border-r border-[var(--border-primary)]">
-                                            <span className="text-[var(--text-secondary)] text-sm">{metric.label}</span>
+                    <>
+                        {/* Mobile Card View */}
+                        <div className="lg:hidden space-y-4">
+                            {selectedFunds.map((fund) => (
+                                <div key={fund.schemeCode} className="glass-card rounded-2xl p-4">
+                                    <div className="flex items-start justify-between gap-3 mb-4">
+                                        <div>
+                                            <p className="text-[var(--text-primary)] font-semibold text-sm">{fund.schemeName}</p>
+                                            <p className="text-[var(--accent-mint)] text-xs mt-1">Code: {fund.schemeCode}</p>
                                         </div>
-                                        {selectedFunds.map((fund) => {
+                                        <button
+                                            onClick={() => removeFund(fund.schemeCode)}
+                                            className="p-1.5 rounded-lg bg-[var(--accent-red)]/10 text-[var(--accent-red)]"
+                                        >
+                                            <X size={14} />
+                                        </button>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-3 text-xs">
+                                        {comparisonMetrics.map((metric) => {
                                             const value = (fund as Record<string, unknown>)[metric.key];
-                                            const isBest = bestValue !== null && value === bestValue;
                                             const isReturn = metric.key.includes('returns');
                                             const numValue = typeof value === 'number' ? value : null;
 
                                             return (
-                                                <div key={fund.schemeCode} className="p-4 border-b border-[var(--border-primary)]">
+                                                <div key={metric.key} className="p-2 bg-[var(--bg-hover)] rounded-lg">
+                                                    <p className="text-[var(--text-secondary)] text-[10px] mb-1">{metric.label}</p>
                                                     <div className="flex items-center gap-1">
                                                         {isReturn && numValue !== null && (
                                                             numValue >= 0
-                                                                ? <TrendingUp size={14} className="text-[var(--accent-mint)]" />
-                                                                : <TrendingDown size={14} className="text-[var(--accent-red)]" />
+                                                                ? <TrendingUp size={10} className="text-[var(--accent-mint)]" />
+                                                                : <TrendingDown size={10} className="text-[var(--accent-red)]" />
                                                         )}
-                                                        <span
-                                                            className={`text-sm font-medium ${isBest ? 'text-[var(--accent-mint)]' :
-                                                                isReturn && numValue !== null && numValue > 0 ? 'text-[var(--accent-mint)]' :
-                                                                    isReturn && numValue !== null && numValue < 0 ? 'text-[var(--accent-red)]' :
-                                                                        'text-[var(--text-primary)]'
-                                                                }`}
-                                                        >
+                                                        <span className={`font-medium ${isReturn && numValue !== null && numValue > 0 ? 'text-[var(--accent-mint)]' :
+                                                                isReturn && numValue !== null && numValue < 0 ? 'text-[var(--accent-red)]' :
+                                                                    'text-[var(--text-primary)]'
+                                                            }`}>
                                                             {metric.format(value)}
-                                                            {isBest && <span className="ml-1">✓</span>}
                                                         </span>
                                                     </div>
                                                 </div>
                                             );
                                         })}
                                     </div>
-                                );
-                            })}
+                                </div>
+                            ))}
                         </div>
-                    </div>
+
+                        {/* Desktop Table View */}
+                        <div className="hidden lg:block glass-card rounded-2xl overflow-hidden">
+                            <div className="overflow-x-auto">
+                                {/* Fund Names Header */}
+                                <div className="grid min-w-[600px]" style={{ gridTemplateColumns: `180px repeat(${selectedFunds.length}, minmax(180px, 1fr))` }}>
+                                    <div className="p-4 bg-[var(--bg-hover)] border-b border-r border-[var(--border-primary)]">
+                                        <span className="text-[var(--text-secondary)] text-sm font-medium">Metric</span>
+                                    </div>
+                                    {selectedFunds.map((fund) => (
+                                        <div key={fund.schemeCode} className="p-4 bg-[var(--bg-hover)] border-b border-[var(--border-primary)]">
+                                            <p className="text-[var(--text-primary)] font-semibold text-sm">{fund.schemeName}</p>
+                                            <p className="text-[var(--accent-mint)] text-xs mt-1">Code: {fund.schemeCode}</p>
+                                        </div>
+                                    ))}
+                                </div>
+
+                                {/* Comparison Rows */}
+                                {comparisonMetrics.map((metric) => {
+                                    const bestValue = getBestValue(metric.key, metric.highlight);
+                                    return (
+                                        <div
+                                            key={metric.key}
+                                            className="grid hover:bg-[var(--bg-hover)] transition-colors min-w-[600px]"
+                                            style={{ gridTemplateColumns: `180px repeat(${selectedFunds.length}, minmax(180px, 1fr))` }}
+                                        >
+                                            <div className="p-4 border-b border-r border-[var(--border-primary)]">
+                                                <span className="text-[var(--text-secondary)] text-sm">{metric.label}</span>
+                                            </div>
+                                            {selectedFunds.map((fund) => {
+                                                const value = (fund as Record<string, unknown>)[metric.key];
+                                                const isBest = bestValue !== null && value === bestValue;
+                                                const isReturn = metric.key.includes('returns');
+                                                const numValue = typeof value === 'number' ? value : null;
+
+                                                return (
+                                                    <div key={fund.schemeCode} className="p-4 border-b border-[var(--border-primary)]">
+                                                        <div className="flex items-center gap-1">
+                                                            {isReturn && numValue !== null && (
+                                                                numValue >= 0
+                                                                    ? <TrendingUp size={14} className="text-[var(--accent-mint)]" />
+                                                                    : <TrendingDown size={14} className="text-[var(--accent-red)]" />
+                                                            )}
+                                                            <span
+                                                                className={`text-sm font-medium ${isBest ? 'text-[var(--accent-mint)]' :
+                                                                    isReturn && numValue !== null && numValue > 0 ? 'text-[var(--accent-mint)]' :
+                                                                        isReturn && numValue !== null && numValue < 0 ? 'text-[var(--accent-red)]' :
+                                                                            'text-[var(--text-primary)]'
+                                                                    }`}
+                                                            >
+                                                                {metric.format(value)}
+                                                                {isBest && <span className="ml-1">✓</span>}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    </>
                 )}
             </main>
 

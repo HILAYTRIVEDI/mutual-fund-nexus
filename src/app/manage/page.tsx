@@ -83,6 +83,18 @@ export default function ManageClientsPage() {
     const [showFundDropdown, setShowFundDropdown] = useState(false);
     const fundDropdownRef = useRef<HTMLDivElement>(null);
 
+    // Lock body scroll when modal is open
+    useEffect(() => {
+        if (showAddModal) {
+            document.body.style.overflow = 'hidden';
+        } else {
+            document.body.style.overflow = '';
+        }
+        return () => {
+            document.body.style.overflow = '';
+        };
+    }, [showAddModal]);
+
     // Click outside handler for fund dropdown
     useEffect(() => {
         function handleClickOutside(event: MouseEvent) {
@@ -183,42 +195,42 @@ export default function ManageClientsPage() {
     );
 
     return (
-        <div className="min-h-screen bg-[var(--bg-primary)] text-[var(--text-primary)] p-6 flex gap-6 transition-colors duration-300">
+        <div className="min-h-screen bg-[var(--bg-primary)] text-[var(--text-primary)] p-4 md:p-6 flex flex-col md:flex-row gap-4 md:gap-6 transition-colors duration-300">
             {/* Main Content */}
-            <main className="flex-1">
+            <main className="flex-1 min-w-0">
                 {/* Header */}
-                <header className="mb-6 flex items-center justify-between">
-                    <div>
-                        <h1 className="text-2xl font-bold">Manage Clients</h1>
-                        <p className="text-[#9CA3AF] text-sm">Add, edit, and remove client investments</p>
+                <header className="mb-4 md:mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="pr-12 md:pr-0">
+                        <h1 className="text-xl md:text-2xl font-bold">Manage Clients</h1>
+                        <p className="text-[#9CA3AF] text-xs md:text-sm">Add, edit, and remove client investments</p>
                     </div>
                     <button
                         onClick={() => setShowAddModal(true)}
-                        className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#48cae4] to-[#90e0ef] text-white font-medium flex items-center gap-2 hover:shadow-lg hover:shadow-[#48cae4]/30 transition-all"
+                        className="px-4 md:px-5 py-2 md:py-2.5 rounded-xl bg-gradient-to-r from-[#48cae4] to-[#90e0ef] text-white font-medium flex items-center justify-center gap-2 hover:shadow-lg hover:shadow-[#48cae4]/30 transition-all text-sm self-start sm:self-auto"
                     >
-                        <Plus size={20} />
+                        <Plus size={18} />
                         Add Client
                     </button>
                 </header>
 
                 {/* Search */}
-                <div className="glass-card rounded-2xl p-4 mb-6">
+                <div className="glass-card rounded-2xl p-3 md:p-4 mb-4 md:mb-6">
                     <div className="relative">
-                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-[#9CA3AF]" size={20} />
+                        <Search className="absolute left-3 md:left-4 top-1/2 -translate-y-1/2 text-[#9CA3AF]" size={18} />
                         <input
                             type="text"
                             placeholder="Search clients..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            className="w-full pl-12 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-[#9CA3AF] focus:outline-none focus:border-[#48cae4]/50 transition-all"
+                            className="w-full pl-10 md:pl-12 pr-4 py-2.5 md:py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-[#9CA3AF] focus:outline-none focus:border-[#48cae4]/50 transition-all text-sm"
                         />
                     </div>
                 </div>
 
                 {/* Clients List */}
                 <div className="glass-card rounded-2xl overflow-hidden">
-                    {/* Header */}
-                    <div className="grid grid-cols-12 gap-4 p-4 bg-white/5 border-b border-white/10">
+                    {/* Desktop Header */}
+                    <div className="hidden lg:grid grid-cols-12 gap-4 p-4 bg-white/5 border-b border-white/10">
                         <div className="col-span-3 text-[#9CA3AF] text-xs font-medium uppercase">Client</div>
                         <div className="col-span-3 text-[#9CA3AF] text-xs font-medium uppercase">Mutual Fund</div>
                         <div className="col-span-2 text-[#9CA3AF] text-xs font-medium uppercase text-center">Type</div>
@@ -228,12 +240,12 @@ export default function ManageClientsPage() {
 
                     {/* Body */}
                     {filteredClients.length === 0 ? (
-                        <div className="flex flex-col items-center justify-center py-16">
-                            <UserPlus className="text-[#9CA3AF] mb-3" size={48} />
-                            <p className="text-[#9CA3AF]">No clients found</p>
+                        <div className="flex flex-col items-center justify-center py-12 md:py-16">
+                            <UserPlus className="text-[#9CA3AF] mb-3" size={40} />
+                            <p className="text-[#9CA3AF] text-sm">No clients found</p>
                             <button
                                 onClick={() => setShowAddModal(true)}
-                                className="mt-4 text-[#48cae4] hover:underline"
+                                className="mt-4 text-[#48cae4] hover:underline text-sm"
                             >
                                 Add your first client
                             </button>
@@ -241,49 +253,87 @@ export default function ManageClientsPage() {
                     ) : (
                         <div className="divide-y divide-white/5">
                             {filteredClients.map((client) => (
-                                <div
-                                    key={client.id}
-                                    className="grid grid-cols-12 gap-4 p-4 hover:bg-white/5 transition-all"
-                                >
-                                    <div className="col-span-3">
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#48cae4] to-[#8B5CF6] flex items-center justify-center text-white font-semibold text-sm">
-                                                {client.name.split(' ').map(n => n[0]).join('')}
+                                <div key={client.id}>
+                                    {/* Mobile Card View */}
+                                    <div className="lg:hidden p-4 hover:bg-white/5 transition-all">
+                                        <div className="flex items-start justify-between gap-3 mb-3">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#48cae4] to-[#8B5CF6] flex items-center justify-center text-white font-semibold text-xs flex-shrink-0">
+                                                    {client.name.split(' ').map(n => n[0]).join('')}
+                                                </div>
+                                                <div>
+                                                    <p className="text-white font-medium text-sm">{client.name}</p>
+                                                    <p className="text-[#9CA3AF] text-xs">{client.id}</p>
+                                                </div>
                                             </div>
-                                            <div>
-                                                <p className="text-white font-medium text-sm">{client.name}</p>
-                                                <p className="text-[#9CA3AF] text-xs">{client.id}</p>
+                                            <button
+                                                onClick={() => handleDeleteClient(client.id)}
+                                                className="p-2 rounded-lg bg-[#EF4444]/10 text-[#EF4444] hover:bg-[#EF4444]/20 transition-colors flex-shrink-0"
+                                            >
+                                                <Trash2 size={14} />
+                                            </button>
+                                        </div>
+                                        <p className="text-white text-sm mb-3 line-clamp-2">{client.portfolio}</p>
+                                        <div className="flex items-center justify-between text-xs">
+                                            <span
+                                                className={`px-2.5 py-1 rounded-md font-medium ${client.investmentType === 'SIP'
+                                                    ? 'bg-[#48cae4]/10 text-[#48cae4]'
+                                                    : 'bg-[#8B5CF6]/10 text-[#8B5CF6]'
+                                                    }`}
+                                            >
+                                                {client.investmentType}
+                                            </span>
+                                            <div className="text-right">
+                                                <p className="text-white font-medium">{formatCurrency(client.amount)}</p>
+                                                {client.sipAmount && (
+                                                    <p className="text-[#9CA3AF] text-[10px]">{formatCurrency(client.sipAmount)}/mo</p>
+                                                )}
                                             </div>
                                         </div>
                                     </div>
-                                    <div className="col-span-3 flex items-center">
-                                        <p className="text-white text-sm truncate">{client.portfolio}</p>
-                                    </div>
-                                    <div className="col-span-2 flex items-center justify-center">
-                                        <span
-                                            className={`px-3 py-1 rounded-md text-xs font-medium ${client.investmentType === 'SIP'
-                                                ? 'bg-[#48cae4]/10 text-[#48cae4]'
-                                                : 'bg-[#8B5CF6]/10 text-[#8B5CF6]'
-                                                }`}
-                                        >
-                                            {client.investmentType}
-                                        </span>
-                                    </div>
-                                    <div className="col-span-2 flex items-center justify-end">
-                                        <div className="text-right">
-                                            <p className="text-white text-sm font-medium">{formatCurrency(client.amount)}</p>
-                                            {client.sipAmount && (
-                                                <p className="text-[#9CA3AF] text-xs">{formatCurrency(client.sipAmount)}/mo</p>
-                                            )}
+
+                                    {/* Desktop Row */}
+                                    <div className="hidden lg:grid grid-cols-12 gap-4 p-4 hover:bg-white/5 transition-all">
+                                        <div className="col-span-3">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#48cae4] to-[#8B5CF6] flex items-center justify-center text-white font-semibold text-sm">
+                                                    {client.name.split(' ').map(n => n[0]).join('')}
+                                                </div>
+                                                <div>
+                                                    <p className="text-white font-medium text-sm">{client.name}</p>
+                                                    <p className="text-[#9CA3AF] text-xs">{client.id}</p>
+                                                </div>
+                                            </div>
                                         </div>
-                                    </div>
-                                    <div className="col-span-2 flex items-center justify-center gap-2">
-                                        <button
-                                            onClick={() => handleDeleteClient(client.id)}
-                                            className="p-2 rounded-lg bg-[#EF4444]/10 text-[#EF4444] hover:bg-[#EF4444]/20 transition-colors"
-                                        >
-                                            <Trash2 size={16} />
-                                        </button>
+                                        <div className="col-span-3 flex items-center">
+                                            <p className="text-white text-sm truncate">{client.portfolio}</p>
+                                        </div>
+                                        <div className="col-span-2 flex items-center justify-center">
+                                            <span
+                                                className={`px-3 py-1 rounded-md text-xs font-medium ${client.investmentType === 'SIP'
+                                                    ? 'bg-[#48cae4]/10 text-[#48cae4]'
+                                                    : 'bg-[#8B5CF6]/10 text-[#8B5CF6]'
+                                                    }`}
+                                            >
+                                                {client.investmentType}
+                                            </span>
+                                        </div>
+                                        <div className="col-span-2 flex items-center justify-end">
+                                            <div className="text-right">
+                                                <p className="text-white text-sm font-medium">{formatCurrency(client.amount)}</p>
+                                                {client.sipAmount && (
+                                                    <p className="text-[#9CA3AF] text-xs">{formatCurrency(client.sipAmount)}/mo</p>
+                                                )}
+                                            </div>
+                                        </div>
+                                        <div className="col-span-2 flex items-center justify-center gap-2">
+                                            <button
+                                                onClick={() => handleDeleteClient(client.id)}
+                                                className="p-2 rounded-lg bg-[#EF4444]/10 text-[#EF4444] hover:bg-[#EF4444]/20 transition-colors"
+                                            >
+                                                <Trash2 size={16} />
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
                             ))}
@@ -297,16 +347,16 @@ export default function ManageClientsPage() {
 
             {/* Add Client Modal */}
             {showAddModal && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-6">
-                    <div className="w-full max-w-xl glass-card rounded-2xl overflow-hidden">
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 md:p-6">
+                    <div className="w-full sm:max-w-xl glass-card rounded-t-2xl sm:rounded-2xl overflow-hidden max-h-[90vh] flex flex-col">
                         {/* Modal Header */}
-                        <div className="p-6 border-b border-white/10 flex items-center justify-between">
+                        <div className="p-4 md:p-6 border-b border-white/10 flex items-center justify-between">
                             <div className="flex items-center gap-3">
                                 <div className="w-10 h-10 rounded-xl bg-[#48cae4]/20 flex items-center justify-center">
                                     <UserPlus size={20} className="text-[#48cae4]" />
                                 </div>
                                 <div>
-                                    <h2 className="text-white text-lg font-semibold">Add New Client</h2>
+                                    <h2 className="text-white text-base md:text-lg font-semibold">Add New Client</h2>
                                     <p className="text-[#9CA3AF] text-xs">Enter client investment details</p>
                                 </div>
                             </div>
@@ -319,7 +369,7 @@ export default function ManageClientsPage() {
                         </div>
 
                         {/* Modal Body */}
-                        <div className="p-6 space-y-4 max-h-[60vh] overflow-y-auto">
+                        <div className="p-4 md:p-6 space-y-4 overflow-y-auto flex-1">
                             {/* Client Name */}
                             <div>
                                 <label className="text-[#9CA3AF] text-xs mb-2 block">Client Name *</label>
@@ -328,12 +378,12 @@ export default function ManageClientsPage() {
                                     placeholder="Enter client name"
                                     value={formData.name}
                                     onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-[#9CA3AF] focus:outline-none focus:border-[#48cae4]/50"
+                                    className="w-full px-4 py-2.5 md:py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-[#9CA3AF] focus:outline-none focus:border-[#48cae4]/50 text-sm"
                                 />
                             </div>
 
                             {/* Email & Phone */}
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div>
                                     <label className="text-[#9CA3AF] text-xs mb-2 block">Email</label>
                                     <input
@@ -341,7 +391,7 @@ export default function ManageClientsPage() {
                                         placeholder="email@example.com"
                                         value={formData.email}
                                         onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
-                                        className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-[#9CA3AF] focus:outline-none focus:border-[#48cae4]/50"
+                                        className="w-full px-4 py-2.5 md:py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-[#9CA3AF] focus:outline-none focus:border-[#48cae4]/50 text-sm"
                                     />
                                 </div>
                                 <div>
@@ -351,7 +401,7 @@ export default function ManageClientsPage() {
                                         placeholder="+91 XXXXX XXXXX"
                                         value={formData.phone}
                                         onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
-                                        className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-[#9CA3AF] focus:outline-none focus:border-[#48cae4]/50"
+                                        className="w-full px-4 py-2.5 md:py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-[#9CA3AF] focus:outline-none focus:border-[#48cae4]/50 text-sm"
                                     />
                                 </div>
                             </div>
@@ -363,11 +413,11 @@ export default function ManageClientsPage() {
                                     <PiggyBank className="absolute left-4 top-1/2 -translate-y-1/2 text-[#9CA3AF]" size={18} />
                                     <input
                                         type="text"
-                                        placeholder="Search mutual funds (e.g., HDFC, SBI)..."
+                                        placeholder="Search mutual funds..."
                                         value={fundSearch}
                                         onChange={(e) => { setFundSearch(e.target.value); setShowFundDropdown(true); }}
                                         onFocus={() => setShowFundDropdown(true)}
-                                        className="w-full pl-12 pr-10 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-[#9CA3AF] focus:outline-none focus:border-[#48cae4]/50"
+                                        className="w-full pl-12 pr-10 py-2.5 md:py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-[#9CA3AF] focus:outline-none focus:border-[#48cae4]/50 text-sm"
                                     />
                                     {fundSearching && (
                                         <Loader2 className="absolute right-4 top-1/2 -translate-y-1/2 text-[#48cae4] animate-spin" size={18} />
@@ -400,29 +450,29 @@ export default function ManageClientsPage() {
                                 <div className="grid grid-cols-2 gap-3">
                                     <button
                                         onClick={() => setFormData(prev => ({ ...prev, investmentType: 'SIP' }))}
-                                        className={`p-4 rounded-xl border transition-all ${formData.investmentType === 'SIP'
+                                        className={`p-3 md:p-4 rounded-xl border transition-all ${formData.investmentType === 'SIP'
                                             ? 'bg-[#48cae4]/20 border-[#48cae4]/50 text-[#48cae4]'
                                             : 'bg-white/5 border-white/10 text-[#9CA3AF] hover:bg-white/10'
                                             }`}
                                     >
-                                        <p className="font-medium">SIP</p>
-                                        <p className="text-xs opacity-70">Monthly Investment</p>
+                                        <p className="font-medium text-sm">SIP</p>
+                                        <p className="text-[10px] opacity-70">Monthly Investment</p>
                                     </button>
                                     <button
                                         onClick={() => setFormData(prev => ({ ...prev, investmentType: 'Lumpsum' }))}
-                                        className={`p-4 rounded-xl border transition-all ${formData.investmentType === 'Lumpsum'
+                                        className={`p-3 md:p-4 rounded-xl border transition-all ${formData.investmentType === 'Lumpsum'
                                             ? 'bg-[#8B5CF6]/20 border-[#8B5CF6]/50 text-[#8B5CF6]'
                                             : 'bg-white/5 border-white/10 text-[#9CA3AF] hover:bg-white/10'
                                             }`}
                                     >
-                                        <p className="font-medium">Lumpsum</p>
-                                        <p className="text-xs opacity-70">One-time Investment</p>
+                                        <p className="font-medium text-sm">Lumpsum</p>
+                                        <p className="text-[10px] opacity-70">One-time Investment</p>
                                     </button>
                                 </div>
                             </div>
 
                             {/* Amount */}
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div>
                                     <label className="text-[#9CA3AF] text-xs mb-2 block">
                                         {formData.investmentType === 'SIP' ? 'Total Investment *' : 'Investment Amount *'}
@@ -432,7 +482,7 @@ export default function ManageClientsPage() {
                                         placeholder="₹ Amount"
                                         value={formData.amount}
                                         onChange={(e) => setFormData(prev => ({ ...prev, amount: e.target.value }))}
-                                        className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-[#9CA3AF] focus:outline-none focus:border-[#48cae4]/50"
+                                        className="w-full px-4 py-2.5 md:py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-[#9CA3AF] focus:outline-none focus:border-[#48cae4]/50 text-sm"
                                     />
                                 </div>
                                 {formData.investmentType === 'SIP' && (
@@ -443,7 +493,7 @@ export default function ManageClientsPage() {
                                             placeholder="₹ Monthly"
                                             value={formData.sipAmount}
                                             onChange={(e) => setFormData(prev => ({ ...prev, sipAmount: e.target.value }))}
-                                            className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-[#9CA3AF] focus:outline-none focus:border-[#48cae4]/50"
+                                            className="w-full px-4 py-2.5 md:py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-[#9CA3AF] focus:outline-none focus:border-[#48cae4]/50 text-sm"
                                         />
                                     </div>
                                 )}
@@ -456,22 +506,22 @@ export default function ManageClientsPage() {
                                     type="date"
                                     value={formData.startDate}
                                     onChange={(e) => setFormData(prev => ({ ...prev, startDate: e.target.value }))}
-                                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:border-[#48cae4]/50"
+                                    className="w-full px-4 py-2.5 md:py-3 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:border-[#48cae4]/50 text-sm"
                                 />
                             </div>
                         </div>
 
                         {/* Modal Footer */}
-                        <div className="p-6 border-t border-white/10 flex gap-3">
+                        <div className="p-4 md:p-6 border-t border-white/10 flex gap-3 safe-area-bottom">
                             <button
                                 onClick={() => { setShowAddModal(false); resetForm(); }}
-                                className="flex-1 py-3 rounded-xl bg-white/5 border border-white/10 text-[#9CA3AF] font-medium hover:bg-white/10 transition-colors"
+                                className="flex-1 py-2.5 md:py-3 rounded-xl bg-white/5 border border-white/10 text-[#9CA3AF] font-medium hover:bg-white/10 transition-colors text-sm"
                             >
                                 Cancel
                             </button>
                             <button
                                 onClick={handleAddClient}
-                                className="flex-1 py-3 rounded-xl bg-gradient-to-r from-[#48cae4] to-[#90e0ef] text-white font-medium hover:shadow-lg hover:shadow-[#48cae4]/30 transition-all"
+                                className="flex-1 py-2.5 md:py-3 rounded-xl bg-gradient-to-r from-[#48cae4] to-[#90e0ef] text-white font-medium hover:shadow-lg hover:shadow-[#48cae4]/30 transition-all text-sm"
                             >
                                 Add Client
                             </button>
