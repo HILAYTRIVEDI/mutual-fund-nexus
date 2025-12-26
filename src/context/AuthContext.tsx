@@ -76,6 +76,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 };
                 setUser(clientUser);
                 localStorage.setItem('nexus_user', JSON.stringify(clientUser));
+                router.push('/client-dashboard'); // Redirect clients to their dashboard
                 return { success: true };
             }
         }

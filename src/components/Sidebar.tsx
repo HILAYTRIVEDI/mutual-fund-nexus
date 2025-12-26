@@ -21,14 +21,15 @@ import {
 } from 'lucide-react';
 
 const menuItems = [
-    { icon: LayoutDashboard, label: 'Dashboard', href: '/' },
-    { icon: Users, label: 'Clients', href: '/clients' },
-    { icon: UserPlus, label: 'Manage Clients', href: '/manage' },
+    { icon: LayoutDashboard, label: 'Dashboard', href: '/admin-dashboard', adminOnly: true },
+    { icon: LayoutDashboard, label: 'My Dashboard', href: '/client-dashboard', clientOnly: true },
+    { icon: Users, label: 'Clients', href: '/clients', adminOnly: true },
+    { icon: UserPlus, label: 'Manage Clients', href: '/manage', adminOnly: true },
     { icon: BarChart3, label: 'Portfolio', href: '/portfolio' },
-    { icon: Scale, label: 'Compare Funds', href: '/compare' },
-    { icon: PiggyBank, label: 'Mutual Funds', href: '/mutual-funds' },
-    { icon: Clock, label: 'History', href: '/history' },
-    { icon: Settings, label: 'Settings', href: '/settings' },
+    { icon: Scale, label: 'Compare Funds', href: '/compare', adminOnly: true },
+    { icon: PiggyBank, label: 'Mutual Funds', href: '/mutual-funds', adminOnly: true },
+    { icon: Clock, label: 'History', href: '/history', adminOnly: true },
+    { icon: Settings, label: 'Settings', href: '/settings', adminOnly: true },
     { icon: Newspaper, label: 'News', href: '/news' },
     { icon: HelpCircle, label: 'Help Center', href: '/help' },
 ];
@@ -77,24 +78,31 @@ export default function Sidebar() {
             {/* Navigation */}
             <nav className="flex-1">
                 <ul className="space-y-1 md:space-y-2">
-                    {menuItems.map((item) => {
-                        const isActive = pathname === item.href;
-                        return (
-                            <li key={item.label}>
-                                <Link
-                                    href={item.href}
-                                    onClick={() => setIsOpen(false)}
-                                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${isActive
-                                        ? 'bg-gradient-to-r from-[var(--accent-mint)]/20 to-[var(--accent-mint)]/5 text-[var(--accent-mint)] border border-[var(--accent-mint)]/20'
-                                        : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]'
-                                        }`}
-                                >
-                                    <item.icon size={20} />
-                                    <span className="font-medium">{item.label}</span>
-                                </Link>
-                            </li>
-                        );
-                    })}
+                    {menuItems
+                        .filter((item) => {
+                            // Filter based on role
+                            if (item.adminOnly && user?.role !== 'admin') return false;
+                            if (item.clientOnly && user?.role !== 'client') return false;
+                            return true;
+                        })
+                        .map((item) => {
+                            const isActive = pathname === item.href;
+                            return (
+                                <li key={item.label}>
+                                    <Link
+                                        href={item.href}
+                                        onClick={() => setIsOpen(false)}
+                                        className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${isActive
+                                            ? 'bg-gradient-to-r from-[var(--accent-mint)]/20 to-[var(--accent-mint)]/5 text-[var(--accent-mint)] border border-[var(--accent-mint)]/20'
+                                            : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]'
+                                            }`}
+                                    >
+                                        <item.icon size={20} />
+                                        <span className="font-medium">{item.label}</span>
+                                    </Link>
+                                </li>
+                            );
+                        })}
                 </ul>
             </nav>
 

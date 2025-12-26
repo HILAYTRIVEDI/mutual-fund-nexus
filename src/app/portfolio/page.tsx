@@ -4,6 +4,8 @@ import { useState, useMemo } from 'react';
 import { Search, TrendingUp, TrendingDown, PiggyBank, BarChart3, ArrowUpDown, Calculator } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
 import { useSettings } from '@/context/SettingsContext';
+import { useAuth } from '@/context/AuthContext';
+import { useClientContext } from '@/context/ClientContext';
 
 interface PortfolioHolding {
     id: string;
@@ -142,10 +144,46 @@ type SortDirection = 'asc' | 'desc';
 
 export default function PortfolioPage() {
     const { ltcgTax, stcgTax } = useSettings();
+    const { user } = useAuth();
+    const { clients } = useClientContext();
     const [searchQuery, setSearchQuery] = useState('');
     const [sortKey, setSortKey] = useState<SortKey>('allocation');
     const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
     const [showPostTax, setShowPostTax] = useState(false);
+
+    // For clients, show only their own portfolio. For admins, show all.
+    const getHoldingsData = (): PortfolioHolding[] => {
+        if (user?.role === 'client') {
+            // Find client's data and convert to PortfolioHolding format
+            const clientData = clients.find(c => c.id === user.id);
+            if (clientData) {
+                const mockGrowth = clientData.investmentType === 'SIP' ? 1.21 : 1.18;
+                const currentValue = clientData.amount * mockGrowth;
+                const returns = currentValue - clientData.amount;
+                return [{
+                    id: clientData.id,
+                    fundName: clientData.portfolio,
+                    fundHouse: clientData.portfolio.split(' ')[0],
+                    category: clientData.investmentType === 'SIP' ? 'Equity' : 'Hybrid',
+                    units: clientData.amount / 100,
+                    avgNav: 100,
+                    currentNav: 100 * mockGrowth,
+                    investedValue: clientData.amount,
+                    currentValue: currentValue,
+                    returns: returns,
+                    returnsPercentage: (returns / clientData.amount) * 100,
+                    xirr: clientData.investmentType === 'SIP' ? 22.5 : 18.2,
+                    allocation: 100,
+                    color: '#48cae4',
+                    investedDate: clientData.startDate,
+                }];
+            }
+            return [];
+        }
+        return portfolioHoldings; // Admin sees all
+    };
+
+    const holdingsData = getHoldingsData();
 
     const handleSort = (key: SortKey) => {
         if (sortKey === key) {
@@ -157,7 +195,7 @@ export default function PortfolioPage() {
     };
 
     const filteredAndSortedHoldings = useMemo(() => {
-        const result = portfolioHoldings.filter(holding =>
+        const result = holdingsData.filter(holding =>
             holding.fundName.toLowerCase().includes(searchQuery.toLowerCase()) ||
             holding.fundHouse.toLowerCase().includes(searchQuery.toLowerCase()) ||
             holding.category.toLowerCase().includes(searchQuery.toLowerCase())
@@ -173,7 +211,7 @@ export default function PortfolioPage() {
         });
 
         return result;
-    }, [searchQuery, sortKey, sortDirection]);
+    }, [searchQuery, sortKey, sortDirection, holdingsData]);
 
     // Summary calculations
     // Summary calculations with Tax logic
@@ -198,12 +236,12 @@ export default function PortfolioPage() {
         };
     };
 
-    const totalInvested = portfolioHoldings.reduce((sum, h) => sum + h.investedValue, 0);
-    const totalCurrent = portfolioHoldings.reduce((sum, h) => sum + h.currentValue, 0);
+    const totalInvested = holdingsData.reduce((sum, h) => sum + h.investedValue, 0);
+    const totalCurrent = holdingsData.reduce((sum, h) => sum + h.currentValue, 0);
 
     // Calculate total adjusted returns
-    const totalAdjustedReturns = portfolioHoldings.reduce((sum, h) => sum + calculateReturns(h).returns, 0);
-    const totalReturnsPercentage = ((totalAdjustedReturns / totalInvested) * 100).toFixed(2);
+    const totalAdjustedReturns = holdingsData.reduce((sum, h) => sum + calculateReturns(h).returns, 0);
+    const totalReturnsPercentage = totalInvested > 0 ? ((totalAdjustedReturns / totalInvested) * 100).toFixed(2) : '0.00';
 
     return (
         <div className="min-h-screen bg-[var(--bg-primary)] text-[var(--text-primary)] p-4 md:p-6 flex flex-col md:flex-row gap-4 md:gap-6 transition-colors duration-300">
@@ -223,8 +261,8 @@ export default function PortfolioPage() {
                             <button
                                 onClick={() => setShowPostTax(!showPostTax)}
                                 className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border transition-all ${showPostTax
-                                        ? 'bg-[var(--accent-mint)]/10 border-[var(--accent-mint)]/20 text-[var(--accent-mint)]'
-                                        : 'bg-[var(--bg-hover)] border-[var(--border-primary)] text-[var(--text-secondary)]'
+                                    ? 'bg-[var(--accent-mint)]/10 border-[var(--accent-mint)]/20 text-[var(--accent-mint)]'
+                                    : 'bg-[var(--bg-hover)] border-[var(--border-primary)] text-[var(--text-secondary)]'
                                     }`}
                             >
                                 <Calculator size={14} />
