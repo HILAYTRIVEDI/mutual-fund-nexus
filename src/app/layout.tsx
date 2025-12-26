@@ -4,6 +4,7 @@ import "./globals.css";
 import { ThemeProvider } from "@/context/ThemeContext";
 import { ClientProvider } from "@/context/ClientContext";
 import { SettingsProvider } from "@/context/SettingsContext";
+import { AuthProvider } from "@/context/AuthContext";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -32,7 +33,9 @@ export default function RootLayout({
         <ThemeProvider>
           <SettingsProvider>
             <ClientProvider>
-              {children}
+              <AuthProvider>
+                {children}
+              </AuthProvider>
             </ClientProvider>
           </SettingsProvider>
         </ThemeProvider>

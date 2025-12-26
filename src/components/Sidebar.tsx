@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useAuth } from '@/context/AuthContext';
 import {
     LayoutDashboard,
     Users,
@@ -35,6 +36,7 @@ const menuItems = [
 export default function Sidebar() {
     const pathname = usePathname();
     const [isOpen, setIsOpen] = useState(false);
+    const { user, logout } = useAuth();
 
     // Close sidebar on route change
     useEffect(() => {
@@ -98,16 +100,21 @@ export default function Sidebar() {
 
             {/* User Profile */}
             <div className="pt-4 md:pt-6 border-t border-[var(--border-primary)]">
-                <div className="flex items-center gap-3 mb-4 p-3 rounded-xl bg-gradient-to-r from-[var(--accent-mint)]/10 to-[var(--accent-purple)]/10">
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[var(--accent-mint)] to-[var(--accent-purple)] flex items-center justify-center text-white font-semibold shadow-lg shadow-[var(--glow-mint)]">
-                        HF
+                {user && (
+                    <div className="flex items-center gap-3 mb-4 p-3 rounded-xl bg-gradient-to-r from-[var(--accent-mint)]/10 to-[var(--accent-purple)]/10">
+                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[var(--accent-mint)] to-[var(--accent-purple)] flex items-center justify-center text-white font-semibold shadow-lg shadow-[var(--glow-mint)]">
+                            {user.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+                        </div>
+                        <div className="min-w-0">
+                            <p className="text-[var(--text-primary)] font-medium text-sm truncate">{user.name}</p>
+                            <p className="text-[var(--accent-mint)] text-xs truncate capitalize">{user.role} Account</p>
+                        </div>
                     </div>
-                    <div>
-                        <p className="text-[var(--text-primary)] font-medium text-sm">Hedge Fund Admin</p>
-                        <p className="text-[var(--accent-mint)] text-xs">Enterprise Account</p>
-                    </div>
-                </div>
-                <button className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] transition-all duration-200">
+                )}
+                <button
+                    onClick={logout}
+                    className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] transition-all duration-200"
+                >
                     <LogOut size={20} />
                     <span className="font-medium">Log Out</span>
                 </button>

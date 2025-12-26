@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Search, Plus, Trash2, X, UserPlus, PiggyBank, Loader2, Check, Edit2 } from 'lucide-react';
+import { Search, Plus, Trash2, X, UserPlus, PiggyBank, Loader2, Check, Edit2, Key, Copy, ShieldCheck } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
 import { searchSchemes, type MutualFundScheme } from '@/lib/mfapi';
 import { useClientContext, type Client } from '@/context/ClientContext';
@@ -19,11 +19,22 @@ function formatCurrency(amount: number): string {
     return `₹${amount.toLocaleString('en-IN')}`;
 }
 
+const generatePassword = (pan: string, aadhar: string) => {
+    // Simple mock encryption: Base64 of PAN + Last 4 of Aadhar
+    const aadharLast4 = aadhar.replace(/\D/g, '').slice(-4);
+    try {
+        return btoa(`${pan}${aadharLast4}`).slice(0, 10);
+    } catch (e) {
+        return 'pass1234'; // Fallback
+    }
+};
+
 export default function ManageClientsPage() {
     const { clients, addClient, updateClient, deleteClient } = useClientContext();
     const [showAddModal, setShowAddModal] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const [editingClient, setEditingClient] = useState<Client | null>(null);
+    const [showCredentialsModal, setShowCredentialsModal] = useState<Client | null>(null);
 
     // Form state
     const [formData, setFormData] = useState({
@@ -126,6 +137,8 @@ export default function ManageClientsPage() {
                 amount: parseFloat(formData.amount),
                 sipAmount: formData.investmentType === 'SIP' ? parseFloat(formData.sipAmount) : undefined,
                 startDate: formData.startDate,
+                // Regenerate password if details change (optional, keeping it stable for now unless empty)
+                password: editingClient.password || generatePassword(formData.panCard, formData.aadharCard),
             });
         } else {
             const newClient: Client = {
@@ -141,6 +154,7 @@ export default function ManageClientsPage() {
                 amount: parseFloat(formData.amount),
                 sipAmount: formData.investmentType === 'SIP' ? parseFloat(formData.sipAmount) : undefined,
                 startDate: formData.startDate,
+                password: generatePassword(formData.panCard, formData.aadharCard),
             };
             addClient(newClient);
         }
@@ -341,6 +355,13 @@ export default function ManageClientsPage() {
                                         </div>
                                         <div className="col-span-2 flex items-center justify-center gap-2">
                                             <button
+                                                onClick={() => setShowCredentialsModal(client)}
+                                                className="p-2 rounded-lg bg-[var(--accent-purple)]/10 text-[var(--accent-purple)] hover:bg-[var(--accent-purple)]/20 transition-colors"
+                                                title="View Login Credentials"
+                                            >
+                                                <Key size={16} />
+                                            </button>
+                                            <button
                                                 onClick={() => handleEditClient(client)}
                                                 className="p-2 rounded-lg bg-[#48cae4]/10 text-[#48cae4] hover:bg-[#48cae4]/20 transition-colors"
                                             >
@@ -363,6 +384,66 @@ export default function ManageClientsPage() {
 
             {/* Sidebar */}
             <Sidebar />
+
+            {/* Credentials Modal */}
+            {showCredentialsModal && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
+                    <div className="w-full max-w-sm glass-card rounded-2xl p-6 relative animate-in fade-in zoom-in-95 duration-200">
+                        <button
+                            onClick={() => setShowCredentialsModal(null)}
+                            className="absolute top-4 right-4 text-[#9CA3AF] hover:text-white"
+                        >
+                            <X size={20} />
+                        </button>
+
+                        <div className="text-center mb-6">
+                            <div className="w-12 h-12 bg-[var(--accent-purple)]/20 rounded-xl flex items-center justify-center mx-auto mb-3">
+                                <ShieldCheck size={24} className="text-[var(--accent-purple)]" />
+                            </div>
+                            <h3 className="text-lg font-bold text-white">Client Credentials</h3>
+                            <p className="text-[#9CA3AF] text-xs mt-1">Share these details securely with the client</p>
+                        </div>
+
+                        <div className="space-y-4">
+                            <div className="p-3 rounded-xl bg-white/5 border border-white/10">
+                                <p className="text-[#9CA3AF] text-[10px] uppercase font-medium mb-1">Login ID / Email</p>
+                                <div className="flex items-center justify-between">
+                                    <p className="text-white font-mono text-sm">{showCredentialsModal.email}</p>
+                                    <button
+                                        onClick={() => navigator.clipboard.writeText(showCredentialsModal.email)}
+                                        className="text-[var(--accent-mint)] hover:text-white"
+                                    >
+                                        <Copy size={14} />
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div className="p-3 rounded-xl bg-white/5 border border-white/10">
+                                <p className="text-[#9CA3AF] text-[10px] uppercase font-medium mb-1">Generated Password</p>
+                                <div className="flex items-center justify-between">
+                                    <p className="text-white font-mono text-sm">{showCredentialsModal.password}</p>
+                                    <button
+                                        onClick={() => navigator.clipboard.writeText(showCredentialsModal.password || '')}
+                                        className="text-[var(--accent-mint)] hover:text-white"
+                                    >
+                                        <Copy size={14} />
+                                    </button>
+                                </div>
+                                <p className="text-[10px] text-[#9CA3AF] mt-2 italic">
+                                    Encrypted from PAN + Aadhar
+                                </p>
+                            </div>
+                        </div>
+
+                        <button
+                            onClick={() => setShowCredentialsModal(null)}
+                            className="w-full mt-6 py-2.5 rounded-xl bg-[var(--accent-purple)] text-white font-medium hover:bg-[var(--accent-purple)]/90 transition-colors text-sm"
+                        >
+                            Done
+                        </button>
+                    </div>
+                </div>
+            )}
 
             {/* Add Client Modal */}
             {showAddModal && (

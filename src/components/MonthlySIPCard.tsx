@@ -31,7 +31,23 @@ export default function MonthlySIPCard() {
     const { clients } = useClientContext();
 
     // Calculate real-time stats
-    const activeSIPs = clients.filter(c => c.investmentType === 'SIP');
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth(); // 0-indexed
+
+    const activeSIPs = clients.filter(c => {
+        if (c.investmentType !== 'SIP') return false;
+
+        const start = new Date(c.startDate);
+        const startYear = start.getFullYear();
+        const startMonth = start.getMonth();
+
+        // Check if start date is in past or current month of the displayed card (which is current month)
+        if (startYear < currentYear) return true;
+        if (startYear === currentYear && startMonth <= currentMonth) return true;
+
+        return false;
+    });
     const totalSIPAmount = activeSIPs.reduce((sum, client) => sum + (client.sipAmount || 0), 0);
     const activeSIPCount = activeSIPs.length;
     const avgSIPAmount = activeSIPCount > 0 ? totalSIPAmount / activeSIPCount : 0;

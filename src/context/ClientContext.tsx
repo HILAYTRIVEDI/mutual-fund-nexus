@@ -15,7 +15,18 @@ export interface Client {
     amount: number;
     sipAmount?: number;
     startDate: string;
+    password?: string; // Generated from PAN + Aadhar
 }
+
+// Simple encryption simulation (Base64 of PAN + Last 4 of Aadhar)
+const generatePassword = (pan: string, aadhar: string) => {
+    const aadharLast4 = aadhar.replace(/\D/g, '').slice(-4);
+    // Use btoa for browser compatibility instead of Buffer
+    if (typeof window !== 'undefined') {
+        return window.btoa(`${pan}${aadharLast4}`).slice(0, 10);
+    }
+    return Buffer.from(`${pan}${aadharLast4}`).toString('base64').slice(0, 10);
+};
 
 const initialClients: Client[] = [
     {
@@ -31,6 +42,7 @@ const initialClients: Client[] = [
         amount: 1500000,
         sipAmount: 50000,
         startDate: '2023-01-15',
+        password: generatePassword('ABCDE1234F', '1234 5678 9012'),
     },
     {
         id: 'CLT002',
@@ -44,6 +56,7 @@ const initialClients: Client[] = [
         investmentType: 'Lumpsum',
         amount: 2500000,
         startDate: '2022-06-20',
+        password: generatePassword('FGHIJ5678K', '9876 5432 1098'),
     },
 ];
 
