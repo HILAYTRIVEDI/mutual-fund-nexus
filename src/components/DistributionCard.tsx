@@ -8,7 +8,23 @@ const data = [
     { name: 'Hybrid Funds', value: 10, color: '#F59E0B' },
 ];
 
-export default function DistributionCard() {
+interface DistributionData {
+    name: string;
+    value: number;
+    color: string;
+    [key: string]: any;
+}
+
+interface DistributionCardProps {
+    customData?: DistributionData[];
+}
+
+export default function DistributionCard({ customData }: DistributionCardProps) {
+    // Use custom data if provided, otherwise default
+    const chartData = customData || data;
+
+    // Use the first item for the center text focus
+    const focusItem = chartData[0];
     return (
         <div className="glass-card rounded-2xl p-6 h-full gradient-border relative overflow-hidden transition-colors duration-300">
             {/* Gradient overlay */}
@@ -25,7 +41,7 @@ export default function DistributionCard() {
                 <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                         <Pie
-                            data={data}
+                            data={chartData}
                             cx="50%"
                             cy="50%"
                             innerRadius={60}
@@ -36,7 +52,7 @@ export default function DistributionCard() {
                             endAngle={-270}
                             stroke="none"
                         >
-                            {data.map((entry, index) => (
+                            {chartData.map((entry, index) => (
                                 <Cell
                                     key={`cell-${index}`}
                                     fill={entry.color}
@@ -51,34 +67,22 @@ export default function DistributionCard() {
 
                 {/* Center text */}
                 <div className="absolute inset-0 flex flex-col items-center justify-center">
-                    <p className="text-[var(--text-secondary)] text-xs">Equity Exposure</p>
-                    <p className="text-2xl font-bold text-[var(--text-primary)]">65%</p>
+                    <p className="text-[var(--text-secondary)] text-xs">{focusItem.name.split(' ')[0]} Exp.</p>
+                    <p className="text-2xl font-bold text-[var(--text-primary)]">{focusItem.value}%</p>
                 </div>
             </div>
 
             {/* Legend */}
             <div className="space-y-2 mt-4 relative z-10">
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                        <div className="w-3 h-3 rounded-full bg-[#48cae4]" />
-                        <span className="text-[var(--text-secondary)] text-sm">Equity Funds</span>
+                {chartData.map((entry) => (
+                    <div key={entry.name} className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: entry.color }} />
+                            <span className="text-[var(--text-secondary)] text-sm">{entry.name}</span>
+                        </div>
+                        <span className="text-[var(--text-primary)] font-medium">{entry.value}%</span>
                     </div>
-                    <span className="text-[var(--text-primary)] font-medium">65%</span>
-                </div>
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                        <div className="w-3 h-3 rounded-full bg-[#8B5CF6]" />
-                        <span className="text-[var(--text-secondary)] text-sm">Debt Funds</span>
-                    </div>
-                    <span className="text-[var(--text-primary)] font-medium">25%</span>
-                </div>
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                        <div className="w-3 h-3 rounded-full bg-[#F59E0B]" />
-                        <span className="text-[var(--text-secondary)] text-sm">Hybrid Funds</span>
-                    </div>
-                    <span className="text-[var(--text-primary)] font-medium">10%</span>
-                </div>
+                ))}
             </div>
         </div>
     );

@@ -59,11 +59,34 @@ const aumValues = {
 const timeFilters = ['1M', '3M', '6M', '1Y'] as const;
 type TimeFilter = typeof timeFilters[number];
 
-export default function AssetChartCard() {
+// Data interfaces
+interface ChartDataPoint {
+    name: string;
+    value: number;
+}
+
+interface AumInfo {
+    current: number;
+    change: number;
+}
+
+interface AssetChartCardProps {
+    customChartData?: Record<string, ChartDataPoint[]>;
+    customAumValues?: Record<string, AumInfo>;
+}
+
+export default function AssetChartCard({ customChartData, customAumValues }: AssetChartCardProps) {
     const [activeFilter, setActiveFilter] = useState<TimeFilter>('1Y');
 
-    const chartData = useMemo(() => chartDataSets[activeFilter], [activeFilter]);
-    const aumInfo = useMemo(() => aumValues[activeFilter], [activeFilter]);
+    const chartData = useMemo(() => {
+        if (customChartData) return customChartData[activeFilter];
+        return chartDataSets[activeFilter];
+    }, [activeFilter, customChartData]);
+
+    const aumInfo = useMemo(() => {
+        if (customAumValues) return customAumValues[activeFilter];
+        return aumValues[activeFilter];
+    }, [activeFilter, customAumValues]);
 
     // Calculate starting value for the period
     const startValue = chartData[0]?.value || 0;

@@ -31,7 +31,7 @@ const menuItems = [
     { icon: Clock, label: 'History', href: '/history', adminOnly: true },
     { icon: Settings, label: 'Settings', href: '/settings', adminOnly: true },
     { icon: Newspaper, label: 'News', href: '/news' },
-    { icon: HelpCircle, label: 'Help Center', href: '/help' },
+    { icon: HelpCircle, label: 'Help Center', href: '/help', adminOnly: true },
 ];
 
 export default function Sidebar() {

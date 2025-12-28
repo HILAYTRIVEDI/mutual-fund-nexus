@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Search, X, User, PiggyBank, Clock, FileText, Loader2 } from 'lucide-react';
 import { searchSchemes, getSchemeLatestNAV, type MutualFundScheme } from '@/lib/mfapi';
+import { useAuth } from '@/context/AuthContext';
 
 type SearchResultType = 'client' | 'fund' | 'transaction' | 'page';
 
@@ -13,6 +14,8 @@ interface SearchResult {
     title: string;
     subtitle: string;
     href: string;
+    adminOnly?: boolean;
+    clientOnly?: boolean;
 }
 
 // Static search data (clients & pages - require database for real data)
@@ -31,7 +34,7 @@ const staticSearchData: SearchResult[] = [
     { id: 'p5', type: 'page', title: 'Mutual Funds', subtitle: 'Browse fund catalog', href: '/mutual-funds' },
     { id: 'p6', type: 'page', title: 'Fund Comparison', subtitle: 'Compare funds side by side', href: '/compare' },
     { id: 'p7', type: 'page', title: 'History', subtitle: 'Activity logs and timeline', href: '/history' },
-    { id: 'p8', type: 'page', title: 'Help Center', subtitle: 'Guides and documentation', href: '/help' },
+    { id: 'p8', type: 'page', title: 'Help Center', subtitle: 'Guides and documentation', href: '/help', adminOnly: true },
 ];
 
 const typeIcons: Record<SearchResultType, React.ElementType> = {
@@ -49,6 +52,7 @@ const typeLabels: Record<SearchResultType, string> = {
 };
 
 export default function GlobalSearch() {
+    const { user } = useAuth();
     const [isOpen, setIsOpen] = useState(false);
     const [query, setQuery] = useState('');
     const [selectedIndex, setSelectedIndex] = useState(0);
@@ -60,9 +64,12 @@ export default function GlobalSearch() {
     // Search static data + live funds from API
     const staticResults = query.trim()
         ? staticSearchData.filter(
-            (item) =>
-                item.title.toLowerCase().includes(query.toLowerCase()) ||
-                item.subtitle.toLowerCase().includes(query.toLowerCase())
+            (item) => {
+                if (item.adminOnly && user?.role !== 'admin') return false;
+                if (item.clientOnly && user?.role !== 'client') return false;
+                return item.title.toLowerCase().includes(query.toLowerCase()) ||
+                    item.subtitle.toLowerCase().includes(query.toLowerCase());
+            }
         )
         : [];
 

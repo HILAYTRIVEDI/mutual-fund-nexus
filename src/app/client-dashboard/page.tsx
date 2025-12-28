@@ -6,7 +6,9 @@ import { useSettings } from '@/context/SettingsContext';
 import Sidebar from '@/components/Sidebar';
 import ThemeToggle from '@/components/ThemeToggle';
 import { TrendingUp, TrendingDown, PiggyBank, Calendar, Wallet, Target, Calculator } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
+import AssetChartCard from '@/components/AssetChartCard';
+import DistributionCard from '@/components/DistributionCard';
 
 function formatCurrency(amount: number): string {
     if (amount >= 10000000) {
@@ -26,6 +28,75 @@ export default function ClientDashboard() {
     // Get logged-in client's data
     const clientData = clients.find(c => c.id === user?.id);
 
+    // Mock current value calculation (In production, fetch from API)
+    const mockGrowthRate = clientData?.investmentType === 'SIP' ? 1.21 : 1.18;
+    const currentValue = clientData ? clientData.amount * mockGrowthRate : 0;
+
+    // Generate Client Specific Chart Data (Mocking history based on current value)
+    const chartData = useMemo(() => {
+        if (!currentValue) return undefined;
+
+        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        const currentMonthIndex = new Date().getMonth();
+
+        // Helper to generate a curve ending at currentValue
+        const generateCurve = (monthsCount: number, volatility: number) => {
+            const data = [];
+            let val = currentValue;
+            for (let i = 0; i < monthsCount; i++) {
+                // Reverse iterate
+                const date = new Date();
+                date.setMonth(currentMonthIndex - i);
+                const monthName = months[date.getMonth()];
+
+                data.unshift({
+                    name: monthName,
+                    value: val
+                });
+
+                // Previous month was likely less
+                val = val / (1 + (Math.random() * volatility));
+            }
+            return data;
+        };
+
+        const yearData = generateCurve(12, 0.02); // 2% avg monthly growth roughly
+        const sixMonthData = yearData.slice(6);
+
+        // Weekly data for 1M
+        const oneMonthData = [
+            { name: 'Week 1', value: currentValue * 0.95 },
+            { name: 'Week 2', value: currentValue * 0.97 },
+            { name: 'Week 3', value: currentValue * 0.98 },
+            { name: 'Week 4', value: currentValue },
+        ];
+
+        return {
+            '1Y': yearData,
+            '6M': sixMonthData,
+            '3M': yearData.slice(9),
+            '1M': oneMonthData,
+        };
+    }, [currentValue]);
+
+    const aumValues = useMemo(() => {
+        if (!currentValue) return undefined;
+
+        const formatAum = (val: number) => parseFloat((val / 10000000).toFixed(2));
+        return {
+            '1Y': { current: formatAum(currentValue), change: mockGrowthRate * 10 - 10 }, // Approx
+            '6M': { current: formatAum(currentValue), change: 8.5 },
+            '3M': { current: formatAum(currentValue), change: 4.2 },
+            '1M': { current: formatAum(currentValue), change: 1.5 },
+        };
+    }, [currentValue, mockGrowthRate]);
+
+    const distributionData = [
+        { name: 'Equity Funds', value: 70, color: '#48cae4' },
+        { name: 'Debt Funds', value: 20, color: '#8B5CF6' },
+        { name: 'Gold', value: 10, color: '#F59E0B' },
+    ];
+
     if (!clientData) {
         return (
             <div className="min-h-screen bg-[var(--bg-primary)] flex items-center justify-center">
@@ -34,9 +105,8 @@ export default function ClientDashboard() {
         );
     }
 
-    // Mock current value calculation (In production, fetch from API)
-    const mockGrowthRate = clientData.investmentType === 'SIP' ? 1.21 : 1.18;
-    const currentValue = clientData.amount * mockGrowthRate;
+    // Derived values requiring clientData
+    // We mock these derived values for display since clientData is now guaranteed not null
     const grossReturns = currentValue - clientData.amount;
     const grossReturnsPercentage = (grossReturns / clientData.amount) * 100;
 
@@ -76,8 +146,8 @@ export default function ClientDashboard() {
                             <button
                                 onClick={() => setShowPostTax(!showPostTax)}
                                 className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border transition-all ${showPostTax
-                                        ? 'bg-[var(--accent-mint)]/10 border-[var(--accent-mint)]/20 text-[var(--accent-mint)]'
-                                        : 'bg-[var(--bg-hover)] border-[var(--border-primary)] text-[var(--text-secondary)]'
+                                    ? 'bg-[var(--accent-mint)]/10 border-[var(--accent-mint)]/20 text-[var(--accent-mint)]'
+                                    : 'bg-[var(--bg-hover)] border-[var(--border-primary)] text-[var(--text-secondary)]'
                                     }`}
                             >
                                 <Calculator size={14} />
@@ -127,6 +197,14 @@ export default function ClientDashboard() {
                     </div>
                 </div>
 
+                {/* Charts Area */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+                    <AssetChartCard customChartData={chartData} customAumValues={aumValues} />
+                    <div className="lg:col-span-1 h-[300px] lg:h-auto">
+                        <DistributionCard customData={distributionData} />
+                    </div>
+                </div>
+
                 {/* Holdings Card */}
                 <div className="glass-card rounded-2xl p-4 md:p-6 mb-6">
                     <h3 className="text-[var(--text-primary)] font-semibold mb-4 flex items-center gap-2">
@@ -143,8 +221,8 @@ export default function ClientDashboard() {
                                 <p className="text-[var(--text-secondary)] text-xs mt-1">Scheme Code: {clientData.schemeCode}</p>
                                 <div className="flex flex-wrap gap-2 mt-2">
                                     <span className={`px-2 py-0.5 rounded text-xs font-medium ${clientData.investmentType === 'SIP'
-                                            ? 'bg-[var(--accent-mint)]/10 text-[var(--accent-mint)]'
-                                            : 'bg-[var(--accent-purple)]/10 text-[var(--accent-purple)]'
+                                        ? 'bg-[var(--accent-mint)]/10 text-[var(--accent-mint)]'
+                                        : 'bg-[var(--accent-purple)]/10 text-[var(--accent-purple)]'
                                         }`}>
                                         {clientData.investmentType}
                                     </span>
