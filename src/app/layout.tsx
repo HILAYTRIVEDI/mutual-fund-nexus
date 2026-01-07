@@ -1,10 +1,14 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/context/ThemeContext";
 import { ClientProvider } from "@/context/ClientContext";
 import { SettingsProvider } from "@/context/SettingsContext";
 import { AuthProvider } from "@/context/AuthContext";
+import { HoldingsProvider } from "@/context/HoldingsContext";
+import { TransactionsProvider } from "@/context/TransactionsContext";
+import { SIPProvider } from "@/context/SIPContext";
+import { NotificationProvider } from "@/context/NotificationContext";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -14,12 +18,13 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: "Mutual Fund Nexus - Investment Dashboard",
   description: "Premium mutual fund portfolio management dashboard",
-  viewport: {
-    width: 'device-width',
-    initialScale: 1,
-    maximumScale: 1,
-    viewportFit: 'cover',
-  },
+};
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  viewportFit: 'cover',
 };
 
 export default function RootLayout({
@@ -32,14 +37,23 @@ export default function RootLayout({
       <body className={`${inter.variable} antialiased`}>
         <ThemeProvider>
           <SettingsProvider>
-            <ClientProvider>
-              <AuthProvider>
-                {children}
-              </AuthProvider>
-            </ClientProvider>
+            <AuthProvider>
+              <ClientProvider>
+                <HoldingsProvider>
+                  <TransactionsProvider>
+                    <SIPProvider>
+                      <NotificationProvider>
+                        {children}
+                      </NotificationProvider>
+                    </SIPProvider>
+                  </TransactionsProvider>
+                </HoldingsProvider>
+              </ClientProvider>
+            </AuthProvider>
           </SettingsProvider>
         </ThemeProvider>
       </body>
     </html>
   );
 }
+

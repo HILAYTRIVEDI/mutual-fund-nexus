@@ -1,91 +1,202 @@
 'use client';
 
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
+import { getSupabaseClient } from '@/lib/supabase';
+import { useAuth } from './AuthContext';
+import type { Client as DBClient, ClientInsert } from '@/lib/types/database';
 
-export interface Client {
-    id: string;
-    name: string;
-    email: string;
-    phone: string;
-    panCard: string;
-    aadharCard: string;
-    portfolio: string;
-    schemeCode: number;
-    investmentType: 'SIP' | 'Lumpsum';
-    amount: number;
+// Frontend Client interface (extends DB type with computed fields)
+export interface Client extends DBClient {
+    // Computed/joined fields for backwards compatibility
+    panCard?: string;
+    aadharCard?: string;
+    portfolio?: string;
+    schemeCode?: number;
+    investmentType?: 'SIP' | 'Lumpsum';
+    amount?: number;
     sipAmount?: number;
-    startDate: string;
-    password?: string; // Generated from PAN + Aadhar
+    startDate?: string;
 }
-
-// Simple encryption simulation (Base64 of PAN + Last 4 of Aadhar)
-const generatePassword = (pan: string, aadhar: string) => {
-    const aadharLast4 = aadhar.replace(/\D/g, '').slice(-4);
-    // Use btoa for browser compatibility instead of Buffer
-    if (typeof window !== 'undefined') {
-        return window.btoa(`${pan}${aadharLast4}`).slice(0, 10);
-    }
-    return Buffer.from(`${pan}${aadharLast4}`).toString('base64').slice(0, 10);
-};
-
-const initialClients: Client[] = [
-    {
-        id: 'CLT001',
-        name: 'Rajesh Kumar',
-        email: 'rajesh.kumar@email.com',
-        phone: '+91 98765 43210',
-        panCard: 'ABCDE1234F',
-        aadharCard: '1234 5678 9012',
-        portfolio: 'HDFC Top 100 Fund',
-        schemeCode: 125497,
-        investmentType: 'SIP',
-        amount: 1500000,
-        sipAmount: 50000,
-        startDate: '2023-01-15',
-        password: generatePassword('ABCDE1234F', '1234 5678 9012'),
-    },
-    {
-        id: 'CLT002',
-        name: 'Priya Sharma',
-        email: 'priya.sharma@email.com',
-        phone: '+91 87654 32109',
-        panCard: 'FGHIJ5678K',
-        aadharCard: '9876 5432 1098',
-        portfolio: 'SBI Bluechip Fund',
-        schemeCode: 119598,
-        investmentType: 'Lumpsum',
-        amount: 2500000,
-        startDate: '2022-06-20',
-        password: generatePassword('FGHIJ5678K', '9876 5432 1098'),
-    },
-];
 
 interface ClientContextType {
     clients: Client[];
-    addClient: (client: Client) => void;
-    updateClient: (client: Client) => void;
-    deleteClient: (id: string) => void;
+    isLoading: boolean;
+    error: string | null;
+    addClient: (client: Omit<ClientInsert, 'advisor_id'>) => Promise<{ success: boolean; error?: string }>;
+    updateClient: (id: string, updates: Partial<Client>) => Promise<{ success: boolean; error?: string }>;
+    deleteClient: (id: string) => Promise<{ success: boolean; error?: string }>;
+    refreshClients: () => Promise<void>;
 }
 
 const ClientContext = createContext<ClientContextType | undefined>(undefined);
 
 export function ClientProvider({ children }: { children: ReactNode }) {
-    const [clients, setClients] = useState<Client[]>(initialClients);
+    const [clients, setClients] = useState<Client[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    const { user, isAuthenticated } = useAuth();
+    const supabase = getSupabaseClient();
 
-    const addClient = (client: Client) => {
-        setClients(prev => [...prev, client]);
+    // Fetch clients from Supabase
+    const fetchClients = useCallback(async () => {
+        if (!isAuthenticated || !user) {
+            setClients([]);
+            setIsLoading(false);
+            return;
+        }
+
+        try {
+            setIsLoading(true);
+            setError(null);
+
+            const { data, error: fetchError } = await supabase
+                .from('clients')
+                .select('*')
+                .order('created_at', { ascending: false });
+
+            if (fetchError) {
+                throw fetchError;
+            }
+
+            // Map to frontend Client type
+            const mappedClients: Client[] = (data || []).map((client: any) => ({
+                id: client.id,
+                advisor_id: client.advisor_id,
+                name: client.name,
+                email: client.email,
+                phone: client.phone,
+                pan: client.pan,
+                panCard: client.pan, // Alias for backwards compatibility
+                status: client.status,
+                kyc_status: client.kyc_status,
+                notes: client.notes,
+                created_at: client.created_at,
+                updated_at: client.updated_at,
+            }));
+
+            setClients(mappedClients);
+        } catch (err) {
+            console.error('Error fetching clients:', err);
+            setError(err instanceof Error ? err.message : 'Failed to fetch clients');
+        } finally {
+            setIsLoading(false);
+        }
+    }, [isAuthenticated, user, supabase]);
+
+    // Fetch clients when auth changes
+    useEffect(() => {
+        fetchClients();
+    }, [fetchClients]);
+
+    const addClient = async (clientData: Omit<ClientInsert, 'advisor_id'>): Promise<{ success: boolean; error?: string }> => {
+        if (!user) {
+            return { success: false, error: 'Not authenticated' };
+        }
+
+        try {
+            const { data, error: insertError } = await (supabase
+                .from('clients') as any)
+                .insert({
+                    ...clientData,
+                    advisor_id: user.id,
+                })
+                .select()
+                .single();
+
+            if (insertError) {
+                throw insertError;
+            }
+
+            if (data) {
+                setClients(prev => [{ ...data, panCard: data.pan }, ...prev]);
+                return { success: true };
+            }
+
+            return { success: false, error: 'Failed to add client' };
+        } catch (err) {
+            console.error('Error adding client:', err);
+            return { success: false, error: err instanceof Error ? err.message : 'Failed to add client' };
+        }
     };
 
-    const updateClient = (updatedClient: Client) => {
-        setClients(prev => prev.map(c => c.id === updatedClient.id ? updatedClient : c));
+    const updateClient = async (id: string, updates: Partial<Client>): Promise<{ success: boolean; error?: string }> => {
+        try {
+            // Extract only DB fields from updates
+            const dbUpdates: Partial<DBClient> = {
+                name: updates.name,
+                email: updates.email,
+                phone: updates.phone,
+                pan: updates.pan || updates.panCard,
+                status: updates.status,
+                kyc_status: updates.kyc_status,
+                notes: updates.notes,
+            };
+
+            // Remove undefined values
+            Object.keys(dbUpdates).forEach(key => {
+                if (dbUpdates[key as keyof typeof dbUpdates] === undefined) {
+                    delete dbUpdates[key as keyof typeof dbUpdates];
+                }
+            });
+
+            const { data, error: updateError } = await (supabase
+                .from('clients') as any)
+                .update(dbUpdates)
+                .eq('id', id)
+                .select()
+                .single();
+
+            if (updateError) {
+                throw updateError;
+            }
+
+            if (data) {
+                setClients(prev => prev.map(c => 
+                    c.id === id ? { ...c, ...data, panCard: data.pan } : c
+                ));
+                return { success: true };
+            }
+
+            return { success: false, error: 'Failed to update client' };
+        } catch (err) {
+            console.error('Error updating client:', err);
+            return { success: false, error: err instanceof Error ? err.message : 'Failed to update client' };
+        }
     };
 
-    const deleteClient = (id: string) => {
-        setClients(prev => prev.filter(c => c.id !== id));
+    const deleteClient = async (id: string): Promise<{ success: boolean; error?: string }> => {
+        try {
+            const { error: deleteError } = await supabase
+                .from('clients')
+                .delete()
+                .eq('id', id);
+
+            if (deleteError) {
+                throw deleteError;
+            }
+
+            setClients(prev => prev.filter(c => c.id !== id));
+            return { success: true };
+        } catch (err) {
+            console.error('Error deleting client:', err);
+            return { success: false, error: err instanceof Error ? err.message : 'Failed to delete client' };
+        }
+    };
+
+    const refreshClients = async () => {
+        await fetchClients();
     };
 
     return (
-        <ClientContext.Provider value={{ clients, addClient, updateClient, deleteClient }}>
+        <ClientContext.Provider value={{ 
+            clients, 
+            isLoading, 
+            error, 
+            addClient, 
+            updateClient, 
+            deleteClient,
+            refreshClients 
+        }}>
             {children}
         </ClientContext.Provider>
     );

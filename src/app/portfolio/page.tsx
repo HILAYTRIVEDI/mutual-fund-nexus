@@ -157,25 +157,26 @@ export default function PortfolioPage() {
             // Find client's data and convert to PortfolioHolding format
             const clientData = clients.find(c => c.id === user.id);
             if (clientData) {
+                const investedAmount = clientData.amount || 0;
                 const mockGrowth = clientData.investmentType === 'SIP' ? 1.21 : 1.18;
-                const currentValue = clientData.amount * mockGrowth;
-                const returns = currentValue - clientData.amount;
+                const currentValue = investedAmount * mockGrowth;
+                const returns = currentValue - investedAmount;
                 return [{
                     id: clientData.id,
-                    fundName: clientData.portfolio,
-                    fundHouse: clientData.portfolio.split(' ')[0],
+                    fundName: clientData.portfolio || 'Investment Portfolio',
+                    fundHouse: (clientData.portfolio || 'Fund').split(' ')[0],
                     category: clientData.investmentType === 'SIP' ? 'Equity' : 'Hybrid',
-                    units: clientData.amount / 100,
+                    units: investedAmount / 100,
                     avgNav: 100,
                     currentNav: 100 * mockGrowth,
-                    investedValue: clientData.amount,
+                    investedValue: investedAmount,
                     currentValue: currentValue,
                     returns: returns,
-                    returnsPercentage: (returns / clientData.amount) * 100,
+                    returnsPercentage: investedAmount > 0 ? (returns / investedAmount) * 100 : 0,
                     xirr: clientData.investmentType === 'SIP' ? 22.5 : 18.2,
                     allocation: 100,
                     color: '#48cae4',
-                    investedDate: clientData.startDate,
+                    investedDate: clientData.startDate || new Date().toISOString(),
                 }];
             }
             return [];

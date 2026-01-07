@@ -29,8 +29,9 @@ export default function ClientDashboard() {
     const clientData = clients.find(c => c.id === user?.id);
 
     // Mock current value calculation (In production, fetch from API)
+    const investedAmount = clientData?.amount || 0;
     const mockGrowthRate = clientData?.investmentType === 'SIP' ? 1.21 : 1.18;
-    const currentValue = clientData ? clientData.amount * mockGrowthRate : 0;
+    const currentValue = investedAmount * mockGrowthRate;
 
     // Generate Client Specific Chart Data (Mocking history based on current value)
     const chartData = useMemo(() => {
@@ -107,18 +108,18 @@ export default function ClientDashboard() {
 
     // Derived values requiring clientData
     // We mock these derived values for display since clientData is now guaranteed not null
-    const grossReturns = currentValue - clientData.amount;
-    const grossReturnsPercentage = (grossReturns / clientData.amount) * 100;
+    const grossReturns = currentValue - investedAmount;
+    const grossReturnsPercentage = investedAmount > 0 ? (grossReturns / investedAmount) * 100 : 0;
 
     // Tax calculation
-    const startDate = new Date(clientData.startDate);
+    const startDate = new Date(clientData.startDate || Date.now());
     const oneYearAgo = new Date();
     oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
     const isLongTerm = startDate < oneYearAgo;
     const taxRate = isLongTerm ? ltcgTax : stcgTax;
     const taxAmount = grossReturns > 0 ? grossReturns * (taxRate / 100) : 0;
     const netReturns = grossReturns - taxAmount;
-    const netReturnsPercentage = (netReturns / clientData.amount) * 100;
+    const netReturnsPercentage = investedAmount > 0 ? (netReturns / investedAmount) * 100 : 0;
 
     const displayReturns = showPostTax ? netReturns : grossReturns;
     const displayReturnsPercentage = showPostTax ? netReturnsPercentage : grossReturnsPercentage;
@@ -165,7 +166,7 @@ export default function ClientDashboard() {
                             <Wallet size={16} className="text-[var(--accent-blue)]" />
                             <span className="text-[var(--text-secondary)] text-xs">Invested</span>
                         </div>
-                        <p className="text-lg md:text-xl font-bold text-[var(--text-primary)]">{formatCurrency(clientData.amount)}</p>
+                        <p className="text-lg md:text-xl font-bold text-[var(--text-primary)]">{formatCurrency(investedAmount)}</p>
                     </div>
                     <div className="glass-card rounded-2xl p-4 gradient-border">
                         <div className="flex items-center gap-2 mb-2">
@@ -217,17 +218,17 @@ export default function ClientDashboard() {
                                 <PiggyBank size={24} className="text-[var(--accent-mint)]" />
                             </div>
                             <div className="flex-1 min-w-0">
-                                <p className="text-[var(--text-primary)] font-medium">{clientData.portfolio}</p>
-                                <p className="text-[var(--text-secondary)] text-xs mt-1">Scheme Code: {clientData.schemeCode}</p>
+                                <p className="text-[var(--text-primary)] font-medium">{clientData.portfolio || 'Investment Portfolio'}</p>
+                                <p className="text-[var(--text-secondary)] text-xs mt-1">Scheme Code: {clientData.schemeCode || 'N/A'}</p>
                                 <div className="flex flex-wrap gap-2 mt-2">
                                     <span className={`px-2 py-0.5 rounded text-xs font-medium ${clientData.investmentType === 'SIP'
                                         ? 'bg-[var(--accent-mint)]/10 text-[var(--accent-mint)]'
                                         : 'bg-[var(--accent-purple)]/10 text-[var(--accent-purple)]'
                                         }`}>
-                                        {clientData.investmentType}
+                                        {clientData.investmentType || 'Investment'}
                                     </span>
                                     <span className="px-2 py-0.5 rounded text-xs bg-[var(--bg-primary)] text-[var(--text-secondary)]">
-                                        Since {new Date(clientData.startDate).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })}
+                                        Since {new Date(clientData.startDate || Date.now()).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })}
                                     </span>
                                 </div>
                             </div>
@@ -260,7 +261,7 @@ export default function ClientDashboard() {
                             <div className="p-3 rounded-xl bg-[var(--bg-hover)] border border-[var(--border-primary)]">
                                 <p className="text-[var(--text-secondary)] text-xs mb-1">Next SIP Date</p>
                                 <p className="text-[var(--text-primary)] font-bold">
-                                    {new Date(clientData.startDate).getDate()}th of Month
+                                    {new Date(clientData.startDate || Date.now()).getDate()}th of Month
                                 </p>
                             </div>
                         </div>

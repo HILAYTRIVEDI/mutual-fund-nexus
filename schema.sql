@@ -1,33 +1,48 @@
--- Enable UUID extension
-create extension if not exists "uuid-ossp";
+-- =====================================================
+-- MUTUAL FUND NEXUS - FRESH DATABASE SETUP
+-- 
+-- Run this in Supabase SQL Editor (Dashboard > SQL Editor)
+-- for a brand new Supabase project
+-- =====================================================
 
--- 1. PROFILES (Advisors/Users)
-create table public.profiles (
-  id uuid not null references auth.users(id) on delete cascade,
-  email text not null,
+-- Enable UUID extension
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
+-- =====================================================
+-- 1. PROFILES (User accounts linked to Supabase Auth)
+-- =====================================================
+CREATE TABLE IF NOT EXISTS public.profiles (
+  id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  email text NOT NULL,
   full_name text,
-  role text check (role in ('admin', 'advisor', 'viewer')) default 'advisor',
+  role text CHECK (role IN ('admin', 'advisor', 'viewer', 'client')) DEFAULT 'advisor',
   avatar_url text,
-  created_at timestamptz default now(),
-  updated_at timestamptz default now(),
-  primary key (id)
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now(),
+  PRIMARY KEY (id)
 );
 
 -- RLS for Profiles
-alter table public.profiles enable row level security;
+ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 
-create policy "Users can view their own profile"
-  on public.profiles for select
-  using (auth.uid() = id);
+CREATE POLICY "Users can view their own profile"
+  ON public.profiles FOR SELECT
+  USING (auth.uid() = id);
 
-create policy "Users can update their own profile"
-  on public.profiles for update
-  using (auth.uid() = id);
+CREATE POLICY "Users can update their own profile"
+  ON public.profiles FOR UPDATE
+  USING (auth.uid() = id);
 
+CREATE POLICY "Users can insert their own profile"
+  ON public.profiles FOR INSERT
+  WITH CHECK (auth.uid() = id);
+
+-- =====================================================
 -- 2. MUTUAL FUNDS (Master Data)
-create table public.mutual_funds (
-  code text not null primary key, -- Scheme Code
-  name text not null,
+-- =====================================================
+CREATE TABLE IF NOT EXISTS public.mutual_funds (
+  code text NOT NULL PRIMARY KEY,
+  name text NOT NULL,
   fund_house text,
   category text,
   type text,
@@ -36,221 +51,268 @@ create table public.mutual_funds (
 );
 
 -- RLS for Mutual Funds
-alter table public.mutual_funds enable row level security;
+ALTER TABLE public.mutual_funds ENABLE ROW LEVEL SECURITY;
 
-create policy "Authenticated users can view mutual funds"
-  on public.mutual_funds for select
-  to authenticated
-  using (true);
+CREATE POLICY "Authenticated users can view mutual funds"
+  ON public.mutual_funds FOR SELECT
+  TO authenticated
+  USING (true);
 
+-- =====================================================
 -- 3. CLIENTS
-create table public.clients (
-  id uuid not null default gen_random_uuid() primary key,
-  advisor_id uuid references public.profiles(id) on delete set null, -- Keep client even if advisor is deleted/changed? Or cascade? Plan said Profile. Using Profile ID which is same as Auth ID.
-  name text not null,
+-- =====================================================
+CREATE TABLE IF NOT EXISTS public.clients (
+  id uuid NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+  advisor_id uuid REFERENCES public.profiles(id) ON DELETE SET NULL,
+  name text NOT NULL,
   email text,
   phone text,
-  pan text not null unique,
-  status text check (status in ('active', 'inactive')) default 'active',
-  kyc_status text check (kyc_status in ('pending', 'verified', 'rejected', 'expired')) default 'pending',
+  pan text NOT NULL UNIQUE,
+  status text CHECK (status IN ('active', 'inactive')) DEFAULT 'active',
+  kyc_status text CHECK (kyc_status IN ('pending', 'verified', 'rejected', 'expired')) DEFAULT 'pending',
   notes text,
-  created_at timestamptz default now(),
-  updated_at timestamptz default now()
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now()
 );
 
 -- RLS for Clients
-alter table public.clients enable row level security;
+ALTER TABLE public.clients ENABLE ROW LEVEL SECURITY;
 
-create policy "Advisors can view their own clients"
-  on public.clients for select
-  to authenticated
-  using (auth.uid() = advisor_id);
+CREATE POLICY "Advisors can view their own clients"
+  ON public.clients FOR SELECT
+  TO authenticated
+  USING (auth.uid() = advisor_id);
 
-create policy "Advisors can insert their own clients"
-  on public.clients for insert
-  to authenticated
-  with check (auth.uid() = advisor_id);
+CREATE POLICY "Advisors can insert their own clients"
+  ON public.clients FOR INSERT
+  TO authenticated
+  WITH CHECK (auth.uid() = advisor_id);
 
-create policy "Advisors can update their own clients"
-  on public.clients for update
-  to authenticated
-  using (auth.uid() = advisor_id);
+CREATE POLICY "Advisors can update their own clients"
+  ON public.clients FOR UPDATE
+  TO authenticated
+  USING (auth.uid() = advisor_id);
 
-create policy "Advisors can delete their own clients"
-  on public.clients for delete
-  to authenticated
-  using (auth.uid() = advisor_id);
+CREATE POLICY "Advisors can delete their own clients"
+  ON public.clients FOR DELETE
+  TO authenticated
+  USING (auth.uid() = advisor_id);
 
-
+-- =====================================================
 -- 4. HOLDINGS (Client Investments)
-create table public.holdings (
-  id uuid not null default gen_random_uuid() primary key,
-  client_id uuid not null references public.clients(id) on delete cascade,
-  scheme_code text references public.mutual_funds(code),
-  units numeric not null default 0,
-  average_price numeric not null default 0,
-  invested_amount numeric generated always as (units * average_price) stored,
-  created_at timestamptz default now(),
-  updated_at timestamptz default now(),
-  unique (client_id, scheme_code)
+-- =====================================================
+CREATE TABLE IF NOT EXISTS public.holdings (
+  id uuid NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+  client_id uuid NOT NULL REFERENCES public.clients(id) ON DELETE CASCADE,
+  scheme_code text REFERENCES public.mutual_funds(code),
+  units numeric NOT NULL DEFAULT 0,
+  average_price numeric NOT NULL DEFAULT 0,
+  invested_amount numeric GENERATED ALWAYS AS (units * average_price) STORED,
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now(),
+  UNIQUE (client_id, scheme_code)
 );
 
 -- RLS for Holdings
-alter table public.holdings enable row level security;
+ALTER TABLE public.holdings ENABLE ROW LEVEL SECURITY;
 
--- Policy helper: Check if user is the advisor of the client
--- Can use a join in using clause or a secure function. For simplicity in schema.sql, we'll subquery.
-create policy "Advisors can view holdings of their clients"
-  on public.holdings for select
-  to authenticated
-  using (exists (
-    select 1 from public.clients
-    where clients.id = holdings.client_id
-    and clients.advisor_id = auth.uid()
+CREATE POLICY "Advisors can view holdings of their clients"
+  ON public.holdings FOR SELECT
+  TO authenticated
+  USING (EXISTS (
+    SELECT 1 FROM public.clients
+    WHERE clients.id = holdings.client_id
+    AND clients.advisor_id = auth.uid()
   ));
 
-create policy "Advisors can manage holdings of their clients"
-  on public.holdings for all
-  to authenticated
-  using (exists (
-    select 1 from public.clients
-    where clients.id = holdings.client_id
-    and clients.advisor_id = auth.uid()
+CREATE POLICY "Advisors can manage holdings of their clients"
+  ON public.holdings FOR ALL
+  TO authenticated
+  USING (EXISTS (
+    SELECT 1 FROM public.clients
+    WHERE clients.id = holdings.client_id
+    AND clients.advisor_id = auth.uid()
   ));
 
+-- =====================================================
 -- 5. TRANSACTIONS
-create table public.transactions (
-  id uuid not null default gen_random_uuid() primary key,
-  client_id uuid not null references public.clients(id) on delete cascade,
-  scheme_code text references public.mutual_funds(code),
-  type text check (type in ('buy', 'sell', 'sip', 'switch')) not null,
-  amount numeric not null,
-  units numeric not null,
-  nav numeric not null,
-  status text check (status in ('pending', 'completed', 'failed')) default 'completed',
-  date timestamptz not null default now(),
-  created_at timestamptz default now()
+-- =====================================================
+CREATE TABLE IF NOT EXISTS public.transactions (
+  id uuid NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+  client_id uuid NOT NULL REFERENCES public.clients(id) ON DELETE CASCADE,
+  scheme_code text REFERENCES public.mutual_funds(code),
+  type text CHECK (type IN ('buy', 'sell', 'sip', 'switch')) NOT NULL,
+  amount numeric NOT NULL,
+  units numeric NOT NULL,
+  nav numeric NOT NULL,
+  status text CHECK (status IN ('pending', 'completed', 'failed')) DEFAULT 'completed',
+  date timestamptz NOT NULL DEFAULT now(),
+  created_at timestamptz DEFAULT now()
 );
 
 -- RLS for Transactions
-alter table public.transactions enable row level security;
+ALTER TABLE public.transactions ENABLE ROW LEVEL SECURITY;
 
-create policy "Advisors can view transactions of their clients"
-  on public.transactions for select
-  to authenticated
-  using (exists (
-    select 1 from public.clients
-    where clients.id = transactions.client_id
-    and clients.advisor_id = auth.uid()
+CREATE POLICY "Advisors can view transactions of their clients"
+  ON public.transactions FOR SELECT
+  TO authenticated
+  USING (EXISTS (
+    SELECT 1 FROM public.clients
+    WHERE clients.id = transactions.client_id
+    AND clients.advisor_id = auth.uid()
   ));
 
-create policy "Advisors can manage transactions of their clients"
-  on public.transactions for all
-  to authenticated
-  using (exists (
-    select 1 from public.clients
-    where clients.id = transactions.client_id
-    and clients.advisor_id = auth.uid()
+CREATE POLICY "Advisors can manage transactions of their clients"
+  ON public.transactions FOR ALL
+  TO authenticated
+  USING (EXISTS (
+    SELECT 1 FROM public.clients
+    WHERE clients.id = transactions.client_id
+    AND clients.advisor_id = auth.uid()
   ));
 
+-- =====================================================
 -- 6. SIPS
-create table public.sips (
-  id uuid not null default gen_random_uuid() primary key,
-  client_id uuid not null references public.clients(id) on delete cascade,
-  scheme_code text references public.mutual_funds(code),
-  amount numeric not null,
-  frequency text check (frequency in ('monthly', 'quarterly', 'weekly')) default 'monthly',
-  start_date date not null,
+-- =====================================================
+CREATE TABLE IF NOT EXISTS public.sips (
+  id uuid NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+  client_id uuid NOT NULL REFERENCES public.clients(id) ON DELETE CASCADE,
+  scheme_code text REFERENCES public.mutual_funds(code),
+  amount numeric NOT NULL,
+  frequency text CHECK (frequency IN ('monthly', 'quarterly', 'weekly')) DEFAULT 'monthly',
+  start_date date NOT NULL,
   next_execution_date date,
-  status text check (status in ('active', 'paused', 'cancelled')) default 'active',
-  created_at timestamptz default now(),
-  updated_at timestamptz default now()
+  status text CHECK (status IN ('active', 'paused', 'cancelled')) DEFAULT 'active',
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now()
 );
 
 -- RLS for SIPs
-alter table public.sips enable row level security;
+ALTER TABLE public.sips ENABLE ROW LEVEL SECURITY;
 
-create policy "Advisors can view SIPs of their clients"
-  on public.sips for select
-  to authenticated
-  using (exists (
-    select 1 from public.clients
-    where clients.id = sips.client_id
-    and clients.advisor_id = auth.uid()
+CREATE POLICY "Advisors can view SIPs of their clients"
+  ON public.sips FOR SELECT
+  TO authenticated
+  USING (EXISTS (
+    SELECT 1 FROM public.clients
+    WHERE clients.id = sips.client_id
+    AND clients.advisor_id = auth.uid()
   ));
 
-create policy "Advisors can manage SIPs of their clients"
-  on public.sips for all
-  to authenticated
-  using (exists (
-    select 1 from public.clients
-    where clients.id = sips.client_id
-    and clients.advisor_id = auth.uid()
+CREATE POLICY "Advisors can manage SIPs of their clients"
+  ON public.sips FOR ALL
+  TO authenticated
+  USING (EXISTS (
+    SELECT 1 FROM public.clients
+    WHERE clients.id = sips.client_id
+    AND clients.advisor_id = auth.uid()
   ));
 
+-- =====================================================
 -- 7. NOTIFICATIONS
-create table public.notifications (
-  id uuid not null default gen_random_uuid() primary key,
-  user_id uuid not null references public.profiles(id) on delete cascade,
-  type text check (type in ('success', 'warning', 'error', 'info')) not null,
-  title text not null,
+-- =====================================================
+CREATE TABLE IF NOT EXISTS public.notifications (
+  id uuid NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id uuid NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+  type text CHECK (type IN ('success', 'warning', 'error', 'info')) NOT NULL,
+  title text NOT NULL,
   message text,
-  read boolean default false,
-  created_at timestamptz default now()
+  read boolean DEFAULT false,
+  created_at timestamptz DEFAULT now()
 );
 
 -- RLS for Notifications
-alter table public.notifications enable row level security;
+ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
 
-create policy "Users can view their own notifications"
-  on public.notifications for select
-  to authenticated
-  using (auth.uid() = user_id);
+CREATE POLICY "Users can view their own notifications"
+  ON public.notifications FOR SELECT
+  TO authenticated
+  USING (auth.uid() = user_id);
 
-create policy "Users can update their own notifications"
-  on public.notifications for update
-  to authenticated
-  using (auth.uid() = user_id);
+CREATE POLICY "Users can update their own notifications"
+  ON public.notifications FOR UPDATE
+  TO authenticated
+  USING (auth.uid() = user_id);
 
--- TRIGGERS FOR UPDATED_AT
+CREATE POLICY "Users can insert their own notifications"
+  ON public.notifications FOR INSERT
+  TO authenticated
+  WITH CHECK (auth.uid() = user_id);
+
+-- =====================================================
+-- TRIGGERS AND FUNCTIONS
+-- =====================================================
+
 -- Reusable function to update updated_at timestamp
-create or replace function public.handle_updated_at()
-returns trigger as $$
-begin
-  new.updated_at = now();
-  return new;
-end;
-$$ language plpgsql;
+CREATE OR REPLACE FUNCTION public.handle_updated_at()
+RETURNS trigger AS $$
+BEGIN
+  NEW.updated_at = now();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
 
-create trigger handle_updated_at_profiles
-  before update on public.profiles
-  for each row execute procedure public.handle_updated_at();
+CREATE TRIGGER handle_updated_at_profiles
+  BEFORE UPDATE ON public.profiles
+  FOR EACH ROW EXECUTE FUNCTION public.handle_updated_at();
 
-create trigger handle_updated_at_clients
-  before update on public.clients
-  for each row execute procedure public.handle_updated_at();
+CREATE TRIGGER handle_updated_at_clients
+  BEFORE UPDATE ON public.clients
+  FOR EACH ROW EXECUTE FUNCTION public.handle_updated_at();
 
-create trigger handle_updated_at_holdings
-  before update on public.holdings
-  for each row execute procedure public.handle_updated_at();
+CREATE TRIGGER handle_updated_at_holdings
+  BEFORE UPDATE ON public.holdings
+  FOR EACH ROW EXECUTE FUNCTION public.handle_updated_at();
 
-create trigger handle_updated_at_sips
-  before update on public.sips
-  for each row execute procedure public.handle_updated_at();
+CREATE TRIGGER handle_updated_at_sips
+  BEFORE UPDATE ON public.sips
+  FOR EACH ROW EXECUTE FUNCTION public.handle_updated_at();
 
--- TRIGGER FOR NEW USER SIGNUP (Optional, assigns to proper Profile)
--- This assumes public.profiles matches auth.users 1:1.
--- You typically set this up to auto-create a profile on auth.users insert.
-create or replace function public.handle_new_user()
-returns trigger as $$
-begin
-  insert into public.profiles (id, email, full_name, role)
-  values (new.id, new.email, new.raw_user_meta_data->>'full_name', 'advisor');
-  return new;
-end;
-$$ language plpgsql SECURITY DEFINER;
+-- =====================================================
+-- AUTO-CREATE PROFILE ON USER SIGNUP
+-- This is the key trigger that creates a profile when
+-- a user signs up via Supabase Auth
+-- =====================================================
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  INSERT INTO public.profiles (id, email, full_name, role)
+  VALUES (
+    NEW.id, 
+    COALESCE(NEW.email, ''), 
+    COALESCE(NEW.raw_user_meta_data->>'full_name', 'User'), 
+    'advisor'
+  );
+  RETURN NEW;
+EXCEPTION
+  WHEN unique_violation THEN
+    -- Profile already exists, that's fine
+    RETURN NEW;
+  WHEN others THEN
+    -- Log but don't fail
+    RAISE WARNING 'handle_new_user failed: %', SQLERRM;
+    RETURN NEW;
+END;
+$$;
 
--- Trigger the function every time a user is created
-create trigger on_auth_user_created
-  after insert on auth.users
-  for each row execute procedure public.handle_new_user();
+-- Trigger on auth.users table
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+
+-- =====================================================
+-- SETUP COMPLETE!
+-- =====================================================
+-- 
+-- Next steps:
+-- 1. Go to Authentication > Providers > Email
+-- 2. Disable "Confirm email" for testing
+-- 3. Register a new user via the app
+-- 
+-- To make a user admin:
+-- UPDATE public.profiles SET role = 'admin' WHERE email = 'your@email.com';
+-- =====================================================

@@ -1,61 +1,11 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { Bell, X, AlertCircle, CheckCircle, Info, AlertTriangle } from 'lucide-react';
+import { Bell, X, AlertCircle, CheckCircle, Info, AlertTriangle, Loader2 } from 'lucide-react';
+import { useNotifications } from '@/context/NotificationContext';
+import type { Notification } from '@/lib/types/database';
 
 type NotificationType = 'success' | 'warning' | 'error' | 'info';
-
-interface Notification {
-    id: string;
-    type: NotificationType;
-    title: string;
-    message: string;
-    timestamp: string;
-    read: boolean;
-}
-
-const initialNotifications: Notification[] = [
-    {
-        id: '1',
-        type: 'warning',
-        title: 'SIP Bounce Alert',
-        message: 'Neha Gupta\'s SIP failed due to insufficient funds',
-        timestamp: '2024-12-26T01:30:00',
-        read: false,
-    },
-    {
-        id: '2',
-        type: 'success',
-        title: 'New Client Added',
-        message: 'Rajesh Kumar has been successfully onboarded',
-        timestamp: '2024-12-26T01:25:00',
-        read: false,
-    },
-    {
-        id: '3',
-        type: 'info',
-        title: 'NAV Updated',
-        message: '156 fund NAVs have been updated',
-        timestamp: '2024-12-25T20:00:00',
-        read: true,
-    },
-    {
-        id: '4',
-        type: 'error',
-        title: 'KYC Expiry',
-        message: 'Amit Patel\'s KYC expires in 7 days',
-        timestamp: '2024-12-25T10:00:00',
-        read: true,
-    },
-    {
-        id: '5',
-        type: 'success',
-        title: 'SIP Executed',
-        message: '₹50,000 invested in HDFC Top 100 for Rajesh Kumar',
-        timestamp: '2024-12-25T09:30:00',
-        read: true,
-    },
-];
 
 const typeIcons: Record<NotificationType, React.ElementType> = {
     success: CheckCircle,
@@ -85,11 +35,15 @@ function getRelativeTime(dateStr: string): string {
 }
 
 export default function NotificationBell() {
-    const [notifications, setNotifications] = useState(initialNotifications);
+    const { notifications, unreadCount, isLoading, markAsRead, markAllAsRead } = useNotifications();
     const [isOpen, setIsOpen] = useState(false);
+    const [localNotifications, setLocalNotifications] = useState<Notification[]>([]);
     const dropdownRef = useRef<HTMLDivElement>(null);
 
-    const unreadCount = notifications.filter(n => !n.read).length;
+    // Sync with context notifications
+    useEffect(() => {
+        setLocalNotifications(notifications);
+    }, [notifications]);
 
     useEffect(() => {
         function handleClickOutside(event: MouseEvent) {
@@ -101,20 +55,24 @@ export default function NotificationBell() {
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
-    const markAsRead = (id: string) => {
-        setNotifications(prev =>
+    const handleMarkAsRead = async (id: string) => {
+        // Optimistic update
+        setLocalNotifications(prev =>
             prev.map(n => n.id === id ? { ...n, read: true } : n)
         );
+        await markAsRead(id);
     };
 
-    const markAllAsRead = () => {
-        setNotifications(prev =>
+    const handleMarkAllAsRead = async () => {
+        // Optimistic update
+        setLocalNotifications(prev =>
             prev.map(n => ({ ...n, read: true }))
         );
+        await markAllAsRead();
     };
 
     const clearNotification = (id: string) => {
-        setNotifications(prev => prev.filter(n => n.id !== id));
+        setLocalNotifications(prev => prev.filter(n => n.id !== id));
     };
 
     return (
@@ -140,7 +98,7 @@ export default function NotificationBell() {
                         <h3 className="text-white font-semibold">Notifications</h3>
                         {unreadCount > 0 && (
                             <button
-                                onClick={markAllAsRead}
+                                onClick={handleMarkAllAsRead}
                                 className="text-[#48cae4] text-xs hover:underline"
                             >
                                 Mark all as read
@@ -150,13 +108,18 @@ export default function NotificationBell() {
 
                     {/* Notifications List */}
                     <div className="max-h-80 overflow-y-auto">
-                        {notifications.length === 0 ? (
+                        {isLoading ? (
+                            <div className="p-8 text-center">
+                                <Loader2 className="mx-auto text-[#9CA3AF] mb-2 animate-spin" size={32} />
+                                <p className="text-[#9CA3AF] text-sm">Loading notifications...</p>
+                            </div>
+                        ) : localNotifications.length === 0 ? (
                             <div className="p-8 text-center">
                                 <Bell className="mx-auto text-[#9CA3AF] mb-2" size={32} />
                                 <p className="text-[#9CA3AF] text-sm">No notifications</p>
                             </div>
                         ) : (
-                            notifications.map((notification) => {
+                            localNotifications.map((notification) => {
                                 const Icon = typeIcons[notification.type];
                                 const color = typeColors[notification.type];
 
@@ -165,7 +128,7 @@ export default function NotificationBell() {
                                         key={notification.id}
                                         className={`p-4 border-b border-white/5 hover:bg-white/5 transition-colors cursor-pointer ${!notification.read ? 'bg-white/5' : ''
                                             }`}
-                                        onClick={() => markAsRead(notification.id)}
+                                        onClick={() => handleMarkAsRead(notification.id)}
                                     >
                                         <div className="flex gap-3">
                                             <div
@@ -188,7 +151,7 @@ export default function NotificationBell() {
                                                     </button>
                                                 </div>
                                                 <p className="text-[#9CA3AF] text-xs mt-1 line-clamp-2">{notification.message}</p>
-                                                <p className="text-[#9CA3AF]/60 text-xs mt-1">{getRelativeTime(notification.timestamp)}</p>
+                                                <p className="text-[#9CA3AF]/60 text-xs mt-1">{getRelativeTime(notification.created_at)}</p>
                                             </div>
                                             {!notification.read && (
                                                 <div className="w-2 h-2 rounded-full bg-[#48cae4] flex-shrink-0 mt-2" />

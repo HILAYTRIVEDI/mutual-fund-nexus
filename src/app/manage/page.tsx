@@ -1,10 +1,11 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Search, Plus, Trash2, X, UserPlus, PiggyBank, Loader2, Check, Edit2, Key, Copy, ShieldCheck } from 'lucide-react';
+import { Search, Plus, Trash2, X, UserPlus, PiggyBank, Loader2, Check, Edit2, Key, Copy, ShieldCheck, Eye, EyeOff } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
 import { searchSchemes, type MutualFundScheme } from '@/lib/mfapi';
 import { useClientContext, type Client } from '@/context/ClientContext';
+import { getSupabaseClient } from '@/lib/supabase';
 
 function generateClientId(): string {
     return `CLT${String(Math.floor(Math.random() * 10000)).padStart(4, '0')}`;
@@ -34,7 +35,9 @@ export default function ManageClientsPage() {
     const [showAddModal, setShowAddModal] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const [editingClient, setEditingClient] = useState<Client | null>(null);
-    const [showCredentialsModal, setShowCredentialsModal] = useState<Client | null>(null);
+    const [showCredentialsModal, setShowCredentialsModal] = useState<{email: string, password: string} | null>(null);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [showPassword, setShowPassword] = useState(false);
 
     // Form state
     const [formData, setFormData] = useState({
@@ -43,6 +46,7 @@ export default function ManageClientsPage() {
         phone: '',
         panCard: '',
         aadharCard: '',
+        password: '', // Admin-defined password for client
         investmentType: 'SIP' as 'SIP' | 'Lumpsum',
         amount: '',
         sipAmount: '',
@@ -117,68 +121,110 @@ export default function ManageClientsPage() {
         setShowFundDropdown(false);
     };
 
-    const handleAddClient = () => {
-        if (!formData.name || !formData.schemeCode || !formData.amount || !formData.startDate || !formData.panCard || !formData.aadharCard) {
-            alert('Please fill in all required fields');
+    const handleAddClient = async () => {
+        if (!formData.name || !formData.email || !formData.password) {
+            alert('Please fill in Name, Email, and Password (required for login)');
             return;
         }
 
-        if (editingClient) {
-            updateClient({
-                ...editingClient,
-                name: formData.name,
-                email: formData.email,
-                phone: formData.phone,
-                panCard: formData.panCard,
-                aadharCard: formData.aadharCard,
-                portfolio: formData.schemeName,
-                schemeCode: formData.schemeCode,
-                investmentType: formData.investmentType,
-                amount: parseFloat(formData.amount),
-                sipAmount: formData.investmentType === 'SIP' ? parseFloat(formData.sipAmount) : undefined,
-                startDate: formData.startDate,
-                // Regenerate password if details change (optional, keeping it stable for now unless empty)
-                password: editingClient.password || generatePassword(formData.panCard, formData.aadharCard),
-            });
-        } else {
-            const newClient: Client = {
-                id: generateClientId(),
-                name: formData.name,
-                email: formData.email,
-                phone: formData.phone,
-                panCard: formData.panCard,
-                aadharCard: formData.aadharCard,
-                portfolio: formData.schemeName,
-                schemeCode: formData.schemeCode,
-                investmentType: formData.investmentType,
-                amount: parseFloat(formData.amount),
-                sipAmount: formData.investmentType === 'SIP' ? parseFloat(formData.sipAmount) : undefined,
-                startDate: formData.startDate,
-                password: generatePassword(formData.panCard, formData.aadharCard),
-            };
-            addClient(newClient);
+        if (formData.password.length < 6) {
+            alert('Password must be at least 6 characters');
+            return;
         }
 
-        setShowAddModal(false);
-        resetForm();
+        setIsSubmitting(true);
+
+        try {
+            if (editingClient) {
+                updateClient(editingClient.id, {
+                    name: formData.name,
+                    email: formData.email,
+                    phone: formData.phone,
+                    panCard: formData.panCard,
+                    aadharCard: formData.aadharCard,
+                    portfolio: formData.schemeName,
+                    schemeCode: formData.schemeCode,
+                    investmentType: formData.investmentType,
+                    amount: parseFloat(formData.amount) || 0,
+                    sipAmount: formData.investmentType === 'SIP' ? parseFloat(formData.sipAmount) : undefined,
+                    startDate: formData.startDate,
+                });
+                setShowAddModal(false);
+                resetForm();
+            } else {
+                // Create user in Supabase Auth
+                const supabase = getSupabaseClient();
+                
+                const { data: authData, error: authError } = await supabase.auth.signUp({
+                    email: formData.email,
+                    password: formData.password,
+                    options: {
+                        data: {
+                            full_name: formData.name,
+                        },
+                        emailRedirectTo: undefined, // Don't send confirmation email
+                    }
+                });
+
+                if (authError) {
+                    throw new Error(authError.message);
+                }
+
+                if (authData.user) {
+                    // Create profile for the user (using type assertion since tables aren't typed)
+                    await (supabase.from('profiles') as any).insert({
+                        id: authData.user.id,
+                        email: formData.email,
+                        full_name: formData.name,
+                        role: 'client',
+                    });
+
+                    // Create client record
+                    await addClient({
+                        name: formData.name,
+                        email: formData.email,
+                        phone: formData.phone || null,
+                        pan: formData.panCard,
+                        status: 'active' as const,
+                        kyc_status: 'pending' as const,
+                        notes: null,
+                    });
+
+                    // Store credentials to show in modal
+                    const savedCredentials = { email: formData.email, password: formData.password };
+                    
+                    setShowAddModal(false);
+                    resetForm();
+                    
+                    // Show credentials modal after form closes
+                    setShowCredentialsModal(savedCredentials);
+                }
+            }
+        } catch (error) {
+            console.error('Error creating client:', error);
+            alert(error instanceof Error ? error.message : 'Failed to create client');
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     const handleEditClient = (client: Client) => {
         setEditingClient(client);
         setFormData({
             name: client.name,
-            email: client.email,
-            phone: client.phone,
-            panCard: client.panCard,
-            aadharCard: client.aadharCard,
-            investmentType: client.investmentType,
-            amount: client.amount.toString(),
+            email: client.email || '',
+            phone: client.phone || '',
+            panCard: client.panCard || '',
+            aadharCard: client.aadharCard || '',
+            password: '', // Password not editable for existing clients
+            investmentType: client.investmentType || 'SIP',
+            amount: (client.amount || 0).toString(),
             sipAmount: client.sipAmount?.toString() || '',
-            startDate: client.startDate,
-            schemeCode: client.schemeCode,
-            schemeName: client.portfolio,
+            startDate: client.startDate || '',
+            schemeCode: client.schemeCode || 0,
+            schemeName: client.portfolio || '',
         });
-        setFundSearch(client.portfolio);
+        setFundSearch(client.portfolio || '');
         setShowAddModal(true);
     };
 
@@ -195,6 +241,7 @@ export default function ManageClientsPage() {
             phone: '',
             panCard: '',
             aadharCard: '',
+            password: '',
             investmentType: 'SIP',
             amount: '',
             sipAmount: '',
@@ -209,7 +256,7 @@ export default function ManageClientsPage() {
 
     const filteredClients = clients.filter(client =>
         client.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        client.portfolio.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (client.portfolio || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
         client.id.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
@@ -300,7 +347,7 @@ export default function ManageClientsPage() {
                                                 </button>
                                             </div>
                                         </div>
-                                        <p className="text-white text-sm mb-3 line-clamp-2">{client.portfolio}</p>
+                                        <p className="text-white text-sm mb-3 line-clamp-2">{client.portfolio || 'Investment'}</p>
                                         <div className="flex items-center justify-between text-xs">
                                             <span
                                                 className={`px-2.5 py-1 rounded-md font-medium ${client.investmentType === 'SIP'
@@ -308,10 +355,10 @@ export default function ManageClientsPage() {
                                                     : 'bg-[#8B5CF6]/10 text-[#8B5CF6]'
                                                     }`}
                                             >
-                                                {client.investmentType}
+                                                {client.investmentType || 'Investment'}
                                             </span>
                                             <div className="text-right">
-                                                <p className="text-white font-medium">{formatCurrency(client.amount)}</p>
+                                                <p className="text-white font-medium">{formatCurrency(client.amount || 0)}</p>
                                                 {client.sipAmount && (
                                                     <p className="text-[#9CA3AF] text-[10px]">{formatCurrency(client.sipAmount)}/mo</p>
                                                 )}
@@ -333,7 +380,7 @@ export default function ManageClientsPage() {
                                             </div>
                                         </div>
                                         <div className="col-span-3 flex items-center">
-                                            <p className="text-white text-sm truncate">{client.portfolio}</p>
+                                            <p className="text-white text-sm truncate">{client.portfolio || 'Investment'}</p>
                                         </div>
                                         <div className="col-span-2 flex items-center justify-center">
                                             <span
@@ -342,25 +389,18 @@ export default function ManageClientsPage() {
                                                     : 'bg-[#8B5CF6]/10 text-[#8B5CF6]'
                                                     }`}
                                             >
-                                                {client.investmentType}
+                                                {client.investmentType || 'Investment'}
                                             </span>
                                         </div>
                                         <div className="col-span-2 flex items-center justify-end">
                                             <div className="text-right">
-                                                <p className="text-white text-sm font-medium">{formatCurrency(client.amount)}</p>
+                                                <p className="text-white text-sm font-medium">{formatCurrency(client.amount || 0)}</p>
                                                 {client.sipAmount && (
                                                     <p className="text-[#9CA3AF] text-xs">{formatCurrency(client.sipAmount)}/mo</p>
                                                 )}
                                             </div>
                                         </div>
                                         <div className="col-span-2 flex items-center justify-center gap-2">
-                                            <button
-                                                onClick={() => setShowCredentialsModal(client)}
-                                                className="p-2 rounded-lg bg-[var(--accent-purple)]/10 text-[var(--accent-purple)] hover:bg-[var(--accent-purple)]/20 transition-colors"
-                                                title="View Login Credentials"
-                                            >
-                                                <Key size={16} />
-                                            </button>
                                             <button
                                                 onClick={() => handleEditClient(client)}
                                                 className="p-2 rounded-lg bg-[#48cae4]/10 text-[#48cae4] hover:bg-[#48cae4]/20 transition-colors"
@@ -408,9 +448,9 @@ export default function ManageClientsPage() {
                             <div className="p-3 rounded-xl bg-white/5 border border-white/10">
                                 <p className="text-[#9CA3AF] text-[10px] uppercase font-medium mb-1">Login ID / Email</p>
                                 <div className="flex items-center justify-between">
-                                    <p className="text-white font-mono text-sm">{showCredentialsModal.email}</p>
+                                    <p className="text-white font-mono text-sm">{showCredentialsModal.email || 'N/A'}</p>
                                     <button
-                                        onClick={() => navigator.clipboard.writeText(showCredentialsModal.email)}
+                                        onClick={() => navigator.clipboard.writeText(showCredentialsModal.email || '')}
                                         className="text-[var(--accent-mint)] hover:text-white"
                                     >
                                         <Copy size={14} />
@@ -419,18 +459,10 @@ export default function ManageClientsPage() {
                             </div>
 
                             <div className="p-3 rounded-xl bg-white/5 border border-white/10">
-                                <p className="text-[#9CA3AF] text-[10px] uppercase font-medium mb-1">Generated Password</p>
-                                <div className="flex items-center justify-between">
-                                    <p className="text-white font-mono text-sm">{showCredentialsModal.password}</p>
-                                    <button
-                                        onClick={() => navigator.clipboard.writeText(showCredentialsModal.password || '')}
-                                        className="text-[var(--accent-mint)] hover:text-white"
-                                    >
-                                        <Copy size={14} />
-                                    </button>
-                                </div>
+                                <p className="text-[#9CA3AF] text-[10px] uppercase font-medium mb-1">Authentication</p>
+                                <p className="text-white text-sm">Managed via Supabase</p>
                                 <p className="text-[10px] text-[#9CA3AF] mt-2 italic">
-                                    Encrypted from PAN + Aadhar
+                                    Client will receive a password reset link via email
                                 </p>
                             </div>
                         </div>
