@@ -5,146 +5,16 @@ import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Search, Filter, TrendingUp, TrendingDown, Users, ChevronDown, X, Calendar, Download, Loader2 } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
+import { useClientContext } from '@/context/ClientContext';
+import { useHoldings } from '@/context/HoldingsContext';
+import { useSIPs } from '@/context/SIPContext';
+import { formatNAV } from '@/lib/mfapi';
 
-function formatDate(dateStr: string): string {
+function formatDate(dateStr?: string): string {
+    if (!dateStr) return '-';
     const date = new Date(dateStr);
     return date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
 }
-
-interface ClientData {
-    id: string;
-    name: string;
-    email: string;
-    phone: string;
-    portfolio: string;
-    fundHouse: string;
-    investmentAmount: number;
-    currentValue: number;
-    investmentType: 'SIP' | 'Lumpsum';
-    sipAmount?: number;
-    startDate: string;
-    pnl: number;
-    pnlPercentage: number;
-}
-
-const clientsData: ClientData[] = [
-    {
-        id: 'CLT001',
-        name: 'Rajesh Kumar',
-        email: 'rajesh.kumar@email.com',
-        phone: '+91 98765 43210',
-        portfolio: 'HDFC Top 100 Fund',
-        fundHouse: 'HDFC',
-        investmentAmount: 1500000,
-        currentValue: 1825000,
-        investmentType: 'SIP',
-        sipAmount: 50000,
-        startDate: '2023-01-15',
-        pnl: 325000,
-        pnlPercentage: 21.67,
-    },
-    {
-        id: 'CLT002',
-        name: 'Priya Sharma',
-        email: 'priya.sharma@email.com',
-        phone: '+91 87654 32109',
-        portfolio: 'SBI Bluechip Fund',
-        fundHouse: 'SBI',
-        investmentAmount: 2500000,
-        currentValue: 2875000,
-        investmentType: 'Lumpsum',
-        startDate: '2022-06-20',
-        pnl: 375000,
-        pnlPercentage: 15.0,
-    },
-    {
-        id: 'CLT003',
-        name: 'Amit Patel',
-        email: 'amit.patel@email.com',
-        phone: '+91 76543 21098',
-        portfolio: 'ICICI Pru Liquid Fund',
-        fundHouse: 'ICICI',
-        investmentAmount: 500000,
-        currentValue: 485000,
-        investmentType: 'Lumpsum',
-        startDate: '2024-03-10',
-        pnl: -15000,
-        pnlPercentage: -3.0,
-    },
-    {
-        id: 'CLT004',
-        name: 'Sneha Reddy',
-        email: 'sneha.reddy@email.com',
-        phone: '+91 65432 10987',
-        portfolio: 'Axis Small Cap Fund',
-        fundHouse: 'Axis',
-        investmentAmount: 800000,
-        currentValue: 1120000,
-        investmentType: 'SIP',
-        sipAmount: 25000,
-        startDate: '2022-11-05',
-        pnl: 320000,
-        pnlPercentage: 40.0,
-    },
-    {
-        id: 'CLT005',
-        name: 'Vikram Singh',
-        email: 'vikram.singh@email.com',
-        phone: '+91 54321 09876',
-        portfolio: 'Parag Parikh Flexi Cap',
-        fundHouse: 'PPFAS',
-        investmentAmount: 3000000,
-        currentValue: 3450000,
-        investmentType: 'Lumpsum',
-        startDate: '2023-08-15',
-        pnl: 450000,
-        pnlPercentage: 15.0,
-    },
-    {
-        id: 'CLT006',
-        name: 'Anita Mehta',
-        email: 'anita.mehta@email.com',
-        phone: '+91 43210 98765',
-        portfolio: 'Mirae Asset Large Cap',
-        fundHouse: 'Mirae',
-        investmentAmount: 1200000,
-        currentValue: 1380000,
-        investmentType: 'SIP',
-        sipAmount: 40000,
-        startDate: '2023-04-01',
-        pnl: 180000,
-        pnlPercentage: 15.0,
-    },
-    {
-        id: 'CLT007',
-        name: 'Suresh Iyer',
-        email: 'suresh.iyer@email.com',
-        phone: '+91 32109 87654',
-        portfolio: 'Kotak Emerging Equity',
-        fundHouse: 'Kotak',
-        investmentAmount: 600000,
-        currentValue: 720000,
-        investmentType: 'SIP',
-        sipAmount: 20000,
-        startDate: '2023-02-10',
-        pnl: 120000,
-        pnlPercentage: 20.0,
-    },
-    {
-        id: 'CLT008',
-        name: 'Neha Gupta',
-        email: 'neha.gupta@email.com',
-        phone: '+91 21098 76543',
-        portfolio: 'HDFC Mid-Cap Opportunities',
-        fundHouse: 'HDFC',
-        investmentAmount: 1800000,
-        currentValue: 1710000,
-        investmentType: 'Lumpsum',
-        startDate: '2024-01-05',
-        pnl: -90000,
-        pnlPercentage: -5.0,
-    },
-];
 
 const fundHouses = ['All', 'HDFC', 'SBI', 'ICICI', 'Axis', 'PPFAS', 'Mirae', 'Kotak'];
 const investmentTypes = ['All', 'SIP', 'Lumpsum'];
@@ -161,6 +31,10 @@ function formatCurrency(amount: number): string {
 
 function ClientsPageContent() {
     const searchParams = useSearchParams();
+    const { clients, isLoading: clientsLoading } = useClientContext();
+    const { holdings, isLoading: holdingsLoading, getClientHoldings } = useHoldings();
+    const { sips, isLoading: sipsLoading, getClientSIPs } = useSIPs();
+
     const [searchQuery, setSearchQuery] = useState('');
     const [fundHouseFilter, setFundHouseFilter] = useState('All');
     const initialType = searchParams.get('type');
@@ -172,18 +46,60 @@ function ClientsPageContent() {
         initialType === 'SIP' || initialType === 'Lumpsum'
     );
 
+    const clientDisplayData = useMemo(() => {
+        return clients.map(client => {
+            const clientHoldings = getClientHoldings(client.id);
+            const clientSips = getClientSIPs(client.id);
+
+            const totalInvested = clientHoldings.reduce((sum, h) => sum + h.invested_amount, 0);
+            const totalCurrentValue = clientHoldings.reduce((sum, h) => sum + h.current_value, 0);
+            const totalPnl = totalCurrentValue - totalInvested;
+            const pnlPercentage = totalInvested > 0 ? (totalPnl / totalInvested) * 100 : 0;
+            
+            // Determine primary portfolio/fund house from largest holding
+            const topHolding = [...clientHoldings].sort((a, b) => b.current_value - a.current_value)[0];
+            const portfolioName = topHolding ? topHolding.mutual_fund?.name : 'No Holdings';
+            const fundHouse = topHolding ? topHolding.mutual_fund?.fund_house : '-';
+            
+            // Determine investment type
+            const hasSIP = clientSips.some(s => s.status === 'active');
+            const investmentType = hasSIP ? 'SIP' : (clientHoldings.length > 0 ? 'Lumpsum' : '-');
+            const totalSipAmount = clientSips
+                .filter(s => s.status === 'active')
+                .reduce((sum, s) => sum + s.amount, 0);
+
+            // Start date (earliest holding)
+            const dates = clientHoldings.map(h => new Date(h.created_at).getTime());
+            const startDate = dates.length > 0 ? new Date(Math.min(...dates)).toISOString() : client.created_at;
+
+            return {
+                ...client,
+                portfolio: portfolioName,
+                fundHouse: fundHouse || 'Unknown',
+                investmentAmount: totalInvested,
+                currentValue: totalCurrentValue,
+                investmentType,
+                sipAmount: totalSipAmount,
+                startDate,
+                pnl: totalPnl,
+                pnlPercentage
+            };
+        });
+    }, [clients, getClientHoldings, getClientSIPs]);
+
     const filteredClients = useMemo(() => {
-        return clientsData.filter((client) => {
+        return clientDisplayData.filter((client) => {
             // Search filter
             const matchesSearch =
                 searchQuery === '' ||
                 client.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                client.portfolio.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                client.portfolio?.toLowerCase().includes(searchQuery.toLowerCase()) ||
                 client.id.toLowerCase().includes(searchQuery.toLowerCase());
 
             // Fund house filter
             const matchesFundHouse =
-                fundHouseFilter === 'All' || client.fundHouse === fundHouseFilter;
+                fundHouseFilter === 'All' || 
+                (client.fundHouse && client.fundHouse.includes(fundHouseFilter));
 
             // Investment type filter
             const matchesType =
@@ -197,10 +113,19 @@ function ClientsPageContent() {
 
             return matchesSearch && matchesFundHouse && matchesType && matchesPnl;
         });
-    }, [searchQuery, fundHouseFilter, typeFilter, pnlFilter]);
+    }, [clientDisplayData, searchQuery, fundHouseFilter, typeFilter, pnlFilter]);
 
     const totalAUM = filteredClients.reduce((sum, c) => sum + c.currentValue, 0);
     const totalPnL = filteredClients.reduce((sum, c) => sum + c.pnl, 0);
+    const isLoading = clientsLoading || holdingsLoading || sipsLoading;
+
+    if (isLoading) {
+        return (
+            <div className="min-h-screen bg-[var(--bg-primary)] flex items-center justify-center">
+                <Loader2 className="animate-spin text-[var(--accent-mint)]" size={32} />
+            </div>
+        );
+    }
 
     const clearFilters = () => {
         setSearchQuery('');
@@ -257,9 +182,7 @@ function ClientsPageContent() {
                     <div className="pr-12 md:pr-0">
                         <div className="flex items-center gap-2 md:gap-3 mb-1 flex-wrap">
                             <h1 className="text-xl md:text-2xl font-bold">Clients Portfolio</h1>
-                            <span className="text-[var(--accent-purple)] text-[10px] md:text-xs px-2 py-0.5 bg-[var(--accent-purple)]/10 rounded-full border border-[var(--accent-purple)]/20">
-                                Sample Data
-                            </span>
+                            
                         </div>
                         <p className="text-[#9CA3AF] text-xs md:text-sm">
                             Manage and monitor all client investments
@@ -476,7 +399,7 @@ function ClientsPageContent() {
                                             <div className={`text-right flex items-center gap-1 ${client.pnl >= 0 ? 'text-[#48cae4]' : 'text-[#EF4444]'}`}>
                                                 {client.pnl >= 0 ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
                                                 <div>
-                                                    <p className="font-medium">{client.pnlPercentage >= 0 ? '+' : ''}{client.pnlPercentage}%</p>
+                                                    <p className="font-medium">{client.pnlPercentage >= 0 ? '+' : ''}{client.pnlPercentage.toFixed(2)}%</p>
                                                     <p className="text-[10px]">{formatCurrency(Math.abs(client.pnl))}</p>
                                                 </div>
                                             </div>
@@ -493,7 +416,7 @@ function ClientsPageContent() {
                                                 </div>
                                                 <div className="min-w-0">
                                                     <p className="text-white font-medium text-sm truncate">{client.name}</p>
-                                                    <p className="text-[#9CA3AF] text-xs">{client.id}</p>
+                                                    <p className="text-[#9CA3AF] text-xs">{client.id.slice(0, 8)}</p>
                                                 </div>
                                             </div>
                                         </div>
@@ -501,7 +424,7 @@ function ClientsPageContent() {
                                         {/* Portfolio */}
                                         <div className="col-span-3 flex items-center">
                                             <div>
-                                                <p className="text-white text-sm">{client.portfolio}</p>
+                                                <p className="text-white text-sm line-clamp-1">{client.portfolio}</p>
                                                 <p className="text-[#9CA3AF] text-xs">{client.fundHouse}</p>
                                             </div>
                                         </div>
@@ -510,7 +433,7 @@ function ClientsPageContent() {
                                         <div className="col-span-2 flex items-center justify-end">
                                             <div className="text-right">
                                                 <p className="text-white text-sm font-medium">{formatCurrency(client.investmentAmount)}</p>
-                                                {client.sipAmount && (
+                                                {client.sipAmount > 0 && (
                                                     <p className="text-[#9CA3AF] text-xs">{formatCurrency(client.sipAmount)}/mo</p>
                                                 )}
                                             </div>
@@ -547,7 +470,7 @@ function ClientsPageContent() {
                                                 {client.pnl >= 0 ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
                                                 <div className="text-right">
                                                     <span className="text-sm font-medium block">
-                                                        {client.pnlPercentage >= 0 ? '+' : ''}{client.pnlPercentage}%
+                                                        {client.pnlPercentage >= 0 ? '+' : ''}{client.pnlPercentage.toFixed(2)}%
                                                     </span>
                                                     <span className="text-xs">
                                                         {formatCurrency(Math.abs(client.pnl))}

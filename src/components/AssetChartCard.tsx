@@ -10,88 +10,127 @@ import {
     ResponsiveContainer,
 } from 'recharts';
 import { useState, useMemo } from 'react';
-
-// Different data for each time period
-const chartDataSets = {
-    '1M': [
-        { name: 'Week 1', value: 11800000 },
-        { name: 'Week 2', value: 12100000 },
-        { name: 'Week 3', value: 11950000 },
-        { name: 'Week 4', value: 12300000 },
-    ],
-    '3M': [
-        { name: 'Oct', value: 10500000 },
-        { name: 'Nov', value: 11200000 },
-        { name: 'Dec', value: 12300000 },
-    ],
-    '6M': [
-        { name: 'Jul', value: 9200000 },
-        { name: 'Aug', value: 9800000 },
-        { name: 'Sep', value: 10100000 },
-        { name: 'Oct', value: 10500000 },
-        { name: 'Nov', value: 11200000 },
-        { name: 'Dec', value: 12300000 },
-    ],
-    '1Y': [
-        { name: 'Jan', value: 8500000 },
-        { name: 'Feb', value: 9200000 },
-        { name: 'Mar', value: 8800000 },
-        { name: 'Apr', value: 10500000 },
-        { name: 'May', value: 9800000 },
-        { name: 'Jun', value: 11000000 },
-        { name: 'Jul', value: 10300000 },
-        { name: 'Aug', value: 11500000 },
-        { name: 'Sep', value: 10800000 },
-        { name: 'Oct', value: 11800000 },
-        { name: 'Nov', value: 12000000 },
-        { name: 'Dec', value: 12300000 },
-    ],
-};
-
-// AUM values for each period
-const aumValues = {
-    '1M': { current: 12.3, change: 4.2 },
-    '3M': { current: 12.3, change: 17.1 },
-    '6M': { current: 12.3, change: 33.7 },
-    '1Y': { current: 12.3, change: 44.7 },
-};
+import { useHoldings } from '@/context/HoldingsContext';
+import { Loader2, TrendingUp } from 'lucide-react';
 
 const timeFilters = ['1M', '3M', '6M', '1Y'] as const;
 type TimeFilter = typeof timeFilters[number];
 
-// Data interfaces
-interface ChartDataPoint {
-    name: string;
-    value: number;
+// Generate placeholder chart data based on current value
+function generatePlaceholderChartData(currentValue: number, filter: TimeFilter) {
+    const variance = 0.15; // 15% variance for visual effect
+    const baseValue = currentValue * (1 - variance);
+    
+    const dataPoints: Record<TimeFilter, { name: string; value: number }[]> = {
+        '1M': [
+            { name: 'Week 1', value: baseValue * 0.96 },
+            { name: 'Week 2', value: baseValue * 0.98 },
+            { name: 'Week 3', value: baseValue * 0.97 },
+            { name: 'Week 4', value: currentValue },
+        ],
+        '3M': [
+            { name: 'Oct', value: baseValue * 0.92 },
+            { name: 'Nov', value: baseValue * 0.96 },
+            { name: 'Dec', value: currentValue },
+        ],
+        '6M': [
+            { name: 'Jul', value: baseValue * 0.85 },
+            { name: 'Aug', value: baseValue * 0.88 },
+            { name: 'Sep', value: baseValue * 0.91 },
+            { name: 'Oct', value: baseValue * 0.94 },
+            { name: 'Nov', value: baseValue * 0.97 },
+            { name: 'Dec', value: currentValue },
+        ],
+        '1Y': [
+            { name: 'Jan', value: baseValue * 0.75 },
+            { name: 'Feb', value: baseValue * 0.78 },
+            { name: 'Mar', value: baseValue * 0.76 },
+            { name: 'Apr', value: baseValue * 0.82 },
+            { name: 'May', value: baseValue * 0.80 },
+            { name: 'Jun', value: baseValue * 0.86 },
+            { name: 'Jul', value: baseValue * 0.84 },
+            { name: 'Aug', value: baseValue * 0.90 },
+            { name: 'Sep', value: baseValue * 0.88 },
+            { name: 'Oct', value: baseValue * 0.94 },
+            { name: 'Nov', value: baseValue * 0.97 },
+            { name: 'Dec', value: currentValue },
+        ],
+    };
+    
+    return dataPoints[filter];
 }
 
-interface AumInfo {
-    current: number;
-    change: number;
+// Format value for display
+function formatAUM(value: number): string {
+    if (value >= 10000000) {
+        return `₹${(value / 10000000).toFixed(2)} Cr`;
+    }
+    if (value >= 100000) {
+        return `₹${(value / 100000).toFixed(2)} L`;
+    }
+    if (value >= 1000) {
+        return `₹${(value / 1000).toFixed(2)} K`;
+    }
+    return `₹${value.toFixed(2)}`;
 }
+
+// ... existing imports
 
 interface AssetChartCardProps {
-    customChartData?: Record<string, ChartDataPoint[]>;
-    customAumValues?: Record<string, AumInfo>;
+    customChartData?: Record<TimeFilter, { name: string; value: number }[]>;
+    customAumValues?: {
+        currentValue: number;
+        investedValue: number;
+        gainLoss: number;
+    };
 }
 
-export default function AssetChartCard({ customChartData, customAumValues }: AssetChartCardProps) {
+export default function AssetChartCard({ customChartData, customAumValues }: AssetChartCardProps = {}) {
     const [activeFilter, setActiveFilter] = useState<TimeFilter>('1Y');
+    const { totalCurrentValue: ctxTotalCurrentValue, totalGainLoss: ctxTotalGainLoss, totalInvested: ctxTotalInvested, isLoading: ctxLoading, error: ctxError } = useHoldings();
+
+    const totalCurrentValue = customAumValues?.currentValue ?? ctxTotalCurrentValue;
+    const totalGainLoss = customAumValues?.gainLoss ?? ctxTotalGainLoss;
+    const totalInvested = customAumValues?.investedValue ?? ctxTotalInvested;
+    const isLoading = customAumValues ? false : ctxLoading;
+    const error = customAumValues ? null : ctxError;
 
     const chartData = useMemo(() => {
-        if (customChartData) return customChartData[activeFilter];
-        return chartDataSets[activeFilter];
-    }, [activeFilter, customChartData]);
+        if (customChartData) {
+            return customChartData[activeFilter] || [];
+        }
+        if (totalCurrentValue === 0) return [];
+        return generatePlaceholderChartData(totalCurrentValue, activeFilter);
+    }, [totalCurrentValue, activeFilter, customChartData]);
 
-    const aumInfo = useMemo(() => {
-        if (customAumValues) return customAumValues[activeFilter];
-        return aumValues[activeFilter];
-    }, [activeFilter, customAumValues]);
+    // Calculate gain/loss percentage
+    const gainLossPercentage = totalInvested > 0 
+        ? ((totalGainLoss / totalInvested) * 100).toFixed(1)
+        : '0.0';
 
-    // Calculate starting value for the period
+    // Calculate period change from chart data
     const startValue = chartData[0]?.value || 0;
     const endValue = chartData[chartData.length - 1]?.value || 0;
-    const periodChange = ((endValue - startValue) / startValue * 100).toFixed(1);
+    const periodChange = startValue > 0 ? ((endValue - startValue) / startValue * 100).toFixed(1) : '0.0';
+
+    if (isLoading) {
+        return (
+            <div className="glass-card rounded-2xl p-4 md:p-6 col-span-1 lg:col-span-2 gradient-border mint-glow relative overflow-hidden transition-colors duration-300 flex items-center justify-center min-h-[300px]">
+                <div className="text-center">
+                    <Loader2 className="animate-spin mx-auto text-[var(--accent-mint)] mb-2" size={32} />
+                    <p className="text-[var(--text-secondary)] text-sm">Loading portfolio...</p>
+                </div>
+            </div>
+        );
+    }
+
+    if (error) {
+        return (
+            <div className="glass-card rounded-2xl p-4 md:p-6 col-span-1 lg:col-span-2 gradient-border relative overflow-hidden transition-colors duration-300">
+                <p className="text-[var(--accent-red)] text-sm">{error}</p>
+            </div>
+        );
+    }
 
     return (
         <div className="glass-card rounded-2xl p-4 md:p-6 col-span-1 lg:col-span-2 gradient-border mint-glow relative overflow-hidden transition-colors duration-300">
@@ -103,13 +142,23 @@ export default function AssetChartCard({ customChartData, customAumValues }: Ass
                 <div>
                     <p className="text-[var(--text-secondary)] text-xs md:text-sm mb-1">Portfolio Value (AUM)</p>
                     <div className="flex items-baseline gap-2 md:gap-3">
-                        <h2 className="text-2xl md:text-3xl font-bold text-[var(--text-primary)]">₹{aumInfo.current} Cr</h2>
+                        <h2 className="text-2xl md:text-3xl font-bold text-[var(--text-primary)]">
+                            {formatAUM(totalCurrentValue)}
+                        </h2>
                         <span className="text-[var(--text-secondary)] text-sm md:text-lg">INR</span>
                     </div>
                 </div>
-                <div className="flex items-center gap-1.5 md:gap-2 px-2 md:px-3 py-1 md:py-1.5 rounded-full bg-[var(--accent-mint)]/10 border border-[var(--accent-mint)]/20">
-                    <span className="text-[var(--accent-mint)] text-xs md:text-sm font-medium">+{periodChange}%</span>
-                    <span className="text-[var(--text-secondary)] text-[10px] md:text-xs">{activeFilter}</span>
+                <div className={`flex items-center gap-1.5 md:gap-2 px-2 md:px-3 py-1 md:py-1.5 rounded-full ${
+                    parseFloat(gainLossPercentage) >= 0 
+                        ? 'bg-[var(--accent-mint)]/10 border border-[var(--accent-mint)]/20' 
+                        : 'bg-[var(--accent-red)]/10 border border-[var(--accent-red)]/20'
+                }`}>
+                    <TrendingUp size={14} className={parseFloat(gainLossPercentage) >= 0 ? 'text-[var(--accent-mint)]' : 'text-[var(--accent-red)]'} />
+                    <span className={`text-xs md:text-sm font-medium ${
+                        parseFloat(gainLossPercentage) >= 0 ? 'text-[var(--accent-mint)]' : 'text-[var(--accent-red)]'
+                    }`}>
+                        {parseFloat(gainLossPercentage) >= 0 ? '+' : ''}{gainLossPercentage}%
+                    </span>
                 </div>
             </div>
 
@@ -131,58 +180,80 @@ export default function AssetChartCard({ customChartData, customAumValues }: Ass
 
             {/* Chart */}
             <div className="h-[160px] md:h-[200px] relative z-10">
-                <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={chartData}>
-                        <defs>
-                            <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="0%" stopColor="#48cae4" stopOpacity={0.4} />
-                                <stop offset="50%" stopColor="#48cae4" stopOpacity={0.15} />
-                                <stop offset="100%" stopColor="#48cae4" stopOpacity={0} />
-                            </linearGradient>
-                            <linearGradient id="strokeGradient" x1="0" y1="0" x2="1" y2="0">
-                                <stop offset="0%" stopColor="#48cae4" />
-                                <stop offset="100%" stopColor="#90e0ef" />
-                            </linearGradient>
-                        </defs>
-                        <CartesianGrid strokeDasharray="3 3" stroke="var(--border-primary)" vertical={false} />
-                        <XAxis
-                            dataKey="name"
-                            axisLine={false}
-                            tickLine={false}
-                            tick={{ fill: 'var(--text-secondary)', fontSize: 10 }}
-                        />
-                        <YAxis
-                            axisLine={false}
-                            tickLine={false}
-                            tick={{ fill: 'var(--text-secondary)', fontSize: 10 }}
-                            tickFormatter={(value) => `₹${(value / 10000000).toFixed(1)}Cr`}
-                            width={55}
-                        />
-                        <Tooltip
-                            contentStyle={{
-                                backgroundColor: 'var(--bg-secondary)',
-                                backdropFilter: 'blur(10px)',
-                                border: '1px solid var(--border-primary)',
-                                borderRadius: '12px',
-                                color: 'var(--text-primary)',
-                                boxShadow: '0 4px 20px rgba(16, 185, 129, 0.2)',
-                            }}
-                            formatter={(value: number | undefined) => {
-                                const val = value ?? 0;
-                                return [`₹${(val / 10000000).toFixed(2)} Cr`, 'AUM'];
-                            }}
-                        />
-                        <Area
-                            type="monotone"
-                            dataKey="value"
-                            stroke="url(#strokeGradient)"
-                            strokeWidth={3}
-                            fillOpacity={1}
-                            fill="url(#colorValue)"
-                        />
-                    </AreaChart>
-                </ResponsiveContainer>
+                {chartData.length === 0 ? (
+                    <div className="flex items-center justify-center h-full">
+                        <div className="text-center">
+                            <TrendingUp size={40} className="mx-auto text-[var(--text-secondary)] opacity-50 mb-2" />
+                            <p className="text-[var(--text-secondary)] text-sm">No holdings data yet</p>
+                            <p className="text-[var(--text-muted)] text-xs mt-1">Add clients and investments to see your portfolio chart</p>
+                        </div>
+                    </div>
+                ) : (
+                    <ResponsiveContainer width="100%" height="100%">
+                        <AreaChart data={chartData}>
+                            <defs>
+                                <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="0%" stopColor="#48cae4" stopOpacity={0.4} />
+                                    <stop offset="50%" stopColor="#48cae4" stopOpacity={0.15} />
+                                    <stop offset="100%" stopColor="#48cae4" stopOpacity={0} />
+                                </linearGradient>
+                                <linearGradient id="strokeGradient" x1="0" y1="0" x2="1" y2="0">
+                                    <stop offset="0%" stopColor="#48cae4" />
+                                    <stop offset="100%" stopColor="#90e0ef" />
+                                </linearGradient>
+                            </defs>
+                            <CartesianGrid strokeDasharray="3 3" stroke="var(--border-primary)" vertical={false} />
+                            <XAxis
+                                dataKey="name"
+                                axisLine={false}
+                                tickLine={false}
+                                tick={{ fill: 'var(--text-secondary)', fontSize: 10 }}
+                            />
+                            <YAxis
+                                axisLine={false}
+                                tickLine={false}
+                                tick={{ fill: 'var(--text-secondary)', fontSize: 10 }}
+                                tickFormatter={(value) => {
+                                    if (value >= 10000000) return `₹${(value / 10000000).toFixed(1)}Cr`;
+                                    if (value >= 100000) return `₹${(value / 100000).toFixed(0)}L`;
+                                    if (value >= 1000) return `₹${(value / 1000).toFixed(0)}K`;
+                                    return `₹${value}`;
+                                }}
+                                width={55}
+                            />
+                            <Tooltip
+                                contentStyle={{
+                                    backgroundColor: 'var(--bg-secondary)',
+                                    backdropFilter: 'blur(10px)',
+                                    border: '1px solid var(--border-primary)',
+                                    borderRadius: '12px',
+                                    color: 'var(--text-primary)',
+                                    boxShadow: '0 4px 20px rgba(16, 185, 129, 0.2)',
+                                }}
+                                formatter={(value: number | undefined) => {
+                                    const val = value ?? 0;
+                                    return [formatAUM(val), 'Value'];
+                                }}
+                            />
+                            <Area
+                                type="monotone"
+                                dataKey="value"
+                                stroke="url(#strokeGradient)"
+                                strokeWidth={3}
+                                fillOpacity={1}
+                                fill="url(#colorValue)"
+                            />
+                        </AreaChart>
+                    </ResponsiveContainer>
+                )}
             </div>
+
+            {/* Disclaimer for placeholder chart */}
+            {chartData.length > 0 && (
+                <p className="text-[var(--text-muted)] text-[10px] mt-2 text-center relative z-10">
+                    * Historical chart data is illustrative. Current value is accurate.
+                </p>
+            )}
         </div>
     );
 }

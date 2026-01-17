@@ -93,6 +93,11 @@ export function ClientProvider({ children }: { children: ReactNode }) {
             return { success: false, error: 'Not authenticated' };
         }
 
+        // Validate PAN card (required field in database)
+        if (!clientData.pan || clientData.pan.trim().length === 0) {
+            return { success: false, error: 'PAN Card is required' };
+        }
+
         try {
             const { data, error: insertError } = await (supabase
                 .from('clients') as any)
@@ -104,7 +109,8 @@ export function ClientProvider({ children }: { children: ReactNode }) {
                 .single();
 
             if (insertError) {
-                throw insertError;
+                console.error('Supabase insert error:', insertError.message, insertError.code, insertError.details);
+                throw new Error(insertError.message || 'Database error');
             }
 
             if (data) {
@@ -115,7 +121,8 @@ export function ClientProvider({ children }: { children: ReactNode }) {
             return { success: false, error: 'Failed to add client' };
         } catch (err) {
             console.error('Error adding client:', err);
-            return { success: false, error: err instanceof Error ? err.message : 'Failed to add client' };
+            const errorMessage = err instanceof Error ? err.message : 'Failed to add client';
+            return { success: false, error: errorMessage };
         }
     };
 

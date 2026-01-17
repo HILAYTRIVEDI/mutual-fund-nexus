@@ -8,7 +8,7 @@ import PortfolioCard from '@/components/PortfolioCard';
 
 import ActivitySection from '@/components/ActivitySection';
 import StakingCard from '@/components/StakingCard';
-import MarketNewsCard from '@/components/MarketNewsCard';
+
 import MonthlySIPCard from '@/components/MonthlySIPCard';
 
 export default function Home() {
@@ -44,8 +44,6 @@ export default function Home() {
           {/* Row 5: Upcoming SIPs (Full Width) */}
           <StakingCard />
 
-          {/* Row 6: Market News (Full Width) */}
-          <MarketNewsCard />
         </div>
       </main>
 

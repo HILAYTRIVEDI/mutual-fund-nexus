@@ -51,10 +51,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             .from('profiles')
             .select('*')
             .eq('id', userId)
-            .single();
+            .maybeSingle();
 
         if (error) {
-            console.error('Error fetching profile:', error);
+            // Only log actual errors, not "no rows found" (PGRST116)
+            if (error.code !== 'PGRST116') {
+                console.error('Error fetching profile:', error);
+            }
             return null;
         }
         return data;
@@ -170,7 +173,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             }
 
             if (data.user) {
-                // Profile is created automatically by the database trigger
+                // Manually create profile as fallback (in case DB trigger doesn't exist)
+                // The trigger should handle this, but this is a safety net
+                try {
+                    const existingProfile = await fetchProfile(data.user.id);
+                    if (!existingProfile) {
+                        const { error: profileError } = await (supabase
+                            .from('profiles') as any)
+                            .insert({
+                                id: data.user.id,
+                                email: email,
+                                full_name: fullName,
+                                role: 'advisor',
+                            });
+                        
+                        if (profileError && profileError.code !== '23505') { // 23505 = unique violation (already exists)
+                            console.warn('Could not create profile:', profileError);
+                        }
+                    }
+                } catch (profileErr) {
+                    console.warn('Profile creation fallback failed:', profileErr);
+                }
+                
                 return { success: true };
             }
 

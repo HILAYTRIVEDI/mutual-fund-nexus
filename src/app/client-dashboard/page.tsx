@@ -80,17 +80,7 @@ export default function ClientDashboard() {
         };
     }, [currentValue]);
 
-    const aumValues = useMemo(() => {
-        if (!currentValue) return undefined;
 
-        const formatAum = (val: number) => parseFloat((val / 10000000).toFixed(2));
-        return {
-            '1Y': { current: formatAum(currentValue), change: mockGrowthRate * 10 - 10 }, // Approx
-            '6M': { current: formatAum(currentValue), change: 8.5 },
-            '3M': { current: formatAum(currentValue), change: 4.2 },
-            '1M': { current: formatAum(currentValue), change: 1.5 },
-        };
-    }, [currentValue, mockGrowthRate]);
 
     const distributionData = [
         { name: 'Equity Funds', value: 70, color: '#48cae4' },
@@ -200,7 +190,14 @@ export default function ClientDashboard() {
 
                 {/* Charts Area */}
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-                    <AssetChartCard customChartData={chartData} customAumValues={aumValues} />
+                    <AssetChartCard 
+                        customChartData={chartData} 
+                        customAumValues={{
+                            currentValue,
+                            investedValue: investedAmount,
+                            gainLoss: grossReturns
+                        }} 
+                    />
                     <div className="lg:col-span-1 h-[300px] lg:h-auto">
                         <DistributionCard customData={distributionData} />
                     </div>

@@ -1,55 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { Calendar, PiggyBank, Clock } from 'lucide-react';
-
-const upcomingSIPs = [
-    {
-        id: 1,
-        clientName: 'Rajesh Kumar',
-        fundName: 'HDFC Top 100 Fund',
-        amount: 50000,
-        sipDate: '2024-12-28',
-        daysUntil: 2,
-        color: '#48cae4',
-    },
-    {
-        id: 2,
-        clientName: 'Sneha Reddy',
-        fundName: 'Axis Small Cap Fund',
-        amount: 25000,
-        sipDate: '2024-12-30',
-        daysUntil: 4,
-        color: '#3B82F6',
-    },
-    {
-        id: 3,
-        clientName: 'Anita Mehta',
-        fundName: 'Mirae Asset Large Cap',
-        amount: 40000,
-        sipDate: '2025-01-01',
-        daysUntil: 6,
-        color: '#8B5CF6',
-    },
-    {
-        id: 4,
-        clientName: 'Suresh Iyer',
-        fundName: 'Kotak Emerging Equity',
-        amount: 20000,
-        sipDate: '2025-01-05',
-        daysUntil: 10,
-        color: '#F59E0B',
-    },
-    {
-        id: 5,
-        clientName: 'Priya Sharma',
-        fundName: 'SBI Bluechip Fund',
-        amount: 25000,
-        sipDate: '2025-01-10',
-        daysUntil: 15,
-        color: '#EC4899',
-    },
-];
+import { Calendar, PiggyBank, Clock, Loader2 } from 'lucide-react';
+import { useSIPs } from '@/context/SIPContext';
 
 function formatCurrency(amount: number): string {
     if (amount >= 100000) {
@@ -63,8 +16,76 @@ function formatDate(dateStr: string): string {
     return date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
 }
 
+const colors = ['#48cae4', '#3B82F6', '#8B5CF6', '#F59E0B', '#EC4899'];
+
 export default function StakingCard() {
-    const totalUpcoming = upcomingSIPs.reduce((sum, sip) => sum + sip.amount, 0);
+    const { upcomingSIPs, activeSIPs, isLoading, error } = useSIPs();
+    
+    // Get next 4 upcoming SIPs
+    const displaySIPs = activeSIPs
+        .filter(sip => sip.next_execution_date)
+        .sort((a, b) => {
+            const dateA = new Date(a.next_execution_date!).getTime();
+            const dateB = new Date(b.next_execution_date!).getTime();
+            return dateA - dateB;
+        })
+        .slice(0, 4)
+        .map((sip, index) => ({
+            ...sip,
+            color: colors[index % colors.length],
+            daysUntil: sip.days_until_next ?? 0
+        }));
+
+    const totalUpcoming = displaySIPs.reduce((sum, sip) => sum + sip.amount, 0);
+
+    if (isLoading) {
+        return (
+            <div className="glass-card rounded-2xl p-4 md:p-6 h-full gradient-border mint-glow relative overflow-hidden transition-colors duration-300 flex items-center justify-center min-h-[300px]">
+                <div className="text-center">
+                    <Loader2 className="animate-spin mx-auto text-[var(--accent-mint)] mb-2" size={32} />
+                    <p className="text-[var(--text-secondary)] text-sm">Loading SIPs...</p>
+                </div>
+            </div>
+        );
+    }
+
+    if (error) {
+        return (
+            <div className="glass-card rounded-2xl p-4 md:p-6 h-full gradient-border mint-glow relative overflow-hidden transition-colors duration-300">
+                <p className="text-[var(--accent-red)] text-sm">{error}</p>
+            </div>
+        );
+    }
+
+    if (displaySIPs.length === 0) {
+        return (
+            <div className="glass-card rounded-2xl p-4 md:p-6 h-full gradient-border mint-glow relative overflow-hidden transition-colors duration-300">
+                <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent-mint)]/10 via-transparent to-[var(--accent-purple)]/5 pointer-events-none" />
+                
+                <div className="mb-4 md:mb-6 relative z-10">
+                    <div className="flex items-center gap-1.5 md:gap-2 mb-2">
+                        <Calendar size={16} className="text-[var(--accent-mint)]" />
+                        <p className="text-[var(--text-secondary)] text-xs md:text-sm">Upcoming SIPs</p>
+                    </div>
+                </div>
+                
+                <div className="flex flex-col items-center justify-center py-8 relative z-10">
+                    <PiggyBank size={40} className="text-[var(--text-secondary)] mb-3 opacity-50" />
+                    <p className="text-[var(--text-secondary)] text-sm">No SIPs scheduled</p>
+                    <p className="text-[var(--text-muted)] text-xs mt-1">Set up SIPs for your clients</p>
+                </div>
+
+                <div className="mt-3 md:mt-4 relative z-10">
+                    <Link
+                        href="/clients?type=SIP"
+                        className="block w-full py-2.5 md:py-3 rounded-xl bg-gradient-to-r from-[var(--accent-mint)]/20 to-[var(--accent-mint)]/10 border border-[var(--accent-mint)]/30 text-[var(--accent-mint)] font-medium hover:from-[var(--accent-mint)]/30 hover:to-[var(--accent-mint)]/20 hover:shadow-lg hover:shadow-[var(--accent-mint)]/20 transition-all duration-300 text-center text-sm"
+                    >
+                        Manage SIPs
+                    </Link>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="glass-card rounded-2xl p-4 md:p-6 h-full gradient-border mint-glow relative overflow-hidden transition-colors duration-300">
@@ -78,14 +99,9 @@ export default function StakingCard() {
                         <Calendar size={16} className="text-[var(--accent-mint)]" />
                         <p className="text-[var(--text-secondary)] text-xs md:text-sm">Upcoming SIPs</p>
                     </div>
-                    <div className="flex items-center gap-1.5 md:gap-2">
-                        <span className="hidden sm:inline text-[var(--accent-purple)] text-[10px] md:text-xs px-1.5 md:px-2 py-0.5 bg-[var(--accent-purple)]/10 rounded-full border border-[var(--accent-purple)]/20">
-                            Sample
-                        </span>
-                        <span className="text-[var(--text-secondary)] text-[10px] md:text-xs px-1.5 md:px-2 py-0.5 md:py-1 bg-[var(--bg-hover)] rounded-full">
-                            Next {upcomingSIPs.length}
-                        </span>
-                    </div>
+                    <span className="text-[var(--text-secondary)] text-[10px] md:text-xs px-1.5 md:px-2 py-0.5 md:py-1 bg-[var(--bg-hover)] rounded-full">
+                        Next {displaySIPs.length}
+                    </span>
                 </div>
                 <h2 className="text-xl md:text-2xl font-bold bg-gradient-to-r from-[var(--text-primary)] to-[var(--text-secondary)] bg-clip-text text-transparent">
                     {formatCurrency(totalUpcoming)}
@@ -95,7 +111,7 @@ export default function StakingCard() {
 
             {/* Upcoming SIPs List */}
             <div className="space-y-2 md:space-y-3 relative z-10">
-                {upcomingSIPs.slice(0, 4).map((sip, index) => (
+                {displaySIPs.map((sip, index) => (
                     <div
                         key={sip.id}
                         className={`p-2.5 md:p-3 rounded-xl bg-gradient-to-br from-[var(--bg-hover)] to-transparent backdrop-blur-sm border transition-all duration-300 hover:border-[var(--accent-mint)]/30 ${index === 0 ? 'border-[var(--accent-mint)]/30' : 'border-[var(--border-primary)]'
@@ -113,8 +129,12 @@ export default function StakingCard() {
                                     <PiggyBank size={14} className="md:w-[18px] md:h-[18px]" style={{ color: sip.color }} />
                                 </div>
                                 <div className="min-w-0">
-                                    <p className="text-[var(--text-primary)] font-medium text-xs md:text-sm truncate">{sip.clientName}</p>
-                                    <p className="text-[var(--text-secondary)] text-[10px] md:text-xs truncate">{sip.fundName}</p>
+                                    <p className="text-[var(--text-primary)] font-medium text-xs md:text-sm truncate">
+                                        {sip.client_name || 'Client'}
+                                    </p>
+                                    <p className="text-[var(--text-secondary)] text-[10px] md:text-xs truncate">
+                                        {sip.scheme_name || sip.scheme_code || 'Fund'}
+                                    </p>
                                 </div>
                             </div>
                             <div className="text-right flex-shrink-0 ml-2">
@@ -132,7 +152,7 @@ export default function StakingCard() {
                         <div className="hidden sm:flex mt-2 items-center justify-between">
                             <span className="text-[var(--text-secondary)] text-[10px] md:text-xs flex items-center gap-1">
                                 <Calendar size={8} className="md:w-2.5 md:h-2.5" />
-                                {formatDate(sip.sipDate)}
+                                {sip.next_execution_date ? formatDate(sip.next_execution_date) : '-'}
                             </span>
                             {index === 0 && (
                                 <span className="text-[var(--accent-mint)] text-[10px] md:text-xs px-1.5 md:px-2 py-0.5 bg-[var(--accent-mint)]/10 rounded-full">

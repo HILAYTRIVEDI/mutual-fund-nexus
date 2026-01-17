@@ -1,7 +1,9 @@
 'use client';
 
 import { useSIPs } from '@/context/SIPContext';
+import { useTransactions } from '@/context/TransactionsContext';
 import { TrendingUp, Calendar, BarChart3, ArrowUpRight, Loader2 } from 'lucide-react';
+import { useMemo } from 'react';
 
 function formatCurrency(amount: number): string {
     if (amount >= 10000000) {
@@ -14,29 +16,58 @@ function formatCurrency(amount: number): string {
 }
 
 export default function MonthlySIPCard() {
-    const { activeSIPs, totalMonthlyAmount, isLoading, error } = useSIPs();
+    const { activeSIPs, totalMonthlyAmount, isLoading: sipLoading, error: sipError } = useSIPs();
+    const { transactions, isLoading: txLoading } = useTransactions();
+
+    const historicalData = useMemo(() => {
+        if (!transactions) return [];
+
+        const sipTransactions = transactions.filter(t => t.type === 'sip');
+        
+        // Group by month YYYY-MM
+        const grouped = sipTransactions.reduce((acc, tx) => {
+            const date = new Date(tx.date);
+            const key = `${date.getFullYear()}-${date.getMonth()}`; // stable key
+            
+            if (!acc[key]) {
+                acc[key] = {
+                    date: date,
+                    monthName: date.toLocaleString('default', { month: 'short', year: 'numeric' }),
+                    totalSIP: 0,
+                    count: 0
+                };
+            }
+            acc[key].totalSIP += tx.amount;
+            acc[key].count += 1;
+            return acc;
+        }, {} as Record<string, { date: Date, monthName: string, totalSIP: number, count: number }>);
+
+        // Convert to array and sort by date descending
+        const sortedMonths = Object.values(grouped).sort((a, b) => b.date.getTime() - a.date.getTime());
+        
+        // Calculate growth for each month vs previous month in the list (which is next in sorted array)
+        return sortedMonths.slice(0, 3).map((item, index, array) => {
+            const prevMonth = array[index + 1];
+            let growth = 0;
+            if (prevMonth && prevMonth.totalSIP > 0) {
+                growth = ((item.totalSIP - prevMonth.totalSIP) / prevMonth.totalSIP) * 100;
+            }
+            return {
+                ...item,
+                growth
+            };
+        });
+    }, [transactions]);
 
     // Calculate stats from real data
     const activeSIPCount = activeSIPs.length;
     const avgSIPAmount = activeSIPCount > 0 ? totalMonthlyAmount / activeSIPCount : 0;
-
-    // Mock growth for now (would need historical data)
-    const growth = 5.2;
-
-    // Target calculation (Example target: 20 Lakhs)
-    const targetAmount = 2000000;
-    const progressPercentage = Math.min((totalMonthlyAmount / targetAmount) * 100, 100);
-
+    
+    // Calculate overall growth (current month vs previous month from historical data)
+    const currentGrowth = historicalData.length > 0 ? historicalData[0].growth : 0;
     const currentMonthName = new Date().toLocaleString('default', { month: 'short', year: 'numeric' });
 
-    // Group SIPs by month for historical view
-    const historicalData = [
-        { month: 'Nov 2024', totalSIP: totalMonthlyAmount * 0.95, activeCount: activeSIPCount - 2, growth: 5.2 },
-        { month: 'Oct 2024', totalSIP: totalMonthlyAmount * 0.90, activeCount: activeSIPCount - 4, growth: 3.8 },
-        { month: 'Sep 2024', totalSIP: totalMonthlyAmount * 0.87, activeCount: activeSIPCount - 5, growth: 2.1 },
-    ];
-
-    if (isLoading) {
+    if (sipLoading || txLoading) {
         return (
             <div className="glass-card rounded-2xl p-4 md:p-6 gradient-border flex items-center justify-center h-full min-h-[300px]">
                 <div className="text-center">
@@ -47,10 +78,10 @@ export default function MonthlySIPCard() {
         );
     }
 
-    if (error) {
+    if (sipError) {
         return (
             <div className="glass-card rounded-2xl p-4 md:p-6 gradient-border flex items-center justify-center h-full min-h-[300px]">
-                <p className="text-[var(--accent-red)] text-sm">{error}</p>
+                <p className="text-[var(--accent-red)] text-sm">{sipError}</p>
             </div>
         );
     }
@@ -71,12 +102,14 @@ export default function MonthlySIPCard() {
                         <p className="text-[var(--text-secondary)] text-[10px] md:text-xs">{currentMonthName}</p>
                     </div>
                 </div>
-                <div className="flex items-center gap-1 px-2 py-1 rounded-full bg-[var(--accent-mint)]/10 border border-[var(--accent-mint)]/20">
-                    <TrendingUp size={12} className="text-[var(--accent-mint)]" />
-                    <span className="text-[var(--accent-mint)] text-xs font-medium">
-                        {growth > 0 ? '+' : ''}{growth.toFixed(1)}%
-                    </span>
-                </div>
+                {historicalData.length > 1 && (
+                    <div className="flex items-center gap-1 px-2 py-1 rounded-full bg-[var(--accent-mint)]/10 border border-[var(--accent-mint)]/20">
+                        <TrendingUp size={12} className="text-[var(--accent-mint)]" />
+                        <span className="text-[var(--accent-mint)] text-xs font-medium">
+                            {currentGrowth > 0 ? '+' : ''}{currentGrowth.toFixed(1)}%
+                        </span>
+                    </div>
+                )}
             </div>
 
             {/* Main Amount */}
@@ -107,45 +140,34 @@ export default function MonthlySIPCard() {
 
             {/* Monthly Trend */}
             <div className="relative z-10">
-                <p className="text-[var(--text-secondary)] text-xs mb-2">Recent Months</p>
-                <div className="space-y-2">
-                    {historicalData.map((month) => (
-                        <div
-                            key={month.month}
-                            className="flex items-center justify-between p-2 rounded-lg hover:bg-[var(--bg-hover)] transition-colors"
-                        >
-                            <span className="text-[var(--text-secondary)] text-xs">{month.month}</span>
-                            <div className="flex items-center gap-3">
-                                <span className="text-[var(--text-primary)] text-xs font-medium">
-                                    {formatCurrency(month.totalSIP)}
-                                </span>
-                                <span className={`text-[10px] px-1.5 py-0.5 rounded ${month.growth > 0
-                                    ? 'bg-[var(--accent-mint)]/10 text-[var(--accent-mint)]'
-                                    : 'bg-[var(--accent-red)]/10 text-[var(--accent-red)]'
-                                    }`}>
-                                    {month.growth > 0 ? '+' : ''}{month.growth}%
-                                </span>
+                <p className="text-[var(--text-secondary)] text-xs mb-2">Recent Execution History</p>
+                {historicalData.length === 0 ? (
+                    <p className="text-[var(--text-secondary)] text-xs italic">No SIP transactions yet.</p>
+                ) : (
+                    <div className="space-y-2">
+                        {historicalData.map((month) => (
+                            <div
+                                key={month.monthName}
+                                className="flex items-center justify-between p-2 rounded-lg hover:bg-[var(--bg-hover)] transition-colors"
+                            >
+                                <span className="text-[var(--text-secondary)] text-xs">{month.monthName}</span>
+                                <div className="flex items-center gap-3">
+                                    <span className="text-[var(--text-primary)] text-xs font-medium">
+                                        {formatCurrency(month.totalSIP)}
+                                    </span>
+                                    {month.growth !== 0 && (
+                                        <span className={`text-[10px] px-1.5 py-0.5 rounded ${month.growth > 0
+                                            ? 'bg-[var(--accent-mint)]/10 text-[var(--accent-mint)]'
+                                            : 'bg-[var(--accent-red)]/10 text-[var(--accent-red)]'
+                                            }`}>
+                                            {month.growth > 0 ? '+' : ''}{month.growth.toFixed(1)}%
+                                        </span>
+                                    )}
+                                </div>
                             </div>
-                        </div>
-                    ))}
-                </div>
-            </div>
-
-            {/* Visual Progress Bar */}
-            <div className="mt-4 pt-4 border-t border-[var(--border-primary)] relative z-10">
-                <div className="flex items-center justify-between mb-2">
-                    <span className="text-[var(--text-secondary)] text-xs">Monthly Target</span>
-                    <span className="text-[var(--text-primary)] text-xs font-medium">{progressPercentage.toFixed(0)}%</span>
-                </div>
-                <div className="h-2 bg-[var(--bg-hover)] rounded-full overflow-hidden">
-                    <div
-                        className="h-full rounded-full bg-gradient-to-r from-[var(--accent-blue)] to-[var(--accent-mint)]"
-                        style={{ width: `${progressPercentage}%` }}
-                    />
-                </div>
-                <p className="text-[var(--text-muted)] text-[10px] mt-1 text-right">
-                    Target: {formatCurrency(targetAmount)}
-                </p>
+                        ))}
+                    </div>
+                )}
             </div>
         </div>
     );

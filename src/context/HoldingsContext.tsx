@@ -109,6 +109,63 @@ export function HoldingsProvider({ children }: { children: ReactNode }) {
         fetchHoldings();
     }, [fetchHoldings]);
 
+    // Schedule automatic NAV refresh after Indian market close
+    // Indian stock market closes at 3:30 PM IST
+    useEffect(() => {
+        if (!isAuthenticated) return;
+
+        const getISTTime = () => {
+            const now = new Date();
+            // Convert to IST (UTC+5:30)
+            const istOffset = 5.5 * 60 * 60 * 1000;
+            const utcTime = now.getTime() + (now.getTimezoneOffset() * 60 * 1000);
+            return new Date(utcTime + istOffset);
+        };
+
+        const scheduleNextRefresh = () => {
+            const istNow = getISTTime();
+            const hours = istNow.getHours();
+            const minutes = istNow.getMinutes();
+            
+            // Target refresh time: 3:30 PM IST (market close)
+            const targetHour = 15;
+            const targetMinute = 30;
+            
+            let msUntilRefresh: number;
+            
+            if (hours < targetHour || (hours === targetHour && minutes < targetMinute)) {
+                // Before 9:30 PM today - schedule for today
+                const targetTime = new Date(istNow);
+                targetTime.setHours(targetHour, targetMinute, 0, 0);
+                msUntilRefresh = targetTime.getTime() - istNow.getTime();
+            } else {
+                // After 9:30 PM - schedule for tomorrow
+                const targetTime = new Date(istNow);
+                targetTime.setDate(targetTime.getDate() + 1);
+                targetTime.setHours(targetHour, targetMinute, 0, 0);
+                msUntilRefresh = targetTime.getTime() - istNow.getTime();
+            }
+            
+            // Cap at 24 hours max to prevent overflow issues
+            msUntilRefresh = Math.min(msUntilRefresh, 24 * 60 * 60 * 1000);
+            
+            console.log(`NAV refresh scheduled in ${Math.round(msUntilRefresh / 1000 / 60)} minutes (3:30 PM IST)`);
+            
+            return setTimeout(() => {
+                console.log('Scheduled NAV refresh triggered (3:30 PM IST)');
+                fetchHoldings();
+                // Schedule next refresh after this one completes
+                scheduleNextRefresh();
+            }, msUntilRefresh);
+        };
+
+        const timeoutId = scheduleNextRefresh();
+
+        return () => {
+            clearTimeout(timeoutId);
+        };
+    }, [isAuthenticated, fetchHoldings]);
+
     // Calculate totals
     const totalInvested = holdings.reduce((sum, h) => sum + h.invested_amount, 0);
     const totalCurrentValue = holdings.reduce((sum, h) => sum + h.current_value, 0);

@@ -18,6 +18,7 @@ import {
     Newspaper,
     Menu,
     X,
+    Calculator,
 } from 'lucide-react';
 
 const menuItems = [
@@ -27,17 +28,16 @@ const menuItems = [
     { icon: UserPlus, label: 'Manage Clients', href: '/manage', adminOnly: true },
     { icon: BarChart3, label: 'Portfolio', href: '/portfolio' },
     { icon: Scale, label: 'Compare Funds', href: '/compare', adminOnly: true },
+    { icon: Calculator, label: 'Calculators', href: '/calculators' },
     { icon: PiggyBank, label: 'Mutual Funds', href: '/mutual-funds', adminOnly: true },
     { icon: Clock, label: 'History', href: '/history', adminOnly: true },
     { icon: Settings, label: 'Settings', href: '/settings', adminOnly: true },
-    { icon: Newspaper, label: 'News', href: '/news' },
-    { icon: HelpCircle, label: 'Help Center', href: '/help', adminOnly: true },
 ];
 
 export default function Sidebar() {
     const pathname = usePathname();
     const [isOpen, setIsOpen] = useState(false);
-    const { user, logout } = useAuth();
+    const { user, logout, isLoading } = useAuth();
 
     // Close sidebar on route change
     useEffect(() => {
@@ -80,7 +80,8 @@ export default function Sidebar() {
                 <ul className="space-y-1 md:space-y-2">
                     {menuItems
                         .filter((item) => {
-                            // Filter based on role
+    // Filter based on role
+                            if (isLoading) return true;
                             if (item.adminOnly && user?.role !== 'admin') return false;
                             if (item.clientOnly && user?.role !== 'client') return false;
                             return true;

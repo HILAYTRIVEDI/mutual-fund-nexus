@@ -172,15 +172,19 @@ export default function ManageClientsPage() {
 
                 if (authData.user) {
                     // Create profile for the user (using type assertion since tables aren't typed)
-                    await (supabase.from('profiles') as any).insert({
+                    const { error: profileError } = await (supabase.from('profiles') as any).insert({
                         id: authData.user.id,
                         email: formData.email,
                         full_name: formData.name,
                         role: 'client',
                     });
 
+                    if (profileError && profileError.code !== '23505') {
+                        console.warn('Profile creation warning:', profileError.message);
+                    }
+
                     // Create client record
-                    await addClient({
+                    const result = await addClient({
                         name: formData.name,
                         email: formData.email,
                         phone: formData.phone || null,
@@ -189,6 +193,10 @@ export default function ManageClientsPage() {
                         kyc_status: 'pending' as const,
                         notes: null,
                     });
+
+                    if (!result.success) {
+                        throw new Error(result.error || 'Failed to create client record');
+                    }
 
                     // Store credentials to show in modal
                     const savedCredentials = { email: formData.email, password: formData.password };
@@ -459,10 +467,18 @@ export default function ManageClientsPage() {
                             </div>
 
                             <div className="p-3 rounded-xl bg-white/5 border border-white/10">
-                                <p className="text-[#9CA3AF] text-[10px] uppercase font-medium mb-1">Authentication</p>
-                                <p className="text-white text-sm">Managed via Supabase</p>
+                                <p className="text-[#9CA3AF] text-[10px] uppercase font-medium mb-1">Password</p>
+                                <div className="flex items-center justify-between">
+                                    <p className="text-white font-mono text-sm">{showCredentialsModal.password || '••••••••'}</p>
+                                    <button
+                                        onClick={() => navigator.clipboard.writeText(showCredentialsModal.password || '')}
+                                        className="text-[var(--accent-mint)] hover:text-white"
+                                    >
+                                        <Copy size={14} />
+                                    </button>
+                                </div>
                                 <p className="text-[10px] text-[#9CA3AF] mt-2 italic">
-                                    Client will receive a password reset link via email
+                                    Share these credentials securely with the client
                                 </p>
                             </div>
                         </div>
@@ -521,7 +537,7 @@ export default function ManageClientsPage() {
                             {/* Email & Phone */}
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div>
-                                    <label className="text-[#9CA3AF] text-xs mb-2 block">Email</label>
+                                    <label className="text-[#9CA3AF] text-xs mb-2 block">Email *</label>
                                     <input
                                         type="email"
                                         placeholder="email@example.com"
@@ -541,6 +557,35 @@ export default function ManageClientsPage() {
                                     />
                                 </div>
                             </div>
+
+                            {/* Password - Only shown for new clients */}
+                            {!editingClient && (
+                                <div>
+                                    <label className="text-[#9CA3AF] text-xs mb-2 block flex items-center gap-2">
+                                        <Key size={12} />
+                                        Client Login Password *
+                                    </label>
+                                    <div className="relative">
+                                        <input
+                                            type={showPassword ? 'text' : 'password'}
+                                            placeholder="Minimum 6 characters"
+                                            value={formData.password}
+                                            onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
+                                            className="w-full px-4 py-2.5 md:py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-[#9CA3AF] focus:outline-none focus:border-[#48cae4]/50 text-sm pr-12"
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowPassword(!showPassword)}
+                                            className="absolute right-4 top-1/2 -translate-y-1/2 text-[#9CA3AF] hover:text-white transition-colors"
+                                        >
+                                            {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                                        </button>
+                                    </div>
+                                    <p className="text-[10px] text-[#9CA3AF] mt-1">
+                                        This password will be used by the client to log in to their dashboard
+                                    </p>
+                                </div>
+                            )}
 
                             {/* PAN Card & Aadhar Card */}
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

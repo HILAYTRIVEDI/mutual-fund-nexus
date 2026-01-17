@@ -1,9 +1,12 @@
-'use client';
-
-import { TrendingUp, Users, PiggyBank } from 'lucide-react';
+import Link from 'next/link';
+import { TrendingUp, Users, PiggyBank, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 import GlobalSearch from './GlobalSearch';
 import NotificationBell from './NotificationBell';
 import ThemeToggle from './ThemeToggle';
+import { useClientContext } from '@/context/ClientContext';
+import { useHoldings } from '@/context/HoldingsContext';
+import { useSIPs } from '@/context/SIPContext';
+import { useMemo } from 'react';
 
 interface QuickStat {
     label: string;
@@ -14,37 +17,73 @@ interface QuickStat {
     color: string;
 }
 
-const quickStats: QuickStat[] = [
-    {
-        label: 'Today\'s AUM Change',
-        value: '+₹12.5L',
-        change: '+0.10%',
-        isPositive: true,
-        icon: TrendingUp,
-        color: 'var(--accent-mint)',
-    },
-    {
-        label: 'New Clients (MTD)',
-        value: '8',
-        icon: Users,
-        color: 'var(--accent-blue)',
-    },
-    {
-        label: 'SIPs This Week',
-        value: '23',
-        change: '₹11.5L',
-        isPositive: true,
-        icon: PiggyBank,
-        color: 'var(--accent-purple)',
-    },
-];
-
 interface DashboardHeaderProps {
     title: string;
     subtitle: string;
 }
 
+function formatCurrency(amount: number): string {
+    if (Math.abs(amount) >= 10000000) {
+        return `₹${(amount / 10000000).toFixed(2)} Cr`;
+    } else if (Math.abs(amount) >= 100000) {
+        return `₹${(amount / 100000).toFixed(2)} L`;
+    }
+    return `₹${amount.toLocaleString('en-IN')}`;
+}
+
 export default function DashboardHeader({ title, subtitle }: DashboardHeaderProps) {
+    const { clients } = useClientContext();
+    const { totalCurrentValue, totalGainLoss, totalInvested } = useHoldings();
+    const { sips } = useSIPs();
+
+    const stats = useMemo(() => {
+        // 1. New Clients (MTD)
+        const now = new Date();
+        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+        const newClientsCount = clients.filter(c => new Date(c.created_at) >= startOfMonth).length;
+
+        // 2. SIPs This Week (Count of active SIPs started this week)
+        const startOfWeek = new Date(now);
+        startOfWeek.setDate(now.getDate() - now.getDay()); // Sunday
+        startOfWeek.setHours(0, 0, 0, 0);
+        
+        const newSipsThisWeek = sips.filter(s => new Date(s.created_at) >= startOfWeek).length;
+        // Total SIP volume this week (amount)
+        const newSipsVolume = sips
+            .filter(s => new Date(s.created_at) >= startOfWeek)
+            .reduce((sum, s) => sum + s.amount, 0);
+
+        // 3. Portfolio Performance (Total Gain/Loss)
+        // Since we can't easily get "Today's Change" without history, we'll show Total Gain/Loss
+        const isPositive = totalGainLoss >= 0;
+        const pnlPercentage = totalInvested > 0 ? (totalGainLoss / totalInvested) * 100 : 0;
+
+        return [
+            {
+                label: 'Total P&L',
+                value: (totalGainLoss >= 0 ? '+' : '') + formatCurrency(totalGainLoss),
+                change: (pnlPercentage >= 0 ? '+' : '') + pnlPercentage.toFixed(2) + '%',
+                isPositive: isPositive,
+                icon: TrendingUp,
+                color: 'var(--accent-mint)',
+            },
+            {
+                label: 'New Clients (MTD)',
+                value: newClientsCount.toString(),
+                icon: Users,
+                color: 'var(--accent-blue)',
+            },
+            {
+                label: 'New SIPs (Week)',
+                value: newSipsThisWeek.toString(),
+                change: formatCurrency(newSipsVolume),
+                isPositive: true,
+                icon: PiggyBank,
+                color: 'var(--accent-purple)',
+            },
+        ];
+    }, [clients, sips, totalGainLoss, totalInvested]);
+
     return (
         <header className="mb-4 md:mb-6 space-y-3 md:space-y-4">
             {/* Row 1: Title + Theme Toggle + Notifications */}
@@ -78,7 +117,7 @@ export default function DashboardHeader({ title, subtitle }: DashboardHeaderProp
 
                 {/* Quick Stats Badges - Scrollable on mobile */}
                 <div className="flex items-center gap-2 md:gap-3 overflow-x-auto pb-2 lg:pb-0 -mx-4 px-4 md:mx-0 md:px-0 scrollbar-hide">
-                    {quickStats.map((stat, index) => {
+                    {stats.map((stat, index) => {
                         const Icon = stat.icon;
                         return (
                             <div

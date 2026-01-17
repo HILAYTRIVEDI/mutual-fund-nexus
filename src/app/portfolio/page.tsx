@@ -25,110 +25,12 @@ interface PortfolioHolding {
     investedDate: string; // Added for tax calculation
 }
 
-const portfolioHoldings: PortfolioHolding[] = [
-    {
-        id: '1',
-        fundName: 'HDFC Top 100 Fund - Direct Growth',
-        fundHouse: 'HDFC',
-        category: 'Large Cap',
-        units: 15234.56,
-        avgNav: 756.23,
-        currentNav: 892.45,
-        investedValue: 11520000,
-        currentValue: 13600000,
-        returns: 2080000,
-        returnsPercentage: 18.05,
-        xirr: 22.5,
-        allocation: 28.5,
-        color: '#48cae4',
-        investedDate: '2022-01-15', // Long Term
-    },
-    {
-        id: '2',
-        fundName: 'SBI Bluechip Fund - Direct Growth',
-        fundHouse: 'SBI',
-        category: 'Large Cap',
-        units: 8456.78,
-        avgNav: 65.45,
-        currentNav: 78.32,
-        investedValue: 5535000,
-        currentValue: 6625000,
-        returns: 1090000,
-        returnsPercentage: 19.69,
-        xirr: 24.2,
-        allocation: 13.9,
-        color: '#3B82F6',
-        investedDate: '2021-06-20', // Long Term
-    },
-    {
-        id: '3',
-        fundName: 'ICICI Prudential Liquid Fund - Direct Growth',
-        fundHouse: 'ICICI',
-        category: 'Liquid',
-        units: 25000.00,
-        avgNav: 340.12,
-        currentNav: 345.67,
-        investedValue: 8503000,
-        currentValue: 8641750,
-        returns: 138750,
-        returnsPercentage: 1.63,
-        xirr: 6.8,
-        allocation: 18.1,
-        color: '#8B5CF6',
-        investedDate: '2024-08-10', // Short Term
-    },
-    {
-        id: '4',
-        fundName: 'Axis Small Cap Fund - Direct Growth',
-        fundHouse: 'Axis',
-        category: 'Small Cap',
-        units: 12500.00,
-        avgNav: 52.30,
-        currentNav: 68.45,
-        investedValue: 6537500,
-        currentValue: 8556250,
-        returns: 2018750,
-        returnsPercentage: 30.88,
-        xirr: 35.2,
-        allocation: 17.9,
-        color: '#F59E0B',
-        investedDate: '2022-11-05', // Long Term
-    },
-    {
-        id: '5',
-        fundName: 'Parag Parikh Flexi Cap Fund - Direct Growth',
-        fundHouse: 'PPFAS',
-        category: 'Flexi Cap',
-        units: 10200.00,
-        avgNav: 48.75,
-        currentNav: 62.45,
-        investedValue: 4972500,
-        currentValue: 6369900,
-        returns: 1397400,
-        returnsPercentage: 28.10,
-        xirr: 28.5,
-        allocation: 13.3,
-        color: '#EC4899',
-        investedDate: '2023-02-15', // Long Term
-    },
-    {
-        id: '6',
-        fundName: 'Kotak Emerging Equity Fund - Direct Growth',
-        fundHouse: 'Kotak',
-        category: 'Mid Cap',
-        units: 5600.00,
-        avgNav: 72.50,
-        currentNav: 89.75,
-        investedValue: 4060000,
-        currentValue: 5026000,
-        returns: 966000,
-        returnsPercentage: 23.79,
-        xirr: 26.8,
-        allocation: 10.5,
-        color: '#6366F1',
-        investedDate: '2024-05-20', // Short Term
-    },
-];
+const colors = ['#48cae4', '#3B82F6', '#8B5CF6', '#F59E0B', '#EC4899', '#6366F1'];
+
+import { useHoldings } from '@/context/HoldingsContext';
+import { Loader2 } from 'lucide-react';
+
+const getRandomColor = (index: number) => colors[index % colors.length];
 
 function formatCurrency(amount: number): string {
     if (amount >= 10000000) {
@@ -146,45 +48,65 @@ export default function PortfolioPage() {
     const { ltcgTax, stcgTax } = useSettings();
     const { user } = useAuth();
     const { clients } = useClientContext();
+    const { holdings, isLoading } = useHoldings();
     const [searchQuery, setSearchQuery] = useState('');
     const [sortKey, setSortKey] = useState<SortKey>('allocation');
     const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
     const [showPostTax, setShowPostTax] = useState(false);
 
-    // For clients, show only their own portfolio. For admins, show all.
-    const getHoldingsData = (): PortfolioHolding[] => {
-        if (user?.role === 'client') {
-            // Find client's data and convert to PortfolioHolding format
-            const clientData = clients.find(c => c.id === user.id);
-            if (clientData) {
-                const investedAmount = clientData.amount || 0;
-                const mockGrowth = clientData.investmentType === 'SIP' ? 1.21 : 1.18;
-                const currentValue = investedAmount * mockGrowth;
-                const returns = currentValue - investedAmount;
-                return [{
-                    id: clientData.id,
-                    fundName: clientData.portfolio || 'Investment Portfolio',
-                    fundHouse: (clientData.portfolio || 'Fund').split(' ')[0],
-                    category: clientData.investmentType === 'SIP' ? 'Equity' : 'Hybrid',
-                    units: investedAmount / 100,
-                    avgNav: 100,
-                    currentNav: 100 * mockGrowth,
-                    investedValue: investedAmount,
-                    currentValue: currentValue,
-                    returns: returns,
-                    returnsPercentage: investedAmount > 0 ? (returns / investedAmount) * 100 : 0,
-                    xirr: clientData.investmentType === 'SIP' ? 22.5 : 18.2,
-                    allocation: 100,
-                    color: '#48cae4',
-                    investedDate: clientData.startDate || new Date().toISOString(),
-                }];
-            }
-            return [];
-        }
-        return portfolioHoldings; // Admin sees all
-    };
+    // Transform and filter holdings data
+    const holdingsData = useMemo(() => {
+        if (!holdings || holdings.length === 0) return [];
 
-    const holdingsData = getHoldingsData();
+        let filteredHoldings = holdings;
+        
+        // If regular user (client), show only their holdings
+        if (user?.role === 'client') {
+            filteredHoldings = holdings.filter(h => h.client_id === user.id);
+        }
+
+        const totalValue = filteredHoldings.reduce((sum, h) => sum + h.current_value, 0);
+
+        return filteredHoldings.map((h, index) => {
+            const fundName = h.scheme_code || 'Mutual Fund Scheme';
+            const fundHouse = fundName.split(' ')[0] || 'Fund House'; // Simple extraction
+            const returns = h.current_value - h.invested_amount;
+            const returnsPercentage = h.invested_amount > 0 ? (returns / h.invested_amount) * 100 : 0;
+            const allocation = totalValue > 0 ? (h.current_value / totalValue) * 100 : 0;
+
+            return {
+                id: h.id,
+                fundName: fundName,
+                fundHouse: fundHouse,
+                category: 'Equity', // Defaulting for now
+                units: h.units,
+                avgNav: h.average_price,
+                currentNav: h.current_nav,
+                investedValue: h.invested_amount,
+                currentValue: h.current_value,
+                returns: returns,
+                returnsPercentage: returnsPercentage,
+                xirr: 0, 
+                allocation: parseFloat(allocation.toFixed(2)),
+                color: getRandomColor(index),
+                investedDate: h.created_at || new Date().toISOString(), 
+            };
+        });
+    }, [holdings, user]);
+
+    if (isLoading) {
+        return (
+             <div className="min-h-screen bg-[var(--bg-primary)] text-[var(--text-primary)] p-4 md:p-6 flex flex-col md:flex-row gap-4 md:gap-6 transition-colors duration-300">
+                <main className="flex-1 min-w-0 flex items-center justify-center">
+                    <div className="text-center">
+                        <Loader2 className="animate-spin mx-auto text-[var(--accent-mint)] mb-2" size={32} />
+                        <p className="text-[var(--text-secondary)]">Loading portfolio...</p>
+                    </div>
+                </main>
+                <Sidebar />
+            </div>
+        );
+    }
 
     const handleSort = (key: SortKey) => {
         if (sortKey === key) {
@@ -269,9 +191,6 @@ export default function PortfolioPage() {
                                 <Calculator size={14} />
                                 <span className="text-xs font-medium">{showPostTax ? 'Post-Tax' : 'Pre-Tax'}</span>
                             </button>
-                            <span className="text-[var(--accent-purple)] text-[10px] md:text-xs px-2 md:px-3 py-1 bg-[var(--accent-purple)]/10 rounded-full border border-[var(--accent-purple)]/20 whitespace-nowrap">
-                                Sample Data
-                            </span>
                         </div>
                     </div>
                 </header>
