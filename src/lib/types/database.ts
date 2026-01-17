@@ -14,10 +14,14 @@ export interface Profile {
   id: string;
   email: string;
   full_name: string | null;
-  role: 'admin' | 'advisor' | 'viewer';
+  role: 'admin' | 'advisor' | 'viewer' | 'client';
   avatar_url: string | null;
   created_at: string;
   updated_at: string;
+  // Email notification preferences
+  email_sip_reminders: boolean;
+  email_sip_executed: boolean;
+  reminder_days_before: number;
 }
 
 // Mutual Fund (Master Data)

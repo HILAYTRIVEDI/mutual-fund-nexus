@@ -34,12 +34,21 @@ export function ClientProvider({ children }: { children: ReactNode }) {
     const [clients, setClients] = useState<Client[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const { user, isAuthenticated } = useAuth();
+    const { user, isAuthenticated, isLoading: authLoading } = useAuth();
     const supabase = getSupabaseClient();
 
     // Fetch clients from Supabase
     const fetchClients = useCallback(async () => {
+        console.log('[ClientContext] fetchClients called', { isAuthenticated, userId: user?.id, authLoading });
+        
+        // Wait for auth to finish loading
+        if (authLoading) {
+            console.log('[ClientContext] Auth still loading, waiting...');
+            return;
+        }
+        
         if (!isAuthenticated || !user) {
+            console.log('[ClientContext] Not authenticated, clearing clients');
             setClients([]);
             setIsLoading(false);
             return;
@@ -49,10 +58,17 @@ export function ClientProvider({ children }: { children: ReactNode }) {
             setIsLoading(true);
             setError(null);
 
+            console.log('[ClientContext] Fetching clients from Supabase...');
             const { data, error: fetchError } = await supabase
                 .from('clients')
                 .select('*')
                 .order('created_at', { ascending: false });
+
+            console.log('[ClientContext] Supabase response:', { 
+                dataCount: data?.length ?? 0, 
+                error: fetchError?.message,
+                rawData: data 
+            });
 
             if (fetchError) {
                 throw fetchError;
@@ -74,19 +90,24 @@ export function ClientProvider({ children }: { children: ReactNode }) {
                 updated_at: client.updated_at,
             }));
 
+            console.log('[ClientContext] Mapped clients:', mappedClients.length);
             setClients(mappedClients);
         } catch (err) {
-            console.error('Error fetching clients:', err);
+            console.error('[ClientContext] Error fetching clients:', err);
             setError(err instanceof Error ? err.message : 'Failed to fetch clients');
         } finally {
             setIsLoading(false);
         }
-    }, [isAuthenticated, user, supabase]);
+    }, [isAuthenticated, user, supabase, authLoading]);
 
-    // Fetch clients when auth changes
+    // Fetch clients when auth finishes loading
     useEffect(() => {
-        fetchClients();
-    }, [fetchClients]);
+        // Only fetch after auth has finished loading
+        if (!authLoading) {
+            console.log('[ClientContext] Auth finished loading, triggering fetch. User:', user?.id);
+            fetchClients();
+        }
+    }, [authLoading, user, fetchClients]);
 
     const addClient = async (clientData: Omit<ClientInsert, 'advisor_id'>): Promise<{ success: boolean; error?: string }> => {
         if (!user) {

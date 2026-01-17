@@ -66,16 +66,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Initialize auth state
     useEffect(() => {
         const initAuth = async () => {
+            console.log('[AuthContext] Initializing auth...');
             try {
                 const { data: { session } } = await supabase.auth.getSession();
+                console.log('[AuthContext] Session:', session ? 'Found' : 'Not found', session?.user?.email);
                 
                 if (session?.user) {
                     const userProfile = await fetchProfile(session.user.id);
+                    console.log('[AuthContext] Profile:', userProfile);
                     setProfile(userProfile);
                     setUser(mapToUser(session.user, userProfile));
+                } else {
+                    console.log('[AuthContext] No session found');
                 }
             } catch (error) {
-                console.error('Auth initialization error:', error);
+                console.error('[AuthContext] Auth initialization error:', error);
             } finally {
                 setIsLoading(false);
             }
@@ -85,6 +90,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         // Listen for auth changes
         const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+            console.log('[AuthContext] Auth state changed:', event, session?.user?.email);
             if (event === 'SIGNED_IN' && session?.user) {
                 const userProfile = await fetchProfile(session.user.id);
                 setProfile(userProfile);
@@ -102,12 +108,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     // Protect routes
     useEffect(() => {
-        if (isLoading) return;
+        console.log('[AuthContext] Route protection check:', { isLoading, user: user?.email, pathname });
+        
+        if (isLoading) {
+            console.log('[AuthContext] Still loading, skipping route protection');
+            return;
+        }
 
         const publicRoutes = ['/login', '/signup', '/forgot-password'];
         const isPublicRoute = publicRoutes.some(route => pathname.startsWith(route));
 
+        console.log('[AuthContext] Route check:', { isPublicRoute, shouldRedirectToLogin: !user && !isPublicRoute });
+
         if (!user && !isPublicRoute) {
+            console.log('[AuthContext] Redirecting to /login');
             router.push('/login');
         } else if (user && pathname === '/login') {
             // Redirect based on role
