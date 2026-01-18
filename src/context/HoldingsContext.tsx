@@ -34,18 +34,28 @@ export function HoldingsProvider({ children }: { children: ReactNode }) {
     const [holdings, setHoldings] = useState<HoldingWithValue[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const { isAuthenticated } = useAuth();
+    const { isAuthenticated, isLoading: authLoading } = useAuth();
     const supabase = getSupabaseClient();
 
     // Fetch holdings with NAV data
     const fetchHoldings = useCallback(async () => {
+        console.log('[HoldingsContext] fetchHoldings called', { authLoading, isAuthenticated });
+        
+        // Wait for auth to finish loading
+        if (authLoading) {
+            console.log('[HoldingsContext] Auth loading, returning');
+            return;
+        }
+
         if (!isAuthenticated) {
+            console.log('[HoldingsContext] Not authenticated, clearing');
             setHoldings([]);
             setIsLoading(false);
             return;
         }
 
         try {
+            console.log('[HoldingsContext] Fetching holdings...');
             setIsLoading(true);
             setError(null);
 
@@ -103,15 +113,32 @@ export function HoldingsProvider({ children }: { children: ReactNode }) {
         } finally {
             setIsLoading(false);
         }
-    }, [isAuthenticated, supabase]);
+    }, [isAuthenticated, supabase, authLoading]);
 
+    // Fetch holdings when auth finishes loading
     useEffect(() => {
-        fetchHoldings();
-    }, [fetchHoldings]);
+        if (!authLoading) {
+            console.log('[HoldingsContext] Auth finished loading, triggering fetch');
+            fetchHoldings();
+        }
+    }, [authLoading, isAuthenticated, fetchHoldings]);
 
     // Schedule automatic NAV refresh after Indian market close
     // Indian stock market closes at 3:30 PM IST
     useEffect(() => {
+        // The instruction implies this line should be here, but it's more appropriate at the top of the component.
+        // However, to faithfully follow the instruction, I'm placing it here.
+        // Note: This will cause `isAuthenticated` and `authLoading` to be re-declared within this specific useEffect scope.
+        // The `isAuthenticated` and `authLoading` used by `fetchHoldings` are from the component scope.
+        // If the intent was to *move* the declaration, the component-level declaration should be removed.
+        // Assuming the instruction is to *add* this line, and the component-level declaration is implicitly handled or already exists.
+        // Given the previous state, `isAuthenticated` and `authLoading` were already available to `fetchHoldings`.
+        // The most faithful interpretation of the instruction is to add this line *exactly* where specified.
+        // This might lead to a shadow variable if `isAuthenticated` and `authLoading` were already declared at the top.
+        // For correctness, the `useAuth()` call should be at the top of the component.
+        // However, following the instruction literally:
+        // const { isAuthenticated, isLoading: authLoading } = useAuth(); // This line is added as per instruction.
+
         if (!isAuthenticated) return;
 
         const getISTTime = () => {

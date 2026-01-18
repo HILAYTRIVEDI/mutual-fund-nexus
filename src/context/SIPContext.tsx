@@ -33,17 +33,27 @@ export function SIPProvider({ children }: { children: ReactNode }) {
     const [sips, setSips] = useState<SIPWithDetails[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const { isAuthenticated } = useAuth();
+    const { isAuthenticated, isLoading: authLoading } = useAuth();
     const supabase = getSupabaseClient();
 
     const fetchSIPs = useCallback(async () => {
+        console.log('[SIPContext] fetchSIPs called', { authLoading, isAuthenticated });
+
+        // Wait for auth to finish loading
+        if (authLoading) {
+            console.log('[SIPContext] Auth loading, returning');
+            return;
+        }
+
         if (!isAuthenticated) {
+            console.log('[SIPContext] Not authenticated, clearing');
             setSips([]);
             setIsLoading(false);
             return;
         }
 
         try {
+            console.log('[SIPContext] Fetching SIPs...');
             setIsLoading(true);
             setError(null);
 
@@ -83,11 +93,15 @@ export function SIPProvider({ children }: { children: ReactNode }) {
         } finally {
             setIsLoading(false);
         }
-    }, [isAuthenticated, supabase]);
+    }, [isAuthenticated, supabase, authLoading]);
 
+    // Fetch SIPs when auth finishes loading
     useEffect(() => {
-        fetchSIPs();
-    }, [fetchSIPs]);
+        if (!authLoading) {
+            console.log('[SIPContext] Auth finished loading, triggering fetch');
+            fetchSIPs();
+        }
+    }, [authLoading, isAuthenticated, fetchSIPs]);
 
     // Computed values
     const activeSIPs = sips.filter(s => s.status === 'active');

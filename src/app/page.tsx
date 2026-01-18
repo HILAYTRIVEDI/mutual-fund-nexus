@@ -15,7 +15,7 @@ export default function RootPage() {
         }
 
         // Redirect based on role
-        if (user?.role === 'admin') {
+        if (user?.role === 'advisor') {
             router.push('/admin-dashboard');
         } else if (user?.role === 'client') {
             router.push('/client-dashboard');

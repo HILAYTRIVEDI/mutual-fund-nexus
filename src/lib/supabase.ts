@@ -1,3 +1,5 @@
+'use client';
+
 import { createBrowserClient } from '@supabase/ssr';
 import type { Database } from './types/database';
 
@@ -10,21 +12,22 @@ if (!supabaseUrl || !supabaseAnonKey) {
   );
 }
 
-// Browser client for use in client components
+// Browser client - uses cookies automatically for session persistence
 export function createClient() {
   return createBrowserClient<Database>(supabaseUrl, supabaseAnonKey);
 }
 
-// Singleton instance for client-side use
+// Singleton instance for client-side use - CRITICAL for session consistency
 let browserClient: ReturnType<typeof createBrowserClient<Database>> | null = null;
 
 export function getSupabaseClient() {
   if (typeof window === 'undefined') {
-    // Server-side: always create a new client
+    // Server-side: create a new client each time
     return createClient();
   }
   
-  // Browser-side: reuse the same client
+  // Browser-side: always reuse the same singleton client
+  // This ensures consistent session state across the app
   if (!browserClient) {
     browserClient = createClient();
   }

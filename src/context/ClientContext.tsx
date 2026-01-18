@@ -22,7 +22,7 @@ interface ClientContextType {
     clients: Client[];
     isLoading: boolean;
     error: string | null;
-    addClient: (client: Omit<ClientInsert, 'advisor_id'>) => Promise<{ success: boolean; error?: string }>;
+    addClient: (client: Omit<ClientInsert, 'advisor_id'>) => Promise<{ success: boolean; error?: string; data?: Client }>;
     updateClient: (id: string, updates: Partial<Client>) => Promise<{ success: boolean; error?: string }>;
     deleteClient: (id: string) => Promise<{ success: boolean; error?: string }>;
     refreshClients: () => Promise<void>;
@@ -109,7 +109,7 @@ export function ClientProvider({ children }: { children: ReactNode }) {
         }
     }, [authLoading, user, fetchClients]);
 
-    const addClient = async (clientData: Omit<ClientInsert, 'advisor_id'>): Promise<{ success: boolean; error?: string }> => {
+    const addClient = async (clientData: Omit<ClientInsert, 'advisor_id'>): Promise<{ success: boolean; error?: string; data?: Client }> => {
         if (!user) {
             return { success: false, error: 'Not authenticated' };
         }
@@ -135,8 +135,9 @@ export function ClientProvider({ children }: { children: ReactNode }) {
             }
 
             if (data) {
-                setClients(prev => [{ ...data, panCard: data.pan }, ...prev]);
-                return { success: true };
+                const newClient = { ...data, panCard: data.pan };
+                setClients(prev => [newClient, ...prev]);
+                return { success: true, data: newClient };
             }
 
             return { success: false, error: 'Failed to add client' };

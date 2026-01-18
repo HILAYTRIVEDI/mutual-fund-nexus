@@ -5,7 +5,7 @@ import { Search, TrendingUp, TrendingDown, PiggyBank, BarChart3, ArrowUpDown, Ca
 import Sidebar from '@/components/Sidebar';
 import { useSettings } from '@/context/SettingsContext';
 import { useAuth } from '@/context/AuthContext';
-import { useClientContext } from '@/context/ClientContext';
+// import { useClientContext } from '@/context/ClientContext'; // Removed as unused
 
 interface PortfolioHolding {
     id: string;
@@ -47,7 +47,6 @@ type SortDirection = 'asc' | 'desc';
 export default function PortfolioPage() {
     const { ltcgTax, stcgTax } = useSettings();
     const { user } = useAuth();
-    const { clients } = useClientContext();
     const { holdings, isLoading } = useHoldings();
     const [searchQuery, setSearchQuery] = useState('');
     const [sortKey, setSortKey] = useState<SortKey>('allocation');
@@ -60,10 +59,6 @@ export default function PortfolioPage() {
 
         let filteredHoldings = holdings;
         
-        // If regular user (client), show only their holdings
-        if (user?.role === 'client') {
-            filteredHoldings = holdings.filter(h => h.client_id === user.id);
-        }
 
         const totalValue = filteredHoldings.reduce((sum, h) => sum + h.current_value, 0);
 

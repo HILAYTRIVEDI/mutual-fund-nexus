@@ -65,7 +65,7 @@ export default function GlobalSearch() {
     const staticResults = query.trim()
         ? staticSearchData.filter(
             (item) => {
-                if (item.adminOnly && user?.role !== 'admin') return false;
+                if (item.adminOnly && user?.role !== 'advisor') return false;
                 if (item.clientOnly && user?.role !== 'client') return false;
                 return item.title.toLowerCase().includes(query.toLowerCase()) ||
                     item.subtitle.toLowerCase().includes(query.toLowerCase());

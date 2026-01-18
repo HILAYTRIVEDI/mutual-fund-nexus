@@ -1,14 +1,18 @@
 'use client';
 
 import { useAuth } from '@/context/AuthContext';
-import { useClientContext } from '@/context/ClientContext';
+import { useHoldings } from '@/context/HoldingsContext';
+import { useSIPs } from '@/context/SIPContext';
 import { useSettings } from '@/context/SettingsContext';
 import Sidebar from '@/components/Sidebar';
 import ThemeToggle from '@/components/ThemeToggle';
-import { TrendingUp, TrendingDown, PiggyBank, Calendar, Wallet, Target, Calculator } from 'lucide-react';
+import { TrendingUp, TrendingDown, PiggyBank, Calendar, Wallet, Target, Calculator, Loader2, ArrowRight } from 'lucide-react';
 import { useState, useMemo } from 'react';
 import AssetChartCard from '@/components/AssetChartCard';
 import DistributionCard from '@/components/DistributionCard';
+import Link from 'next/link';
+
+const COLORS = ['#48cae4', '#3B82F6', '#8B5CF6', '#F59E0B', '#EC4899', '#10B981', '#6366F1'];
 
 function formatCurrency(amount: number): string {
     if (amount >= 10000000) {
@@ -21,103 +25,105 @@ function formatCurrency(amount: number): string {
 
 export default function ClientDashboard() {
     const { user } = useAuth();
-    const { clients } = useClientContext();
+    const { holdings, isLoading: isHoldingsLoading, totalCurrentValue, totalInvested, totalGainLoss } = useHoldings();
+    const { activeSIPs, totalMonthlyAmount, isLoading: isSIPsLoading } = useSIPs();
     const { ltcgTax, stcgTax } = useSettings();
     const [showPostTax, setShowPostTax] = useState(false);
 
-    // Get logged-in client's data
-    const clientData = clients.find(c => c.id === user?.id);
+    const isLoading = isHoldingsLoading || isSIPsLoading;
 
-    // Mock current value calculation (In production, fetch from API)
-    const investedAmount = clientData?.amount || 0;
-    const mockGrowthRate = clientData?.investmentType === 'SIP' ? 1.21 : 1.18;
-    const currentValue = investedAmount * mockGrowthRate;
+    // Calculate Tax-Adjusted Returns
+    const { netReturns, netReturnsPercentage, grossReturnsPercentage } = useMemo(() => {
+        if (holdings.length === 0) return { netReturns: 0, netReturnsPercentage: 0, grossReturnsPercentage: 0 };
 
-    // Generate Client Specific Chart Data (Mocking history based on current value)
+        const totalAdjustedReturns = holdings.reduce((sum, h) => {
+            const gross = h.current_value - h.invested_amount;
+            if (gross <= 0) return sum + gross;
+
+            const purchaseDate = new Date(h.created_at || new Date().toISOString());
+            const oneYearAgo = new Date();
+            oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+            const isLongTerm = purchaseDate < oneYearAgo;
+            const taxRate = isLongTerm ? ltcgTax : stcgTax;
+            const taxAmount = gross * (taxRate / 100);
+            return sum + (gross - taxAmount);
+        }, 0);
+
+        const currentTotalInvested = holdings.reduce((sum, h) => sum + h.invested_amount, 0);
+        
+        return {
+            netReturns: totalAdjustedReturns,
+            netReturnsPercentage: currentTotalInvested > 0 ? (totalAdjustedReturns / currentTotalInvested) * 100 : 0,
+            grossReturnsPercentage: currentTotalInvested > 0 ? (totalGainLoss / currentTotalInvested) * 100 : 0
+        };
+    }, [holdings, ltcgTax, stcgTax, totalGainLoss]);
+
+    // Generate Charts
     const chartData = useMemo(() => {
-        if (!currentValue) return undefined;
+        if (!totalCurrentValue) return undefined;
 
         const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
         const currentMonthIndex = new Date().getMonth();
 
-        // Helper to generate a curve ending at currentValue
+        // Simulate a curve anchored to the REAL current value
         const generateCurve = (monthsCount: number, volatility: number) => {
             const data = [];
-            let val = currentValue;
+            let val = totalCurrentValue;
             for (let i = 0; i < monthsCount; i++) {
-                // Reverse iterate
                 const date = new Date();
                 date.setMonth(currentMonthIndex - i);
                 const monthName = months[date.getMonth()];
-
-                data.unshift({
-                    name: monthName,
-                    value: val
-                });
-
-                // Previous month was likely less
+                data.unshift({ name: monthName, value: val });
                 val = val / (1 + (Math.random() * volatility));
             }
             return data;
         };
 
-        const yearData = generateCurve(12, 0.02); // 2% avg monthly growth roughly
-        const sixMonthData = yearData.slice(6);
-
-        // Weekly data for 1M
-        const oneMonthData = [
-            { name: 'Week 1', value: currentValue * 0.95 },
-            { name: 'Week 2', value: currentValue * 0.97 },
-            { name: 'Week 3', value: currentValue * 0.98 },
-            { name: 'Week 4', value: currentValue },
-        ];
-
+        const yearData = generateCurve(12, 0.02);
         return {
             '1Y': yearData,
-            '6M': sixMonthData,
+            '6M': yearData.slice(6),
             '3M': yearData.slice(9),
-            '1M': oneMonthData,
+            '1M': [
+                { name: 'Week 1', value: totalCurrentValue * 0.96 },
+                { name: 'Week 2', value: totalCurrentValue * 0.98 },
+                { name: 'Week 3', value: totalCurrentValue * 0.99 },
+                { name: 'Week 4', value: totalCurrentValue },
+            ]
         };
-    }, [currentValue]);
+    }, [totalCurrentValue]);
 
+    const distributionData = useMemo(() => {
+        const dist: Record<string, number> = {};
+        holdings.forEach(h => {
+             // Access 'category' from joined mutual_fund object safely
+            const cat = (h as any).mutual_fund?.category || 'Equity';
+            dist[cat] = (dist[cat] || 0) + h.current_value;
+        });
+        const total = totalCurrentValue || 1;
+        return Object.entries(dist).map(([name, val], idx) => ({
+            name,
+            value: Number(((val / total) * 100).toFixed(1)),
+            color: COLORS[idx % COLORS.length]
+        })).sort((a, b) => b.value - a.value);
+    }, [holdings, totalCurrentValue]);
 
+    const displayReturns = showPostTax ? netReturns : totalGainLoss;
+    const displayReturnsPercentage = showPostTax ? netReturnsPercentage : grossReturnsPercentage;
 
-    const distributionData = [
-        { name: 'Equity Funds', value: 70, color: '#48cae4' },
-        { name: 'Debt Funds', value: 20, color: '#8B5CF6' },
-        { name: 'Gold', value: 10, color: '#F59E0B' },
-    ];
-
-    if (!clientData) {
+    if (isLoading) {
         return (
-            <div className="min-h-screen bg-[var(--bg-primary)] flex items-center justify-center">
-                <p className="text-[var(--text-secondary)]">Loading your dashboard...</p>
+            <div className="min-h-screen bg-[var(--bg-primary)] p-4 md:p-6 flex flex-col md:flex-row gap-4 md:gap-6">
+                <main className="flex-1 flex items-center justify-center">
+                    <div className="text-center">
+                        <Loader2 className="animate-spin mx-auto text-[var(--accent-mint)] mb-2" size={32} />
+                        <p className="text-[var(--text-secondary)]">Loading your dashboard...</p>
+                    </div>
+                </main>
+                <Sidebar />
             </div>
         );
     }
-
-    // Derived values requiring clientData
-    // We mock these derived values for display since clientData is now guaranteed not null
-    const grossReturns = currentValue - investedAmount;
-    const grossReturnsPercentage = investedAmount > 0 ? (grossReturns / investedAmount) * 100 : 0;
-
-    // Tax calculation
-    const startDate = new Date(clientData.startDate || Date.now());
-    const oneYearAgo = new Date();
-    oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
-    const isLongTerm = startDate < oneYearAgo;
-    const taxRate = isLongTerm ? ltcgTax : stcgTax;
-    const taxAmount = grossReturns > 0 ? grossReturns * (taxRate / 100) : 0;
-    const netReturns = grossReturns - taxAmount;
-    const netReturnsPercentage = investedAmount > 0 ? (netReturns / investedAmount) * 100 : 0;
-
-    const displayReturns = showPostTax ? netReturns : grossReturns;
-    const displayReturnsPercentage = showPostTax ? netReturnsPercentage : grossReturnsPercentage;
-
-    // SIP progress (mock)
-    const sipMonths = clientData.investmentType === 'SIP'
-        ? Math.floor((new Date().getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24 * 30))
-        : 0;
 
     return (
         <div className="min-h-screen bg-[var(--bg-primary)] text-[var(--text-primary)] p-4 md:p-6 flex flex-col md:flex-row gap-4 md:gap-6 transition-colors duration-300">
@@ -127,10 +133,10 @@ export default function ClientDashboard() {
                     <div className="flex items-center justify-between">
                         <div>
                             <h1 className="text-xl md:text-3xl font-bold">
-                                Welcome, <span className="bg-gradient-to-r from-[var(--accent-mint)] to-[var(--accent-blue)] bg-clip-text text-transparent">{user?.name?.split(' ')[0]}</span>
+                                Welcome, <span className="bg-gradient-to-r from-[var(--accent-mint)] to-[var(--accent-blue)] bg-clip-text text-transparent">{user?.name?.split(' ')[0] || 'Investor'}</span>
                             </h1>
                             <p className="text-[var(--text-secondary)] text-xs md:text-sm mt-1">
-                                Here's your investment overview
+                                Your real-time investment overview
                             </p>
                         </div>
                         <div className="flex items-center gap-3">
@@ -156,14 +162,14 @@ export default function ClientDashboard() {
                             <Wallet size={16} className="text-[var(--accent-blue)]" />
                             <span className="text-[var(--text-secondary)] text-xs">Invested</span>
                         </div>
-                        <p className="text-lg md:text-xl font-bold text-[var(--text-primary)]">{formatCurrency(investedAmount)}</p>
+                        <p className="text-lg md:text-xl font-bold text-[var(--text-primary)]">{formatCurrency(totalInvested)}</p>
                     </div>
                     <div className="glass-card rounded-2xl p-4 gradient-border">
                         <div className="flex items-center gap-2 mb-2">
                             <Target size={16} className="text-[var(--accent-purple)]" />
                             <span className="text-[var(--text-secondary)] text-xs">Current Value</span>
                         </div>
-                        <p className="text-lg md:text-xl font-bold text-[var(--text-primary)]">{formatCurrency(currentValue)}</p>
+                        <p className="text-lg md:text-xl font-bold text-[var(--text-primary)]">{formatCurrency(totalCurrentValue)}</p>
                     </div>
                     <div className="glass-card rounded-2xl p-4 gradient-border">
                         <div className="flex items-center gap-2 mb-2">
@@ -183,87 +189,109 @@ export default function ClientDashboard() {
                             {displayReturnsPercentage >= 0 ? '+' : ''}{displayReturnsPercentage.toFixed(2)}%
                         </p>
                         {showPostTax && (
-                            <span className="text-[10px] text-[var(--text-secondary)]">{isLongTerm ? 'LTCG' : 'STCG'} Applied</span>
+                            <span className="text-[10px] text-[var(--text-secondary)]">Tax Adjusted</span>
                         )}
                     </div>
                 </div>
 
-                {/* Charts Area */}
+                {/* Main Content Grid */}
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-                    <AssetChartCard 
-                        customChartData={chartData} 
-                        customAumValues={{
-                            currentValue,
-                            investedValue: investedAmount,
-                            gainLoss: grossReturns
-                        }} 
-                    />
-                    <div className="lg:col-span-1 h-[300px] lg:h-auto">
-                        <DistributionCard customData={distributionData} />
+                    {/* Charts */}
+                    <div className="lg:col-span-2">
+                         <AssetChartCard 
+                            customChartData={chartData} 
+                            customAumValues={{
+                                currentValue: totalCurrentValue,
+                                investedValue: totalInvested,
+                                gainLoss: totalGainLoss
+                            }} 
+                        />
+                    </div>
+                    
+                    {/* Right Column: Distribution & SIPs */}
+                    <div className="space-y-6">
+                        <div className="h-[250px] md:h-[300px]">
+                            <DistributionCard customData={distributionData} />
+                        </div>
+                        
+                        {/* Start investing nudge if empty */}
+                        {holdings.length === 0 && (
+                            <div className="glass-card p-6 rounded-2xl text-center">
+                                <PiggyBank className="w-12 h-12 text-[var(--accent-mint)] mx-auto mb-3" />
+                                <h3 className="font-semibold text-[var(--text-primary)]">Start Investing</h3>
+                                <p className="text-sm text-[var(--text-secondary)] mt-1 mb-4">You haven't started your journey yet.</p>
+                            </div>
+                        )}
                     </div>
                 </div>
 
-                {/* Holdings Card */}
-                <div className="glass-card rounded-2xl p-4 md:p-6 mb-6">
-                    <h3 className="text-[var(--text-primary)] font-semibold mb-4 flex items-center gap-2">
-                        <PiggyBank size={20} className="text-[var(--accent-mint)]" />
-                        Your Holdings
-                    </h3>
-                    <div className="p-4 rounded-xl bg-[var(--bg-hover)] border border-[var(--border-primary)]">
-                        <div className="flex items-start gap-4">
-                            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[var(--accent-mint)]/20 to-[var(--accent-blue)]/20 flex items-center justify-center flex-shrink-0">
-                                <PiggyBank size={24} className="text-[var(--accent-mint)]" />
+                {/* Bottom Row: Key Holdings & SIP Summary */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Top Holdings Preview */}
+                    <div className="glass-card rounded-2xl p-4 md:p-6">
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-[var(--text-primary)] font-semibold flex items-center gap-2">
+                                <PiggyBank size={20} className="text-[var(--accent-mint)]" />
+                                Portfolio Highlights
+                            </h3>
+                            <Link href="/portfolio" className="text-xs text-[var(--accent-mint)] flex items-center hover:underline">
+                                View All <ArrowRight size={12} className="ml-1"/>
+                            </Link>
+                        </div>
+                        
+                        {holdings.length > 0 ? (
+                            <div className="space-y-3">
+                                {holdings.slice(0, 3).map((h, idx) => (
+                                    <div key={h.id} className="p-3 rounded-xl bg-[var(--bg-hover)] border border-[var(--border-primary)] flex justify-between items-center">
+                                        <div className="flex items-center gap-3 overflow-hidden">
+                                            <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: `${COLORS[idx % COLORS.length]}20` }}>
+                                                <PiggyBank size={14} style={{ color: COLORS[idx % COLORS.length] }} />
+                                            </div>
+                                            <div className="min-w-0">
+                                                <p className="text-sm font-medium text-[var(--text-primary)] truncate max-w-[150px]">{h.mutual_fund?.name || (h.scheme_code || 'Scheme Name')}</p>
+                                                <p className="text-xs text-[var(--text-secondary)]">{formatCurrency(h.current_value)}</p>
+                                            </div>
+                                        </div>
+                                        <div className={`text-xs font-medium ${h.gain_loss_percentage >= 0 ? 'text-[var(--accent-mint)]' : 'text-[var(--accent-red)]'}`}>
+                                            {h.gain_loss_percentage >= 0 ? '+' : ''}{h.gain_loss_percentage.toFixed(1)}%
+                                        </div>
+                                    </div>
+                                ))}
                             </div>
-                            <div className="flex-1 min-w-0">
-                                <p className="text-[var(--text-primary)] font-medium">{clientData.portfolio || 'Investment Portfolio'}</p>
-                                <p className="text-[var(--text-secondary)] text-xs mt-1">Scheme Code: {clientData.schemeCode || 'N/A'}</p>
-                                <div className="flex flex-wrap gap-2 mt-2">
-                                    <span className={`px-2 py-0.5 rounded text-xs font-medium ${clientData.investmentType === 'SIP'
-                                        ? 'bg-[var(--accent-mint)]/10 text-[var(--accent-mint)]'
-                                        : 'bg-[var(--accent-purple)]/10 text-[var(--accent-purple)]'
-                                        }`}>
-                                        {clientData.investmentType || 'Investment'}
-                                    </span>
-                                    <span className="px-2 py-0.5 rounded text-xs bg-[var(--bg-primary)] text-[var(--text-secondary)]">
-                                        Since {new Date(clientData.startDate || Date.now()).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })}
-                                    </span>
+                        ) : (
+                            <p className="text-sm text-[var(--text-secondary)] text-center py-4">No holdings yet.</p>
+                        )}
+                    </div>
+
+                    {/* SIP Summary */}
+                    {activeSIPs.length > 0 && (
+                        <div className="glass-card rounded-2xl p-4 md:p-6">
+                            <h3 className="text-[var(--text-primary)] font-semibold mb-4 flex items-center gap-2">
+                                <Calendar size={20} className="text-[var(--accent-blue)]" />
+                                Active SIPs
+                            </h3>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="p-3 rounded-xl bg-[var(--bg-hover)] border border-[var(--border-primary)]">
+                                    <p className="text-[var(--text-secondary)] text-xs mb-1">Monthly Invest</p>
+                                    <p className="text-[var(--text-primary)] font-bold">{formatCurrency(totalMonthlyAmount)}</p>
+                                </div>
+                                <div className="p-3 rounded-xl bg-[var(--bg-hover)] border border-[var(--border-primary)]">
+                                    <p className="text-[var(--text-secondary)] text-xs mb-1">Active Plans</p>
+                                    <p className="text-[var(--text-primary)] font-bold">{activeSIPs.length}</p>
+                                </div>
+                                <div className="p-3 rounded-xl bg-[var(--bg-hover)] border border-[var(--border-primary)] col-span-2">
+                                    <p className="text-[var(--text-secondary)] text-xs mb-1">Next Due</p>
+                                    <p className="text-[var(--text-primary)] font-bold">
+                                         {activeSIPs[0].next_execution_date 
+                                            ? new Date(activeSIPs[0].next_execution_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })
+                                            : 'N/A'
+                                         }
+                                    </p>
                                 </div>
                             </div>
-                            <div className="text-right flex-shrink-0">
-                                <p className="text-[var(--text-primary)] font-bold">{formatCurrency(currentValue)}</p>
-                                <p className={`text-xs ${displayReturnsPercentage >= 0 ? 'text-[var(--accent-mint)]' : 'text-[var(--accent-red)]'}`}>
-                                    {displayReturnsPercentage >= 0 ? '+' : ''}{displayReturnsPercentage.toFixed(2)}%
-                                </p>
-                            </div>
                         </div>
-                    </div>
+                    )}
                 </div>
-
-                {/* SIP Details (if applicable) */}
-                {clientData.investmentType === 'SIP' && clientData.sipAmount && (
-                    <div className="glass-card rounded-2xl p-4 md:p-6">
-                        <h3 className="text-[var(--text-primary)] font-semibold mb-4 flex items-center gap-2">
-                            <Calendar size={20} className="text-[var(--accent-blue)]" />
-                            SIP Details
-                        </h3>
-                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                            <div className="p-3 rounded-xl bg-[var(--bg-hover)] border border-[var(--border-primary)]">
-                                <p className="text-[var(--text-secondary)] text-xs mb-1">Monthly SIP</p>
-                                <p className="text-[var(--text-primary)] font-bold">{formatCurrency(clientData.sipAmount)}</p>
-                            </div>
-                            <div className="p-3 rounded-xl bg-[var(--bg-hover)] border border-[var(--border-primary)]">
-                                <p className="text-[var(--text-secondary)] text-xs mb-1">SIPs Completed</p>
-                                <p className="text-[var(--text-primary)] font-bold">{sipMonths}</p>
-                            </div>
-                            <div className="p-3 rounded-xl bg-[var(--bg-hover)] border border-[var(--border-primary)]">
-                                <p className="text-[var(--text-secondary)] text-xs mb-1">Next SIP Date</p>
-                                <p className="text-[var(--text-primary)] font-bold">
-                                    {new Date(clientData.startDate || Date.now()).getDate()}th of Month
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-                )}
             </main>
 
             <Sidebar />

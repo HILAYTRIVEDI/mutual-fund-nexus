@@ -3,13 +3,12 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Search, Plus, Trash2, X, UserPlus, PiggyBank, Loader2, Check, Edit2, Key, Copy, ShieldCheck, Eye, EyeOff } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
-import { searchSchemes, type MutualFundScheme } from '@/lib/mfapi';
+import { searchSchemes, type MutualFundScheme, getSchemeLatestNAV } from '@/lib/mfapi';
 import { useClientContext, type Client } from '@/context/ClientContext';
 import { getSupabaseClient } from '@/lib/supabase';
-
-function generateClientId(): string {
-    return `CLT${String(Math.floor(Math.random() * 10000)).padStart(4, '0')}`;
-}
+import { useHoldings } from '@/context/HoldingsContext';
+import { useSIPs } from '@/context/SIPContext';
+import { useTransactions } from '@/context/TransactionsContext';
 
 function formatCurrency(amount: number): string {
     if (amount >= 10000000) {
@@ -32,6 +31,10 @@ const generatePassword = (pan: string, aadhar: string) => {
 
 export default function ManageClientsPage() {
     const { clients, addClient, updateClient, deleteClient } = useClientContext();
+    const { addHolding } = useHoldings();
+    const { addSIP } = useSIPs();
+    const { addTransaction } = useTransactions();
+    
     const [showAddModal, setShowAddModal] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const [editingClient, setEditingClient] = useState<Client | null>(null);
@@ -122,13 +125,19 @@ export default function ManageClientsPage() {
     };
 
     const handleAddClient = async () => {
-        if (!formData.name || !formData.email || !formData.password) {
-            alert('Please fill in Name, Email, and Password (required for login)');
+        if (!formData.name || !formData.email) {
+            alert('Please fill in Name and Email');
             return;
         }
 
-        if (formData.password.length < 6) {
-            alert('Password must be at least 6 characters');
+        if (!formData.panCard) {
+            alert('PAN Card is required');
+            return;
+        }
+
+        // Password required only for new clients (they need to login)
+        if (!editingClient && (!formData.password || formData.password.length < 6)) {
+            alert('Password must be at least 6 characters (required for client login)');
             return;
         }
 
@@ -136,11 +145,13 @@ export default function ManageClientsPage() {
 
         try {
             if (editingClient) {
-                updateClient(editingClient.id, {
+                // Update existing client
+                await updateClient(editingClient.id, {
                     name: formData.name,
                     email: formData.email,
                     phone: formData.phone,
-                    panCard: formData.panCard,
+                    pan: formData.panCard, // Send as 'pan' to DB
+                    panCard: formData.panCard, // Keep for context compatibility
                     aadharCard: formData.aadharCard,
                     portfolio: formData.schemeName,
                     schemeCode: formData.schemeCode,
@@ -152,61 +163,125 @@ export default function ManageClientsPage() {
                 setShowAddModal(false);
                 resetForm();
             } else {
-                // Create user in Supabase Auth
-                const supabase = getSupabaseClient();
-                
-                const { data: authData, error: authError } = await supabase.auth.signUp({
-                    email: formData.email,
-                    password: formData.password,
-                    options: {
-                        data: {
-                            full_name: formData.name,
-                        },
-                        emailRedirectTo: undefined, // Don't send confirmation email
-                    }
-                });
-
-                if (authError) {
-                    throw new Error(authError.message);
-                }
-
-                if (authData.user) {
-                    // Create profile for the user (using type assertion since tables aren't typed)
-                    const { error: profileError } = await (supabase.from('profiles') as any).insert({
-                        id: authData.user.id,
-                        email: formData.email,
-                        full_name: formData.name,
-                        role: 'client',
-                    });
-
-                    if (profileError && profileError.code !== '23505') {
-                        console.warn('Profile creation warning:', profileError.message);
-                    }
-
-                    // Create client record
-                    const result = await addClient({
+                // Step 1: Create auth user via API (server-side to avoid session change)
+                console.log('Creating auth user...');
+                const authResponse = await fetch('/api/clients/create', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
                         name: formData.name,
                         email: formData.email,
-                        phone: formData.phone || null,
-                        pan: formData.panCard,
-                        status: 'active' as const,
-                        kyc_status: 'pending' as const,
-                        notes: null,
-                    });
+                        password: formData.password,
+                        advisorId: 'current-user',
+                    }),
+                });
 
-                    if (!result.success) {
-                        throw new Error(result.error || 'Failed to create client record');
+                const authData = await authResponse.json();
+
+                if (!authResponse.ok) {
+                    throw new Error(authData.error || 'Failed to create client login account');
+                }
+
+                // Step 2: Create client record (this sets advisor_id correctly)
+                console.log('Creating client record...');
+                const result = await addClient({
+                    name: formData.name,
+                    email: formData.email,
+                    phone: formData.phone || null,
+                    pan: formData.panCard,
+                    status: 'active' as const,
+                    kyc_status: 'pending' as const,
+                    notes: null,
+                });
+
+                if (!result.success || !result.data) {
+                    throw new Error(result.error || 'Failed to create client record');
+                }
+
+                const newClientId = result.data.id;
+                console.log('Client created with ID:', newClientId);
+
+                // Step 3: Upsert Mutual Fund Master Data
+                if (formData.schemeCode > 0) {
+                    console.log('Upserting mutual fund master data...');
+                    const supabase = getSupabaseClient();
+                    
+                    // Fetch latest NAV for this fund to store correct initial NAV
+                    let currentNav = 10; // Default fallback
+                    try {
+                        const navData = await getSchemeLatestNAV(formData.schemeCode);
+                        if (navData && navData.data && navData.data[0]) {
+                            currentNav = parseFloat(navData.data[0].nav);
+                        }
+                    } catch (e) {
+                        console.warn('Could not fetch latest NAV, using default', e);
                     }
 
-                    // Store credentials to show in modal
-                    const savedCredentials = { email: formData.email, password: formData.password };
+                    const { error: fundError } = await (supabase
+                        .from('mutual_funds') as any)
+                        .upsert({
+                            code: formData.schemeCode.toString(),
+                            name: formData.schemeName,
+                            category: null,
+                            type: null,
+                            fund_house: null,
+                            current_nav: currentNav,
+                            last_updated: new Date().toISOString()
+                        });
+                        
+                    if (fundError) {
+                        console.error('Failed to upsert mutual fund:', fundError);
+                        // Continue anyway, it might already exist
+                    }
+
+                    // Step 4: Create Holding
+                    console.log('Creating holding...');
+                    const investedAmount = parseFloat(formData.amount) || 0;
+                    const units = currentNav > 0 ? investedAmount / currentNav : 0;
                     
-                    setShowAddModal(false);
-                    resetForm();
-                    
-                    // Show credentials modal after form closes
-                    setShowCredentialsModal(savedCredentials);
+                    await addHolding({
+                        client_id: newClientId,
+                        scheme_code: formData.schemeCode.toString(),
+                        units: units,
+                        average_price: currentNav, // Initial buy price
+                    });
+
+                    // Step 5: add Transaction Record (Initial Buy)
+                    console.log('Recording transaction...');
+                    await addTransaction({
+                        client_id: newClientId,
+                        scheme_code: formData.schemeCode.toString(),
+                        type: 'buy',
+                        amount: investedAmount,
+                        units: units,
+                        nav: currentNav,
+                        status: 'completed',
+                        date: new Date().toISOString()
+                    });
+
+                    // Step 6: Create SIP Record if applicable
+                    if (formData.investmentType === 'SIP' && formData.sipAmount) {
+                        console.log('Setting up SIP...');
+                        await addSIP({
+                            client_id: newClientId,
+                            scheme_code: formData.schemeCode.toString(),
+                            amount: parseFloat(formData.sipAmount),
+                            frequency: 'monthly',
+                            start_date: formData.startDate || new Date().toISOString(),
+                            next_execution_date: formData.startDate || new Date().toISOString(),
+                            status: 'active'
+                        });
+                    }
                 }
+
+                // Store credentials to show in modal
+                const savedCredentials = { email: formData.email, password: formData.password };
+                
+                setShowAddModal(false);
+                resetForm();
+                
+                // Show credentials modal after form closes
+                setShowCredentialsModal(savedCredentials);
             }
         } catch (error) {
             console.error('Error creating client:', error);
@@ -222,7 +297,7 @@ export default function ManageClientsPage() {
             name: client.name,
             email: client.email || '',
             phone: client.phone || '',
-            panCard: client.panCard || '',
+            panCard: client.panCard || client.pan || '',
             aadharCard: client.aadharCard || '',
             password: '', // Password not editable for existing clients
             investmentType: client.investmentType || 'SIP',
@@ -264,7 +339,7 @@ export default function ManageClientsPage() {
 
     const filteredClients = clients.filter(client =>
         client.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (client.portfolio || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (client.email || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
         client.id.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
@@ -306,9 +381,9 @@ export default function ManageClientsPage() {
                     {/* Desktop Header */}
                     <div className="hidden lg:grid grid-cols-12 gap-4 p-4 bg-white/5 border-b border-white/10">
                         <div className="col-span-3 text-[#9CA3AF] text-xs font-medium uppercase">Client</div>
-                        <div className="col-span-3 text-[#9CA3AF] text-xs font-medium uppercase">Mutual Fund</div>
-                        <div className="col-span-2 text-[#9CA3AF] text-xs font-medium uppercase text-center">Type</div>
-                        <div className="col-span-2 text-[#9CA3AF] text-xs font-medium uppercase text-right">Amount</div>
+                        <div className="col-span-3 text-[#9CA3AF] text-xs font-medium uppercase">Email / Phone</div>
+                        <div className="col-span-2 text-[#9CA3AF] text-xs font-medium uppercase text-center">PAN</div>
+                        <div className="col-span-2 text-[#9CA3AF] text-xs font-medium uppercase text-right">Status</div>
                         <div className="col-span-2 text-[#9CA3AF] text-xs font-medium uppercase text-center">Actions</div>
                     </div>
 
@@ -337,7 +412,7 @@ export default function ManageClientsPage() {
                                                 </div>
                                                 <div>
                                                     <p className="text-white font-medium text-sm">{client.name}</p>
-                                                    <p className="text-[#9CA3AF] text-xs">{client.id}</p>
+                                                    <p className="text-[#9CA3AF] text-xs">{client.email}</p>
                                                 </div>
                                             </div>
                                             <div className="flex items-center gap-2">
@@ -355,27 +430,21 @@ export default function ManageClientsPage() {
                                                 </button>
                                             </div>
                                         </div>
-                                        <p className="text-white text-sm mb-3 line-clamp-2">{client.portfolio || 'Investment'}</p>
-                                        <div className="flex items-center justify-between text-xs">
+                                        <div className="flex items-center justify-between text-xs mt-2">
+                                            <span className="text-[#9CA3AF] font-mono">{client.panCard || client.pan || 'NO PAN'}</span>
                                             <span
-                                                className={`px-2.5 py-1 rounded-md font-medium ${client.investmentType === 'SIP'
+                                                className={`px-2.5 py-1 rounded-md font-medium capitalize ${client.status === 'active'
                                                     ? 'bg-[#48cae4]/10 text-[#48cae4]'
-                                                    : 'bg-[#8B5CF6]/10 text-[#8B5CF6]'
+                                                    : 'bg-[#9CA3AF]/10 text-[#9CA3AF]'
                                                     }`}
                                             >
-                                                {client.investmentType || 'Investment'}
+                                                {client.status || 'Active'}
                                             </span>
-                                            <div className="text-right">
-                                                <p className="text-white font-medium">{formatCurrency(client.amount || 0)}</p>
-                                                {client.sipAmount && (
-                                                    <p className="text-[#9CA3AF] text-[10px]">{formatCurrency(client.sipAmount)}/mo</p>
-                                                )}
-                                            </div>
                                         </div>
                                     </div>
 
                                     {/* Desktop Row */}
-                                    <div className="hidden lg:grid grid-cols-12 gap-4 p-4 hover:bg-white/5 transition-all">
+                                    <div className="hidden lg:grid grid-cols-12 gap-4 p-4 hover:bg-white/5 transition-all items-center">
                                         <div className="col-span-3">
                                             <div className="flex items-center gap-3">
                                                 <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#48cae4] to-[#8B5CF6] flex items-center justify-center text-white font-semibold text-sm">
@@ -383,30 +452,26 @@ export default function ManageClientsPage() {
                                                 </div>
                                                 <div>
                                                     <p className="text-white font-medium text-sm">{client.name}</p>
-                                                    <p className="text-[#9CA3AF] text-xs">{client.id}</p>
+                                                    <p className="text-[#9CA3AF] text-xs">ID: {client.id.slice(0, 8)}</p>
                                                 </div>
                                             </div>
                                         </div>
-                                        <div className="col-span-3 flex items-center">
-                                            <p className="text-white text-sm truncate">{client.portfolio || 'Investment'}</p>
+                                        <div className="col-span-3">
+                                            <p className="text-white text-sm truncate">{client.email}</p>
+                                            <p className="text-[#9CA3AF] text-xs">{client.phone || '-'}</p>
                                         </div>
                                         <div className="col-span-2 flex items-center justify-center">
-                                            <span
-                                                className={`px-3 py-1 rounded-md text-xs font-medium ${client.investmentType === 'SIP'
-                                                    ? 'bg-[#48cae4]/10 text-[#48cae4]'
-                                                    : 'bg-[#8B5CF6]/10 text-[#8B5CF6]'
-                                                    }`}
-                                            >
-                                                {client.investmentType || 'Investment'}
-                                            </span>
+                                            <span className="text-white font-mono text-sm">{client.panCard || client.pan || '-'}</span>
                                         </div>
                                         <div className="col-span-2 flex items-center justify-end">
-                                            <div className="text-right">
-                                                <p className="text-white text-sm font-medium">{formatCurrency(client.amount || 0)}</p>
-                                                {client.sipAmount && (
-                                                    <p className="text-[#9CA3AF] text-xs">{formatCurrency(client.sipAmount)}/mo</p>
-                                                )}
-                                            </div>
+                                            <span
+                                                className={`px-3 py-1 rounded-md text-xs font-medium capitalize ${client.status === 'active'
+                                                    ? 'bg-[#48cae4]/10 text-[#48cae4]'
+                                                    : 'bg-[#9CA3AF]/10 text-[#9CA3AF]'
+                                                    }`}
+                                            >
+                                                {client.status || 'Active'}
+                                            </span>
                                         </div>
                                         <div className="col-span-2 flex items-center justify-center gap-2">
                                             <button

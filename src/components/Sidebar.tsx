@@ -22,16 +22,16 @@ import {
 } from 'lucide-react';
 
 const menuItems = [
-    { icon: LayoutDashboard, label: 'Dashboard', href: '/admin-dashboard', adminOnly: true },
-    { icon: LayoutDashboard, label: 'My Dashboard', href: '/client-dashboard', clientOnly: true },
-    { icon: Users, label: 'Clients', href: '/clients', adminOnly: true },
-    { icon: UserPlus, label: 'Manage Clients', href: '/manage', adminOnly: true },
-    { icon: BarChart3, label: 'Portfolio', href: '/portfolio' },
-    { icon: Scale, label: 'Compare Funds', href: '/compare', adminOnly: true },
-    { icon: Calculator, label: 'Calculators', href: '/calculators' },
-    { icon: PiggyBank, label: 'Mutual Funds', href: '/mutual-funds', adminOnly: true },
-    { icon: Clock, label: 'History', href: '/history', adminOnly: true },
-    { icon: Settings, label: 'Settings', href: '/settings', adminOnly: true },
+    { icon: LayoutDashboard, label: 'Dashboard', href: '/admin-dashboard', roles: ['admin', 'advisor'] },
+    { icon: LayoutDashboard, label: 'My Dashboard', href: '/client-dashboard', roles: ['client'] },
+    { icon: Users, label: 'Clients', href: '/clients', roles: ['admin', 'advisor'] },
+    { icon: UserPlus, label: 'Manage Clients', href: '/manage', roles: ['admin', 'advisor'] },
+    { icon: BarChart3, label: 'Portfolio', href: '/portfolio', roles: ['admin', 'advisor', 'client'] },
+    { icon: Scale, label: 'Compare Funds', href: '/compare', roles: ['admin', 'advisor'] },
+    { icon: Calculator, label: 'Calculators', href: '/calculators', roles: ['admin', 'advisor', 'client'] },
+    { icon: PiggyBank, label: 'Mutual Funds', href: '/mutual-funds', roles: ['admin', 'advisor'] },
+    { icon: Clock, label: 'History', href: '/history', roles: ['admin', 'advisor'] },
+    { icon: Settings, label: 'Settings', href: '/settings', roles: ['admin', 'advisor', 'client'] },
 ];
 
 export default function Sidebar() {
@@ -80,11 +80,10 @@ export default function Sidebar() {
                 <ul className="space-y-1 md:space-y-2">
                     {menuItems
                         .filter((item) => {
-    // Filter based on role
-                            if (isLoading) return true;
-                            if (item.adminOnly && user?.role !== 'admin') return false;
-                            if (item.clientOnly && user?.role !== 'client') return false;
-                            return true;
+                            // Filter based on role
+                            if (isLoading) return true; // Show all while loading
+                            if (!user?.role) return false; // Hide all if no role
+                            return item.roles.includes(user.role);
                         })
                         .map((item) => {
                             const isActive = pathname === item.href;

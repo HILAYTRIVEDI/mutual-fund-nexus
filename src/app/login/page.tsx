@@ -43,13 +43,15 @@ export default function LoginPage() {
         try {
             const result = await login(email, password);
             if (result.success) {
-                router.push('/');
+                // Success! AuthContext will handle the redirect.
+                setSuccessMessage('Login successful! Redirecting...');
+                // Keep isLoading = true
             } else {
                 setError(result.error || 'Login failed');
+                setIsLoading(false);
             }
         } catch (err) {
             setError('An unexpected error occurred');
-        } finally {
             setIsLoading(false);
         }
     };
