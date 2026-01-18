@@ -6,12 +6,22 @@ import { getSupabaseClient } from '@/lib/supabase';
 import type { User as SupabaseUser, AuthError } from '@supabase/supabase-js';
 import type { Profile } from '@/lib/types/database';
 
+// Cache keys
+const CACHE_KEY_USER = 'mfn_user_cache';
+const CACHE_KEY_PROFILE = 'mfn_profile_cache';
+const CACHE_TTL = 1000 * 60 * 60; // 1 hour
+
 interface User {
     id: string;
     name: string;
     email: string;
     role: 'admin' | 'client';
     avatarUrl?: string;
+}
+
+interface CachedData<T> {
+    data: T;
+    timestamp: number;
 }
 
 interface AuthContextType {
@@ -25,6 +35,44 @@ interface AuthContextType {
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+// Cache helpers
+function getCachedData<T>(key: string): T | null {
+    if (typeof window === 'undefined') return null;
+    try {
+        const cached = localStorage.getItem(key);
+        if (!cached) return null;
+        const parsed: CachedData<T> = JSON.parse(cached);
+        // Check if cache is still valid
+        if (Date.now() - parsed.timestamp < CACHE_TTL) {
+            return parsed.data;
+        }
+        localStorage.removeItem(key);
+        return null;
+    } catch {
+        return null;
+    }
+}
+
+function setCachedData<T>(key: string, data: T): void {
+    if (typeof window === 'undefined') return;
+    try {
+        const cacheData: CachedData<T> = { data, timestamp: Date.now() };
+        localStorage.setItem(key, JSON.stringify(cacheData));
+    } catch {
+        // Ignore storage errors
+    }
+}
+
+function clearCache(): void {
+    if (typeof window === 'undefined') return;
+    try {
+        localStorage.removeItem(CACHE_KEY_USER);
+        localStorage.removeItem(CACHE_KEY_PROFILE);
+    } catch {
+        // Ignore
+    }
+}
 
 // Map Supabase user + profile to our User type
 function mapToUser(supabaseUser: SupabaseUser, profile: Profile | null): User {
@@ -44,6 +92,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const router = useRouter();
     const pathname = usePathname();
     const supabase = getSupabaseClient();
+
+    // Load cached data on mount
+    useEffect(() => {
+        const cachedUser = getCachedData<User>(CACHE_KEY_USER);
+        const cachedProfile = getCachedData<Profile>(CACHE_KEY_PROFILE);
+        
+        if (cachedUser) {
+            console.log('[AuthContext] Loaded user from cache');
+            setUser(cachedUser);
+            setProfile(cachedProfile);
+            // Keep loading true until we verify with Supabase
+        }
+    }, []);
 
     // Fetch profile from database with timeout
     const fetchProfile = useCallback(async (userId: string): Promise<Profile | null> => {
@@ -83,6 +144,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const loadUserSession = useCallback(async (sessionUser: SupabaseUser): Promise<'admin' | 'client'> => {
         console.log('[AuthContext] loadUserSession called for:', sessionUser.email);
         
+        // First check cache
+        const cachedUser = getCachedData<User>(CACHE_KEY_USER);
+        const cachedProfile = getCachedData<Profile>(CACHE_KEY_PROFILE);
+        
+        // If cached and same user, use cache immediately
+        if (cachedUser && cachedUser.id === sessionUser.id && cachedProfile) {
+            console.log('[AuthContext] Using cached user data');
+            setUser(cachedUser);
+            setProfile(cachedProfile);
+            return cachedUser.role;
+        }
+        
         // Set basic user IMMEDIATELY so app doesn't hang
         const basicUser: User = {
             id: sessionUser.id,
@@ -117,18 +190,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             // Update user with profile data if available
             if (userProfile) {
                 const role = (userProfile.role === 'client') ? 'client' : 'admin';
-                setProfile(userProfile);
-                setUser({
+                const fullUser: User = {
                     ...basicUser,
                     name: userProfile.full_name || basicUser.name,
                     role: role,
                     avatarUrl: userProfile.avatar_url || undefined,
-                });
+                };
+                setProfile(userProfile);
+                setUser(fullUser);
+                
+                // Cache the data
+                setCachedData(CACHE_KEY_USER, fullUser);
+                setCachedData(CACHE_KEY_PROFILE, userProfile);
+                
                 console.log('[AuthContext] Session loaded with profile, role:', role);
                 return role;
             }
             
-            console.log('[AuthContext] Session loaded without profile, defaulting to advisor');
+            // Cache basic user if no profile
+            setCachedData(CACHE_KEY_USER, basicUser);
+            
+            console.log('[AuthContext] Session loaded without profile, defaulting to admin');
             return 'admin';
         } catch (error) {
             console.error('[AuthContext] Error loading user session:', error);
@@ -136,31 +218,43 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
     }, [supabase, fetchProfile]);
 
-    // Initialize auth state via listener - this is the SINGLE source of truth
+    // Auth state listener
     useEffect(() => {
-        console.log('[AuthContext] Setting up auth listener...');
         let mounted = true;
-        
-        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-            console.log('[AuthContext] Auth event:', event, session?.user?.email);
-            
-            if (!mounted) return;
-            
-            if (session?.user) {
-                if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION' || event === 'TOKEN_REFRESHED') {
-                    await loadUserSession(session.user);
+        console.log('[AuthContext] Setting up auth listener...');
+
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(
+            async (event, session) => {
+                if (!mounted) return;
+
+                console.log('[AuthContext] Auth event:', event, session?.user?.email);
+
+                if (event === 'SIGNED_IN' && session?.user) {
+                    loadUserSession(session.user).finally(() => {
+                        if (mounted) setIsLoading(false);
+                    });
+                } else if (event === 'SIGNED_OUT') {
+                    setUser(null);
+                    setProfile(null);
+                    clearCache();
+                    setIsLoading(false);
+                } else if (event === 'INITIAL_SESSION') {
+                    if (session?.user) {
+                        loadUserSession(session.user).finally(() => {
+                            if (mounted) setIsLoading(false);
+                        });
+                    } else {
+                        // No session - check if we have cached user
+                        const cachedUser = getCachedData<User>(CACHE_KEY_USER);
+                        if (!cachedUser) {
+                            setUser(null);
+                            setProfile(null);
+                        }
+                        setIsLoading(false);
+                    }
                 }
-            } else if (event === 'SIGNED_OUT') {
-                console.log('[AuthContext] User signed out');
-                setUser(null);
-                setProfile(null);
             }
-            
-            // Always clear loading after processing
-            if (mounted) {
-                setIsLoading(false);
-            }
-        });
+        );
 
         return () => {
             mounted = false;
@@ -168,112 +262,108 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         };
     }, [supabase, loadUserSession]);
 
-    // Route protection - SINGLE location for all redirects based on auth state
+    // Route protection
     useEffect(() => {
-        // Don't do anything while loading
         if (isLoading) return;
-        
-        const publicRoutes = ['/login', '/signup', '/forgot-password'];
-        const isPublicRoute = publicRoutes.some(route => pathname.startsWith(route));
 
-        console.log('[AuthContext] Route protection:', { user: user?.email, pathname, isPublicRoute });
+        const publicRoutes = ['/login', '/'];
+        const adminRoutes = ['/admin-dashboard', '/manage', '/clients', '/history', '/mutual-funds', '/compare'];
+        const clientRoutes = ['/client-dashboard'];
 
-        if (!user && !isPublicRoute) {
-            // Not logged in, trying to access protected route
-            console.log('[AuthContext] Redirecting to /login');
+        console.log('[AuthContext] Route protection:', { pathname, isLoading, user: user?.role });
+
+        if (!user && !publicRoutes.includes(pathname)) {
             router.replace('/login');
-        } else if (user && pathname === '/login') {
-            // Logged in but on login page - redirect to dashboard
-            const target = user.role === 'client' ? '/client-dashboard' : '/admin-dashboard';
-            console.log('[AuthContext] Redirecting to:', target);
-            router.replace(target);
+        } else if (user) {
+            if (user.role === 'client' && adminRoutes.some(r => pathname.startsWith(r))) {
+                router.replace('/client-dashboard');
+            } else if (user.role === 'admin' && clientRoutes.some(r => pathname.startsWith(r))) {
+                router.replace('/admin-dashboard');
+            }
         }
-    }, [user, pathname, router, isLoading]);
+    }, [user, isLoading, pathname, router]);
 
-    // Login - just authenticates, redirect handled by route protection effect
+    // Login function
     const login = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
-        console.log('[AuthContext] Login attempt:', email);
-        setIsLoading(true);
-        
+        console.log('[AuthContext] Login attempt for:', email);
         try {
+            setIsLoading(true);
             const { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
             if (error) {
-                console.log('[AuthContext] Login error:', error.message);
+                console.error('[AuthContext] Login error:', error.message);
                 setIsLoading(false);
                 return { success: false, error: error.message };
             }
 
             if (data.user) {
-                // Load session - the auth listener will also fire but this ensures immediate state
                 const role = await loadUserSession(data.user);
-                
-                // Redirect immediately (don't wait for effect)
-                const target = role === 'client' ? '/client-dashboard' : '/admin-dashboard';
-                console.log('[AuthContext] Login success, redirecting to:', target);
-                router.replace(target);
-                
-                return { success: true };
+                const redirectPath = role === 'client' ? '/client-dashboard' : '/admin-dashboard';
+                console.log('[AuthContext] Login successful, redirecting to:', redirectPath);
+                router.replace(redirectPath);
             }
 
             setIsLoading(false);
-            return { success: false, error: 'Login failed' };
-        } catch (error) {
-            console.error('[AuthContext] Login exception:', error);
+            return { success: true };
+        } catch (err) {
+            console.error('[AuthContext] Login exception:', err);
             setIsLoading(false);
-            return { success: false, error: (error as AuthError).message || 'An unexpected error occurred' };
+            return { success: false, error: 'Login failed' };
         }
     };
 
+    // Sign up function
     const signUp = async (email: string, password: string, fullName: string): Promise<{ success: boolean; error?: string }> => {
+        console.log('[AuthContext] SignUp attempt for:', email);
         try {
             setIsLoading(true);
-            const { data, error } = await supabase.auth.signUp({
+            const { error } = await supabase.auth.signUp({
                 email,
                 password,
-                options: { data: { full_name: fullName } },
+                options: {
+                    data: { full_name: fullName },
+                },
             });
 
             if (error) {
+                console.error('[AuthContext] SignUp error:', error.message);
                 setIsLoading(false);
                 return { success: false, error: error.message };
             }
 
-            if (data.user) {
-                // Profile creation handled by DB trigger or loadUserSession
-                return { success: true };
-            }
-
+            setIsLoading(false);
+            return { success: true };
+        } catch (err) {
+            console.error('[AuthContext] SignUp exception:', err);
             setIsLoading(false);
             return { success: false, error: 'Sign up failed' };
-        } catch (error) {
-            setIsLoading(false);
-            return { success: false, error: (error as AuthError).message || 'An unexpected error occurred' };
         }
     };
 
-    const logout = async () => {
+    // Logout function
+    const logout = async (): Promise<void> => {
         console.log('[AuthContext] Logging out...');
-        try {
-            await supabase.auth.signOut();
-        } catch (err) {
-            console.error('[AuthContext] Logout error:', err);
-        }
+        setIsLoading(true);
+        await supabase.auth.signOut();
         setUser(null);
         setProfile(null);
+        clearCache();
+        setIsLoading(false);
         router.replace('/login');
     };
 
     return (
-        <AuthContext.Provider value={{ 
-            user, 
-            profile, 
-            isLoading, 
-            login, 
-            signUp, 
-            logout, 
-            isAuthenticated: !!user 
-        }}>
+        <AuthContext.Provider
+            value={{
+                user,
+                profile,
+                isLoading,
+                login,
+                signUp,
+                logout,
+                isAuthenticated: !!user,
+            }}
+        >
             {children}
         </AuthContext.Provider>
     );

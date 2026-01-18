@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Search, Plus, Trash2, X, UserPlus, PiggyBank, Loader2, Check, Edit2, Key, Copy, ShieldCheck, Eye, EyeOff } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
 import { searchSchemes, type MutualFundScheme, getSchemeLatestNAV } from '@/lib/mfapi';
@@ -29,11 +30,13 @@ const generatePassword = (pan: string, aadhar: string) => {
     }
 };
 
-export default function ManageClientsPage() {
+function ManageClientsContent() {
     const { clients, addClient, updateClient, deleteClient } = useClientContext();
     const { addHolding } = useHoldings();
     const { addSIP } = useSIPs();
     const { addTransaction } = useTransactions();
+    const searchParams = useSearchParams();
+    const router = useRouter();
     
     const [showAddModal, setShowAddModal] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
@@ -141,7 +144,20 @@ export default function ManageClientsPage() {
             return;
         }
 
+        // If a fund is selected, at least one investment type should have an amount
+        if (formData.schemeCode > 0) {
+            const hasLumpsum = formData.amount && parseFloat(formData.amount) > 0;
+            const hasSIP = formData.sipAmount && parseFloat(formData.sipAmount) > 0;
+            
+            if (!hasLumpsum && !hasSIP) {
+                alert('Please enter at least a Lumpsum Amount or SIP Amount');
+                return;
+            }
+        }
+
         setIsSubmitting(true);
+
+        let targetClientId: string | undefined;
 
         try {
             if (editingClient) {
@@ -151,18 +167,19 @@ export default function ManageClientsPage() {
                     email: formData.email,
                     phone: formData.phone,
                     pan: formData.panCard,
+                    aadhar: formData.aadharCard,
                     notes: null,
                 });
-                setShowAddModal(false);
-                resetForm();
+                targetClientId = editingClient.id;
             } else {
                 // Create new client - addClient now handles the API call internally
-                console.log('Creating client...');
+                console.log('Creating client...', { formData });
                 const result = await addClient({
                     name: formData.name,
                     email: formData.email,
                     phone: formData.phone || undefined,
                     pan: formData.panCard,
+                    aadhar: formData.aadharCard || undefined,
                     password: formData.password,
                 });
 
@@ -170,83 +187,133 @@ export default function ManageClientsPage() {
                     throw new Error(result.error || 'Failed to create client');
                 }
 
-                console.log('Client created successfully');
+                console.log('Client created successfully, result:', result);
+                targetClientId = result.data?.id;
+            }
 
-                // If fund was selected, create holdings and transactions
-                // The client ID is their user ID from profiles
-                const newClientId = result.data?.id;
+            // If fund was selected, create holdings and transactions (for BOTH new and existing clients)
+            if (targetClientId && formData.schemeCode > 0) {
+                console.log('Processing investment for client:', targetClientId);
+                console.log('Scheme code:', formData.schemeCode);
+                console.log('Amount:', formData.amount);
+                console.log('SIP Amount:', formData.sipAmount);
                 
-                if (newClientId && formData.schemeCode > 0) {
-                    console.log('Upserting mutual fund master data...');
-                    const supabase = getSupabaseClient();
-                    
-                    // Fetch latest NAV
-                    let currentNav = 10;
-                    try {
-                        const navData = await getSchemeLatestNAV(formData.schemeCode);
-                        if (navData?.data?.[0]) {
-                            currentNav = parseFloat(navData.data[0].nav);
-                        }
-                    } catch (e) {
-                        console.warn('Could not fetch latest NAV, using default', e);
+                const supabase = getSupabaseClient();
+                
+                // Fetch latest NAV
+                let currentNav = 10;
+                try {
+                    const navData = await getSchemeLatestNAV(formData.schemeCode);
+                    if (navData?.data?.[0]) {
+                        currentNav = parseFloat(navData.data[0].nav);
                     }
+                } catch (e) {
+                    console.warn('Could not fetch latest NAV, using default', e);
+                }
 
-                    // Upsert mutual fund
-                    await (supabase.from('mutual_funds') as any).upsert({
-                        code: formData.schemeCode.toString(),
-                        name: formData.schemeName,
-                        category: null,
-                        type: null,
-                        fund_house: null,
-                        current_nav: currentNav,
-                        last_updated: new Date().toISOString()
-                    });
+                // Upsert mutual fund
+                await (supabase.from('mutual_funds') as any).upsert({
+                    code: formData.schemeCode.toString(),
+                    name: formData.schemeName,
+                    category: null,
+                    type: null,
+                    fund_house: null,
+                    current_nav: currentNav,
+                    last_updated: new Date().toISOString()
+                });
 
-                    // Create Holding (use user_id now, not client_id)
-                    console.log('Creating holding...');
-                    const investedAmount = parseFloat(formData.amount) || 0;
-                    const units = currentNav > 0 ? investedAmount / currentNav : 0;
+                const lumpsumAmount = parseFloat(formData.amount) || 0;
+                const sipAmountInput = parseFloat(formData.sipAmount) || 0;
+                
+                let sipFirstAmount = 0;
+                let nextExecutionDate = formData.startDate ? new Date(formData.startDate) : new Date();
+                
+                // Check if SIP should execute immediately (Start Date <= Today)
+                if (sipAmountInput > 0) {
+                    const startDate = formData.startDate ? new Date(formData.startDate) : new Date();
+                    const today = new Date();
+                    // Reset times for date comparison
+                    startDate.setHours(0,0,0,0);
+                    today.setHours(0,0,0,0);
                     
+                    if (startDate <= today) {
+                        console.log('SIP Start Date is today or past, executing first installment...');
+                        sipFirstAmount = sipAmountInput;
+                        // Schedule next for next month
+                        nextExecutionDate = new Date(startDate); // Base on start date
+                        nextExecutionDate.setMonth(nextExecutionDate.getMonth() + 1);
+                    }
+                }
+                
+                const totalInitialAmount = lumpsumAmount + sipFirstAmount;
+
+                // Create Holding if there is any initial investment
+                if (totalInitialAmount > 0) {
+                    console.log('Creating initial holding...', { lumpsumAmount, sipFirstAmount, total: totalInitialAmount });
+                    const totalUnits = currentNav > 0 ? totalInitialAmount / currentNav : 0;
+                    
+                    // Note: This assumes new fund for client. If exists, it might error (unique constraint).
+                    // In a perfect world, we'd check existence and update, but for now we try insert.
                     await addHolding({
-                        user_id: newClientId,
+                        user_id: targetClientId,
                         scheme_code: formData.schemeCode.toString(),
-                        units: units,
+                        units: totalUnits,
                         average_price: currentNav,
                     });
 
-                    // Transaction Record (use user_id)
-                    console.log('Recording transaction...');
-                    await addTransaction({
-                        user_id: newClientId,
-                        scheme_code: formData.schemeCode.toString(),
-                        type: 'buy',
-                        amount: investedAmount,
-                        units: units,
-                        nav: currentNav,
-                        status: 'completed',
-                        date: new Date().toISOString()
-                    });
-
-                    // SIP if applicable (use user_id)
-                    if (formData.investmentType === 'SIP' && formData.sipAmount) {
-                        console.log('Setting up SIP...');
-                        await addSIP({
-                            user_id: newClientId,
+                    // Record Lumpsum Transaction
+                    if (lumpsumAmount > 0) {
+                        const units = currentNav > 0 ? lumpsumAmount / currentNav : 0;
+                        await addTransaction({
+                            user_id: targetClientId,
                             scheme_code: formData.schemeCode.toString(),
-                            amount: parseFloat(formData.sipAmount),
-                            frequency: 'monthly',
-                            start_date: formData.startDate || new Date().toISOString(),
-                            next_execution_date: formData.startDate || new Date().toISOString(),
-                            status: 'active'
+                            type: 'buy',
+                            amount: lumpsumAmount,
+                            units: units,
+                            nav: currentNav,
+                            status: 'completed',
+                            date: new Date().toISOString()
+                        });
+                    }
+                    
+                    // Record First SIP Transaction
+                    if (sipFirstAmount > 0) {
+                        const units = currentNav > 0 ? sipFirstAmount / currentNav : 0;
+                        await addTransaction({
+                            user_id: targetClientId,
+                            scheme_code: formData.schemeCode.toString(),
+                            type: 'sip',
+                            amount: sipFirstAmount,
+                            units: units,
+                            nav: currentNav,
+                            status: 'completed',
+                            date: new Date().toISOString()
                         });
                     }
                 }
 
-                // Store credentials to show
+                // Create SIP Record if applicable
+                if (sipAmountInput > 0) {
+                    console.log('Setting up SIP record...');
+                    await addSIP({
+                        user_id: targetClientId,
+                        scheme_code: formData.schemeCode.toString(),
+                        amount: sipAmountInput,
+                        frequency: 'monthly',
+                        start_date: formData.startDate || new Date().toISOString(),
+                        next_execution_date: nextExecutionDate.toISOString(),
+                        status: 'active'
+                    });
+                }
+            }
+
+            // Close modal and reset
+            setShowAddModal(false);
+            resetForm();
+
+            // Store credentials to show ONLY if new client
+            if (!editingClient) {
                 const savedCredentials = { email: formData.email, password: formData.password };
-                
-                setShowAddModal(false);
-                resetForm();
                 setShowCredentialsModal(savedCredentials);
             }
         } catch (error) {
@@ -264,7 +331,7 @@ export default function ManageClientsPage() {
             email: client.email || '',
             phone: client.phone || '',
             panCard: client.panCard || client.pan || '',
-            aadharCard: '', // Not stored in new schema
+            aadharCard: client.aadharCard || client.aadhar || '', // Now stored in new schema
             password: '', // Password not editable for existing clients
             investmentType: 'SIP', // Default - holdings are stored separately
             amount: '0',
@@ -276,6 +343,19 @@ export default function ManageClientsPage() {
         setFundSearch('');
         setShowAddModal(true);
     };
+
+    // Handle edit from query params
+    useEffect(() => {
+        const editId = searchParams.get('edit');
+        if (editId && clients.length > 0 && !showAddModal) {
+            const client = clients.find(c => c.id === editId);
+            if (client) {
+                handleEditClient(client);
+                // Clear the param so it doesn't persist if we close/navigate
+                router.replace('/manage', { scroll: false });
+            }
+        }
+    }, [searchParams, clients, showAddModal, router]);
 
     const handleDeleteClient = (clientId: string) => {
         if (confirm('Are you sure you want to remove this client?')) {
@@ -717,7 +797,7 @@ export default function ManageClientsPage() {
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div>
                                     <label className="text-[#9CA3AF] text-xs mb-2 block">
-                                        {formData.investmentType === 'SIP' ? 'Total Investment *' : 'Investment Amount *'}
+                                        {formData.investmentType === 'SIP' ? 'Initial Lumpsum (Optional)' : 'Investment Amount *'}
                                     </label>
                                     <input
                                         type="number"
@@ -780,5 +860,17 @@ export default function ManageClientsPage() {
                 </div>
             )}
         </div>
+    );
+}
+ 
+export default function ManageClientsPage() {
+    return (
+        <Suspense fallback={
+            <div className="min-h-screen bg-[var(--bg-primary)] p-6 flex items-center justify-center">
+                <Loader2 size={32} className="animate-spin text-[var(--accent-mint)]" />
+            </div>
+        }>
+            <ManageClientsContent />
+        </Suspense>
     );
 }

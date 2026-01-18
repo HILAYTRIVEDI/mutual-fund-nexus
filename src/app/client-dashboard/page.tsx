@@ -96,9 +96,11 @@ export default function ClientDashboard() {
     const distributionData = useMemo(() => {
         const dist: Record<string, number> = {};
         holdings.forEach(h => {
-             // Access 'category' from joined mutual_fund object safely
-            const cat = (h as any).mutual_fund?.category || 'Equity';
-            dist[cat] = (dist[cat] || 0) + h.current_value;
+             // Use Name for allocation distribution
+            const name = (h as any).mutual_fund?.name || (h as any).scheme_code || 'Other';
+            
+            // Or if we strictly want Fund Name:
+            dist[name] = (dist[name] || 0) + h.current_value;
         });
         const total = totalCurrentValue || 1;
         return Object.entries(dist).map(([name, val], idx) => ({

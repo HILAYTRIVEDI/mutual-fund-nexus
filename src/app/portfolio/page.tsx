@@ -63,8 +63,8 @@ export default function PortfolioPage() {
         const totalValue = filteredHoldings.reduce((sum, h) => sum + h.current_value, 0);
 
         return filteredHoldings.map((h, index) => {
-            const fundName = h.scheme_code || 'Mutual Fund Scheme';
-            const fundHouse = fundName.split(' ')[0] || 'Fund House'; // Simple extraction
+            const fundName = (h as any).mutual_fund?.name || h.scheme_code || 'Mutual Fund Scheme';
+            const fundHouse = (h as any).mutual_fund?.fund_house || fundName.split(' ')[0] || 'Fund House';
             const returns = h.current_value - h.invested_amount;
             const returnsPercentage = h.invested_amount > 0 ? (returns / h.invested_amount) * 100 : 0;
             const allocation = totalValue > 0 ? (h.current_value / totalValue) * 100 : 0;
@@ -73,7 +73,7 @@ export default function PortfolioPage() {
                 id: h.id,
                 fundName: fundName,
                 fundHouse: fundHouse,
-                category: 'Equity', // Defaulting for now
+                category: (h as any).mutual_fund?.category || 'Equity',
                 units: h.units,
                 avgNav: h.average_price,
                 currentNav: h.current_nav,
@@ -88,20 +88,6 @@ export default function PortfolioPage() {
             };
         });
     }, [holdings, user]);
-
-    if (isLoading) {
-        return (
-             <div className="min-h-screen bg-[var(--bg-primary)] text-[var(--text-primary)] p-4 md:p-6 flex flex-col md:flex-row gap-4 md:gap-6 transition-colors duration-300">
-                <main className="flex-1 min-w-0 flex items-center justify-center">
-                    <div className="text-center">
-                        <Loader2 className="animate-spin mx-auto text-[var(--accent-mint)] mb-2" size={32} />
-                        <p className="text-[var(--text-secondary)]">Loading portfolio...</p>
-                    </div>
-                </main>
-                <Sidebar />
-            </div>
-        );
-    }
 
     const handleSort = (key: SortKey) => {
         if (sortKey === key) {
@@ -130,6 +116,20 @@ export default function PortfolioPage() {
 
         return result;
     }, [searchQuery, sortKey, sortDirection, holdingsData]);
+
+    if (isLoading) {
+        return (
+             <div className="min-h-screen bg-[var(--bg-primary)] text-[var(--text-primary)] p-4 md:p-6 flex flex-col md:flex-row gap-4 md:gap-6 transition-colors duration-300">
+                <main className="flex-1 min-w-0 flex items-center justify-center">
+                    <div className="text-center">
+                        <Loader2 className="animate-spin mx-auto text-[var(--accent-mint)] mb-2" size={32} />
+                        <p className="text-[var(--text-secondary)]">Loading portfolio...</p>
+                    </div>
+                </main>
+                <Sidebar />
+            </div>
+        );
+    }
 
     // Summary calculations
     // Summary calculations with Tax logic

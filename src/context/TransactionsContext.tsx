@@ -79,6 +79,7 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
     };
 
     const addTransaction = async (transactionData: TransactionInsert): Promise<{ success: boolean; error?: string }> => {
+        console.log('[TransactionsContext] addTransaction called with:', transactionData);
         try {
             const { data, error: insertError } = await (supabase
                 .from('transactions') as any)
@@ -87,8 +88,11 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
                 .single();
 
             if (insertError) {
+                console.error('[TransactionsContext] Insert error:', insertError);
                 throw insertError;
             }
+
+            console.log('[TransactionsContext] Transaction inserted successfully:', data);
 
             if (data) {
                 setTransactions(prev => [data, ...prev]);
@@ -97,7 +101,7 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
 
             return { success: false, error: 'Failed to add transaction' };
         } catch (err) {
-            console.error('Error adding transaction:', err);
+            console.error('[TransactionsContext] Error adding transaction:', err);
             return { success: false, error: err instanceof Error ? err.message : 'Failed to add transaction' };
         }
     };

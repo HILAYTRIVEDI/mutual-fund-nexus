@@ -10,6 +10,7 @@ export interface Client extends Profile {
     // Backwards compatibility aliases
     name: string;  // Maps to full_name
     panCard?: string;
+    aadharCard?: string;
     status?: 'active' | 'inactive';  // Derived from kyc_status or always 'active'
 }
 
@@ -17,7 +18,7 @@ interface ClientContextType {
     clients: Client[];
     isLoading: boolean;
     error: string | null;
-    addClient: (clientData: { name: string; email: string; phone?: string; pan?: string; password: string }) => Promise<{ success: boolean; error?: string; data?: Client }>;
+    addClient: (clientData: { name: string; email: string; phone?: string; pan?: string; aadhar?: string; password: string }) => Promise<{ success: boolean; error?: string; data?: Client }>;
     updateClient: (id: string, updates: Partial<Profile>) => Promise<{ success: boolean; error?: string }>;
     deleteClient: (id: string) => Promise<{ success: boolean; error?: string }>;
     refreshClients: () => Promise<void>;
@@ -79,6 +80,7 @@ export function ClientProvider({ children }: { children: ReactNode }) {
                 ...profile,
                 name: profile.full_name || profile.email?.split('@')[0] || 'Client',
                 panCard: profile.pan,
+                aadharCard: profile.aadhar,
                 status: 'active' as const,
             }));
 
@@ -99,7 +101,7 @@ export function ClientProvider({ children }: { children: ReactNode }) {
     }, [authLoading, user, fetchClients]);
 
     // Add client - calls API to create auth user, trigger creates profile
-    const addClient = async (clientData: { name: string; email: string; phone?: string; pan?: string; password: string }): Promise<{ success: boolean; error?: string; data?: Client }> => {
+    const addClient = async (clientData: { name: string; email: string; phone?: string; pan?: string; aadhar?: string; password: string }): Promise<{ success: boolean; error?: string; data?: Client }> => {
         console.log('[ClientContext] addClient called', { userId: user?.id, clientData: { ...clientData, password: '***' } });
         
         if (!user) {
@@ -117,7 +119,8 @@ export function ClientProvider({ children }: { children: ReactNode }) {
                     password: clientData.password,
                     phone: clientData.phone,
                     pan: clientData.pan,
-                    advisorId: user.id,  // Link to this admin
+                    aadhar: clientData.aadhar,
+                    advisorId: user.id,
                 }),
             });
 
@@ -129,13 +132,34 @@ export function ClientProvider({ children }: { children: ReactNode }) {
 
             console.log('[ClientContext] Client created via API:', result);
 
-            // Refresh clients list
-            await fetchClients();
+            // The API returns the userId - use that directly
+            const newClientData: Client = {
+                id: result.userId,
+                email: clientData.email,
+                full_name: clientData.name,
+                name: clientData.name,
+                phone: clientData.phone || null,
+                pan: clientData.pan || null,
+                panCard: clientData.pan,
+                aadhar: clientData.aadhar || null,
+                aadharCard: clientData.aadhar,
+                role: 'client',
+                advisor_id: user.id,
+                kyc_status: 'pending',
+                notes: null,
+                avatar_url: null,
+                email_sip_reminders: true,
+                email_sip_executed: true,
+                reminder_days_before: 2,
+                status: 'active',
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+            };
 
-            // Find the newly created client
-            const newClient = clients.find(c => c.email === clientData.email);
+            // Refresh clients list (async, don't wait)
+            fetchClients();
 
-            return { success: true, data: newClient };
+            return { success: true, data: newClientData };
         } catch (err) {
             console.error('[ClientContext] Error adding client:', err);
             return { success: false, error: err instanceof Error ? err.message : 'Failed to add client' };
@@ -164,15 +188,16 @@ export function ClientProvider({ children }: { children: ReactNode }) {
 
     const deleteClient = async (id: string): Promise<{ success: boolean; error?: string }> => {
         try {
-            // Note: Deleting a profile requires deleting the auth user first (service role)
-            // For now, we just remove advisor_id to unlink them
-            const { error: updateError } = await (supabase
+            // Hard delete the profile (allowed by RLS 'Admins can delete client profiles')
+            // This leaves the Auth User but removes the profile and data access
+            const { error: deleteError } = await (supabase
                 .from('profiles') as any)
-                .update({ advisor_id: null })
-                .eq('id', id);
+                .delete()
+                .eq('id', id)
+                .eq('advisor_id', user?.id); // Security: only delete own clients
 
-            if (updateError) {
-                throw updateError;
+            if (deleteError) {
+                throw deleteError;
             }
 
             setClients(prev => prev.filter(c => c.id !== id));

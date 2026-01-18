@@ -18,6 +18,7 @@ export interface Profile {
   advisor_id: string | null;  // For clients: links to their admin
   phone: string | null;
   pan: string | null;
+  aadhar: string | null;
   kyc_status: 'pending' | 'verified' | 'rejected' | 'expired' | null;
   notes: string | null;
   avatar_url: string | null;

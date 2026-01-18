@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft, Mail, Phone, Calendar, PiggyBank, TrendingUp, TrendingDown, FileText, Edit, Trash2, Plus, Calculator, Loader2 } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
 import { useSettings } from '@/context/SettingsContext';
@@ -27,10 +27,11 @@ function formatDate(dateStr: string): string {
 
 export default function ClientDetailPage() {
     const params = useParams();
+    const router = useRouter();
     const clientId = params.id as string;
     
     const { ltcgTax, stcgTax } = useSettings();
-    const { clients, isLoading: clientsLoading } = useClientContext();
+    const { clients, deleteClient, isLoading: clientsLoading } = useClientContext();
     const { holdings } = useHoldings();
     const { sips } = useSIPs();
     const { transactions } = useTransactions();
@@ -57,6 +58,17 @@ export default function ClientDetailPage() {
             setNotes(client.notes);
         }
     }, [client]);
+
+    const handleDelete = async () => {
+        if (confirm('Are you sure you want to delete this client? This action cannot be undone.')) {
+            const result = await deleteClient(clientId);
+            if (result.success) {
+                router.replace('/manage');
+            } else {
+                alert('Failed to delete client: ' + (result.error || 'Unknown error'));
+            }
+        }
+    };
 
     // Calculate returns for a single holding
     const getHoldingReturns = (holding: typeof clientHoldings[0]) => {
@@ -171,10 +183,16 @@ export default function ClientDetailPage() {
                             </div>
                         </div>
                         <div className="flex items-center gap-2">
-                            <button className="p-2 rounded-lg bg-[var(--bg-hover)] border border-[var(--border-primary)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors">
+                            <button 
+                                onClick={() => router.push(`/manage?edit=${clientId}`)}
+                                className="p-2 rounded-lg bg-[var(--bg-hover)] border border-[var(--border-primary)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
+                            >
                                 <Edit size={18} />
                             </button>
-                            <button className="p-2 rounded-lg bg-[var(--accent-red)]/10 border border-[var(--accent-red)]/30 text-[var(--accent-red)] hover:bg-[var(--accent-red)]/20 transition-colors">
+                            <button 
+                                onClick={handleDelete}
+                                className="p-2 rounded-lg bg-[var(--accent-red)]/10 border border-[var(--accent-red)]/30 text-[var(--accent-red)] hover:bg-[var(--accent-red)]/20 transition-colors"
+                            >
                                 <Trash2 size={18} />
                             </button>
                         </div>
@@ -297,7 +315,7 @@ export default function ClientDetailPage() {
                                                         </div>
                                                         <div>
                                                             <p className="text-[var(--text-primary)] text-sm font-medium">
-                                                                {holding.scheme_code || 'Unknown Fund'}
+                                                                {(holding as any).mutual_fund?.name || holding.scheme_code || 'Unknown Fund'}
                                                             </p>
                                                             <p className="text-[var(--text-secondary)] text-xs">
                                                                 NAV: ₹{holding.current_nav?.toFixed(2) || holding.average_price.toFixed(2)}

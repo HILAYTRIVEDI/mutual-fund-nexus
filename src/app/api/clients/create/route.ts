@@ -12,7 +12,7 @@ import { createClient } from '@supabase/supabase-js';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { name, email, password, advisorId, phone, pan } = body;
+    const { name, email, password, advisorId, phone, pan, aadhar } = body;
 
     // Validation
     if (!name || !email || !password || !advisorId) {
@@ -79,6 +79,7 @@ export async function POST(request: NextRequest) {
                     advisor_id: advisorId,
                     phone: phone || null,
                     pan: pan || null,
+                    aadhar: aadhar || null,
                 });
             
             if (updateError) {
@@ -107,12 +108,13 @@ export async function POST(request: NextRequest) {
 
     // Update profile with additional fields (phone, pan) if provided
     // The trigger creates basic profile, we add extra fields here
-    if (phone || pan) {
+    if (phone || pan || aadhar) {
       await supabaseAdmin
         .from('profiles')
         .update({ 
           phone: phone || null, 
           pan: pan || null,
+          aadhar: aadhar || null,
           kyc_status: 'pending'
         })
         .eq('id', authData.user.id);

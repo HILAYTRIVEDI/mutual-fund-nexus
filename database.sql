@@ -37,6 +37,7 @@ CREATE TABLE public.profiles (
   -- Client-specific fields (null for admins)
   phone text,
   pan text,
+  aadhar text,
   kyc_status text CHECK (kyc_status IN ('pending', 'verified', 'rejected', 'expired')),
   notes text,
   
@@ -167,6 +168,21 @@ CREATE POLICY "Users can insert own profile"
 CREATE POLICY "Admins can insert client profiles"
   ON public.profiles FOR INSERT
   WITH CHECK (advisor_id = auth.uid());
+
+-- Users can view their own profile
+CREATE POLICY "Users can view own profile"
+  ON public.profiles FOR SELECT
+  USING (auth.uid() = id);
+
+-- Admins can view their clients' profiles
+CREATE POLICY "Admins can view client profiles"
+  ON public.profiles FOR SELECT
+  USING (advisor_id = auth.uid());
+
+-- Admins can delete their clients
+CREATE POLICY "Admins can delete client profiles"
+  ON public.profiles FOR DELETE
+  USING (advisor_id = auth.uid());
 
 -- MUTUAL FUNDS - Everyone can read
 CREATE POLICY "Anyone can read mutual funds"

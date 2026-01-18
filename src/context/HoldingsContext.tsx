@@ -212,6 +212,7 @@ export function HoldingsProvider({ children }: { children: ReactNode }) {
     };
 
     const addHolding = async (holdingData: HoldingInsert): Promise<{ success: boolean; error?: string }> => {
+        console.log('[HoldingsContext] addHolding called with:', holdingData);
         try {
             const { data, error: insertError } = await (supabase
                 .from('holdings') as any)
@@ -220,8 +221,11 @@ export function HoldingsProvider({ children }: { children: ReactNode }) {
                 .single();
 
             if (insertError) {
+                console.error('[HoldingsContext] Insert error:', insertError);
                 throw insertError;
             }
+
+            console.log('[HoldingsContext] Holding inserted successfully:', data);
 
             if (data) {
                 await fetchHoldings(); // Refresh to get calculated values
@@ -230,7 +234,7 @@ export function HoldingsProvider({ children }: { children: ReactNode }) {
 
             return { success: false, error: 'Failed to add holding' };
         } catch (err) {
-            console.error('Error adding holding:', err);
+            console.error('[HoldingsContext] Error adding holding:', err);
             return { success: false, error: err instanceof Error ? err.message : 'Failed to add holding' };
         }
     };

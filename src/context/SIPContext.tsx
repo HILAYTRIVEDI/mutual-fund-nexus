@@ -124,6 +124,7 @@ export function SIPProvider({ children }: { children: ReactNode }) {
     };
 
     const addSIP = async (sipData: SIPInsert): Promise<{ success: boolean; error?: string }> => {
+        console.log('[SIPContext] addSIP called with:', sipData);
         try {
             const { data, error: insertError } = await (supabase
                 .from('sips') as any)
@@ -132,8 +133,11 @@ export function SIPProvider({ children }: { children: ReactNode }) {
                 .single();
 
             if (insertError) {
+                console.error('[SIPContext] Insert error:', insertError);
                 throw insertError;
             }
+
+            console.log('[SIPContext] SIP inserted successfully:', data);
 
             if (data) {
                 await fetchSIPs();
@@ -142,7 +146,7 @@ export function SIPProvider({ children }: { children: ReactNode }) {
 
             return { success: false, error: 'Failed to add SIP' };
         } catch (err) {
-            console.error('Error adding SIP:', err);
+            console.error('[SIPContext] Error adding SIP:', err);
             return { success: false, error: err instanceof Error ? err.message : 'Failed to add SIP' };
         }
     };
