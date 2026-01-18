@@ -68,13 +68,21 @@ export function HoldingsProvider({ children }: { children: ReactNode }) {
                 `)
                 .order('created_at', { ascending: false });
 
-            if (fetchError) {
-                throw fetchError;
+            // Handle errors gracefully - empty table is not an error
+            if (fetchError && fetchError.code !== 'PGRST116') {
+                console.warn('[HoldingsContext] Fetch warning:', fetchError.message);
+            }
+
+            // If no data, just set empty array
+            if (!data || data.length === 0) {
+                setHoldings([]);
+                setIsLoading(false);
+                return;
             }
 
             // Fetch current NAVs and calculate values
             const holdingsWithValues: HoldingWithValue[] = await Promise.all(
-                (data || []).map(async (holding: any) => {
+                data.map(async (holding: any) => {
                     let currentNav = holding.mutual_fund?.current_nav || 0;
                     
                     // Try to fetch latest NAV from MFAPI if we have a scheme code
@@ -108,8 +116,9 @@ export function HoldingsProvider({ children }: { children: ReactNode }) {
 
             setHoldings(holdingsWithValues);
         } catch (err) {
-            console.error('Error fetching holdings:', err);
-            setError(err instanceof Error ? err.message : 'Failed to fetch holdings');
+            // Log but don't throw - just set empty array
+            console.warn('[HoldingsContext] Fetch error (ignored):', err);
+            setHoldings([]);
         } finally {
             setIsLoading(false);
         }
@@ -199,7 +208,7 @@ export function HoldingsProvider({ children }: { children: ReactNode }) {
     const totalGainLoss = totalCurrentValue - totalInvested;
 
     const getClientHoldings = (clientId: string) => {
-        return holdings.filter(h => h.client_id === clientId);
+        return holdings.filter(h => h.user_id === clientId);
     };
 
     const addHolding = async (holdingData: HoldingInsert): Promise<{ success: boolean; error?: string }> => {

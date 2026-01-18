@@ -145,111 +145,79 @@ export default function ManageClientsPage() {
 
         try {
             if (editingClient) {
-                // Update existing client
+                // Update existing client - use Profile field names
                 await updateClient(editingClient.id, {
-                    name: formData.name,
+                    full_name: formData.name,
                     email: formData.email,
                     phone: formData.phone,
-                    pan: formData.panCard, // Send as 'pan' to DB
-                    panCard: formData.panCard, // Keep for context compatibility
-                    aadharCard: formData.aadharCard,
-                    portfolio: formData.schemeName,
-                    schemeCode: formData.schemeCode,
-                    investmentType: formData.investmentType,
-                    amount: parseFloat(formData.amount) || 0,
-                    sipAmount: formData.investmentType === 'SIP' ? parseFloat(formData.sipAmount) : undefined,
-                    startDate: formData.startDate,
+                    pan: formData.panCard,
+                    notes: null,
                 });
                 setShowAddModal(false);
                 resetForm();
             } else {
-                // Step 1: Create auth user via API (server-side to avoid session change)
-                console.log('Creating auth user...');
-                const authResponse = await fetch('/api/clients/create', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        name: formData.name,
-                        email: formData.email,
-                        password: formData.password,
-                        advisorId: 'current-user',
-                    }),
-                });
-
-                const authData = await authResponse.json();
-
-                if (!authResponse.ok) {
-                    throw new Error(authData.error || 'Failed to create client login account');
-                }
-
-                // Step 2: Create client record (this sets advisor_id correctly)
-                console.log('Creating client record...');
+                // Create new client - addClient now handles the API call internally
+                console.log('Creating client...');
                 const result = await addClient({
                     name: formData.name,
                     email: formData.email,
-                    phone: formData.phone || null,
+                    phone: formData.phone || undefined,
                     pan: formData.panCard,
-                    status: 'active' as const,
-                    kyc_status: 'pending' as const,
-                    notes: null,
+                    password: formData.password,
                 });
 
-                if (!result.success || !result.data) {
-                    throw new Error(result.error || 'Failed to create client record');
+                if (!result.success) {
+                    throw new Error(result.error || 'Failed to create client');
                 }
 
-                const newClientId = result.data.id;
-                console.log('Client created with ID:', newClientId);
+                console.log('Client created successfully');
 
-                // Step 3: Upsert Mutual Fund Master Data
-                if (formData.schemeCode > 0) {
+                // If fund was selected, create holdings and transactions
+                // The client ID is their user ID from profiles
+                const newClientId = result.data?.id;
+                
+                if (newClientId && formData.schemeCode > 0) {
                     console.log('Upserting mutual fund master data...');
                     const supabase = getSupabaseClient();
                     
-                    // Fetch latest NAV for this fund to store correct initial NAV
-                    let currentNav = 10; // Default fallback
+                    // Fetch latest NAV
+                    let currentNav = 10;
                     try {
                         const navData = await getSchemeLatestNAV(formData.schemeCode);
-                        if (navData && navData.data && navData.data[0]) {
+                        if (navData?.data?.[0]) {
                             currentNav = parseFloat(navData.data[0].nav);
                         }
                     } catch (e) {
                         console.warn('Could not fetch latest NAV, using default', e);
                     }
 
-                    const { error: fundError } = await (supabase
-                        .from('mutual_funds') as any)
-                        .upsert({
-                            code: formData.schemeCode.toString(),
-                            name: formData.schemeName,
-                            category: null,
-                            type: null,
-                            fund_house: null,
-                            current_nav: currentNav,
-                            last_updated: new Date().toISOString()
-                        });
-                        
-                    if (fundError) {
-                        console.error('Failed to upsert mutual fund:', fundError);
-                        // Continue anyway, it might already exist
-                    }
+                    // Upsert mutual fund
+                    await (supabase.from('mutual_funds') as any).upsert({
+                        code: formData.schemeCode.toString(),
+                        name: formData.schemeName,
+                        category: null,
+                        type: null,
+                        fund_house: null,
+                        current_nav: currentNav,
+                        last_updated: new Date().toISOString()
+                    });
 
-                    // Step 4: Create Holding
+                    // Create Holding (use user_id now, not client_id)
                     console.log('Creating holding...');
                     const investedAmount = parseFloat(formData.amount) || 0;
                     const units = currentNav > 0 ? investedAmount / currentNav : 0;
                     
                     await addHolding({
-                        client_id: newClientId,
+                        user_id: newClientId,
                         scheme_code: formData.schemeCode.toString(),
                         units: units,
-                        average_price: currentNav, // Initial buy price
+                        average_price: currentNav,
                     });
 
-                    // Step 5: add Transaction Record (Initial Buy)
+                    // Transaction Record (use user_id)
                     console.log('Recording transaction...');
                     await addTransaction({
-                        client_id: newClientId,
+                        user_id: newClientId,
                         scheme_code: formData.schemeCode.toString(),
                         type: 'buy',
                         amount: investedAmount,
@@ -259,11 +227,11 @@ export default function ManageClientsPage() {
                         date: new Date().toISOString()
                     });
 
-                    // Step 6: Create SIP Record if applicable
+                    // SIP if applicable (use user_id)
                     if (formData.investmentType === 'SIP' && formData.sipAmount) {
                         console.log('Setting up SIP...');
                         await addSIP({
-                            client_id: newClientId,
+                            user_id: newClientId,
                             scheme_code: formData.schemeCode.toString(),
                             amount: parseFloat(formData.sipAmount),
                             frequency: 'monthly',
@@ -274,13 +242,11 @@ export default function ManageClientsPage() {
                     }
                 }
 
-                // Store credentials to show in modal
+                // Store credentials to show
                 const savedCredentials = { email: formData.email, password: formData.password };
                 
                 setShowAddModal(false);
                 resetForm();
-                
-                // Show credentials modal after form closes
                 setShowCredentialsModal(savedCredentials);
             }
         } catch (error) {
@@ -294,20 +260,20 @@ export default function ManageClientsPage() {
     const handleEditClient = (client: Client) => {
         setEditingClient(client);
         setFormData({
-            name: client.name,
+            name: client.name || client.full_name || '',
             email: client.email || '',
             phone: client.phone || '',
             panCard: client.panCard || client.pan || '',
-            aadharCard: client.aadharCard || '',
+            aadharCard: '', // Not stored in new schema
             password: '', // Password not editable for existing clients
-            investmentType: client.investmentType || 'SIP',
-            amount: (client.amount || 0).toString(),
-            sipAmount: client.sipAmount?.toString() || '',
-            startDate: client.startDate || '',
-            schemeCode: client.schemeCode || 0,
-            schemeName: client.portfolio || '',
+            investmentType: 'SIP', // Default - holdings are stored separately
+            amount: '0',
+            sipAmount: '',
+            startDate: '',
+            schemeCode: 0,
+            schemeName: '',
         });
-        setFundSearch(client.portfolio || '');
+        setFundSearch('');
         setShowAddModal(true);
     };
 
@@ -797,9 +763,17 @@ export default function ManageClientsPage() {
                             </button>
                             <button
                                 onClick={handleAddClient}
-                                className="flex-1 py-2.5 md:py-3 rounded-xl bg-gradient-to-r from-[#48cae4] to-[#90e0ef] text-white font-medium hover:shadow-lg hover:shadow-[#48cae4]/30 transition-all text-sm"
+                                disabled={isSubmitting}
+                                className="flex-1 py-2.5 md:py-3 rounded-xl bg-gradient-to-r from-[#48cae4] to-[#90e0ef] text-white font-medium hover:shadow-lg hover:shadow-[#48cae4]/30 transition-all text-sm disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                             >
-                                {editingClient ? 'Update Client' : 'Add Client'}
+                                {isSubmitting ? (
+                                    <>
+                                        <Loader2 size={18} className="animate-spin" />
+                                        {editingClient ? 'Updating...' : 'Creating...'}
+                                    </>
+                                ) : (
+                                    editingClient ? 'Update Client' : 'Add Client'
+                                )}
                             </button>
                         </div>
                     </div>

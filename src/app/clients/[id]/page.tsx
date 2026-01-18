@@ -43,13 +43,13 @@ export default function ClientDetailPage() {
     const client = clients.find(c => c.id === clientId);
     
     // Filter holdings for this client
-    const clientHoldings = holdings.filter(h => h.client_id === clientId);
+    const clientHoldings = holdings.filter(h => h.user_id === clientId);
     
     // Filter SIPs for this client
-    const clientSIPs = sips.filter(s => s.client_id === clientId);
+    const clientSIPs = sips.filter(s => s.user_id === clientId);
     
     // Filter transactions for this client
-    const clientTransactions = transactions.filter(t => t.client_id === clientId);
+    const clientTransactions = transactions.filter(t => t.user_id === clientId);
 
     // Set notes from client data
     useEffect(() => {

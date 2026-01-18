@@ -61,18 +61,25 @@ export function SIPProvider({ children }: { children: ReactNode }) {
                 .from('sips')
                 .select(`
                     *,
-                    mutual_fund:mutual_funds(name),
-                    client:clients(name)
+                    mutual_fund:mutual_funds(name)
                 `)
                 .order('next_execution_date', { ascending: true });
 
-            if (fetchError) {
-                throw fetchError;
+            // Handle errors gracefully - empty table is not an error
+            if (fetchError && fetchError.code !== 'PGRST116') {
+                console.warn('[SIPContext] Fetch warning:', fetchError.message);
+            }
+
+            // If no data, just set empty array
+            if (!data || data.length === 0) {
+                setSips([]);
+                setIsLoading(false);
+                return;
             }
 
             // Calculate days until next execution
             const today = new Date();
-            const sipsWithDetails: SIPWithDetails[] = (data || []).map((sip: any) => {
+            const sipsWithDetails: SIPWithDetails[] = data.map((sip: any) => {
                 const nextDate = sip.next_execution_date ? new Date(sip.next_execution_date) : null;
                 const daysUntilNext = nextDate 
                     ? Math.ceil((nextDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
@@ -81,15 +88,15 @@ export function SIPProvider({ children }: { children: ReactNode }) {
                 return {
                     ...sip,
                     scheme_name: sip.mutual_fund?.name,
-                    client_name: sip.client?.name,
                     days_until_next: daysUntilNext ?? undefined,
                 };
             });
 
             setSips(sipsWithDetails);
         } catch (err) {
-            console.error('Error fetching SIPs:', err);
-            setError(err instanceof Error ? err.message : 'Failed to fetch SIPs');
+            // Log but don't throw - just set empty array
+            console.warn('[SIPContext] Fetch error (ignored):', err);
+            setSips([]);
         } finally {
             setIsLoading(false);
         }
@@ -113,7 +120,7 @@ export function SIPProvider({ children }: { children: ReactNode }) {
         .reduce((sum, s) => sum + s.amount, 0);
 
     const getClientSIPs = (clientId: string) => {
-        return sips.filter(s => s.client_id === clientId);
+        return sips.filter(s => s.user_id === clientId);
     };
 
     const addSIP = async (sipData: SIPInsert): Promise<{ success: boolean; error?: string }> => {

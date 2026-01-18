@@ -10,7 +10,7 @@ interface User {
     id: string;
     name: string;
     email: string;
-    role: 'advisor' | 'client';
+    role: 'admin' | 'client';
     avatarUrl?: string;
 }
 
@@ -32,7 +32,7 @@ function mapToUser(supabaseUser: SupabaseUser, profile: Profile | null): User {
         id: supabaseUser.id,
         name: profile?.full_name || supabaseUser.email?.split('@')[0] || 'User',
         email: supabaseUser.email || '',
-        role: (profile?.role === 'client') ? 'client' : 'advisor', // Default to advisor if unknown
+        role: (profile?.role === 'client') ? 'client' : 'admin',
         avatarUrl: profile?.avatar_url || undefined,
     };
 }
@@ -45,165 +45,183 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const pathname = usePathname();
     const supabase = getSupabaseClient();
 
-    // Fetch profile from database
+    // Fetch profile from database with timeout
     const fetchProfile = useCallback(async (userId: string): Promise<Profile | null> => {
-        const { data, error } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', userId)
-            .maybeSingle();
+        console.log('[AuthContext] fetchProfile called for:', userId);
+        try {
+            // Add timeout to prevent hanging
+            const timeoutPromise = new Promise<{ data: null; error: null }>((resolve) => 
+                setTimeout(() => {
+                    console.warn('[AuthContext] fetchProfile timed out');
+                    resolve({ data: null, error: null });
+                }, 8000)
+            );
+            
+            const fetchPromise = supabase
+                .from('profiles')
+                .select('*')
+                .eq('id', userId)
+                .maybeSingle();
 
-        if (error) {
-            // Only log actual errors, not "no rows found" (PGRST116)
-            if (error.code !== 'PGRST116') {
-                console.error('Error fetching profile:', error);
+            const result = await Promise.race([fetchPromise, timeoutPromise]);
+            const { data, error } = result as any;
+            
+            console.log('[AuthContext] fetchProfile result:', { hasData: !!data, error: error?.message });
+
+            if (error && error.code !== 'PGRST116') {
+                console.error('[AuthContext] Error fetching profile:', error);
+                return null;
             }
+            return data;
+        } catch (err) {
+            console.error('[AuthContext] fetchProfile exception:', err);
             return null;
         }
-        return data;
     }, [supabase]);
 
-    // Centralized function to load user and profile
-    const loadUserSession = useCallback(async (sessionUser: SupabaseUser) => {
+    // Load user session - sets user IMMEDIATELY, then updates with profile
+    const loadUserSession = useCallback(async (sessionUser: SupabaseUser): Promise<'admin' | 'client'> => {
+        console.log('[AuthContext] loadUserSession called for:', sessionUser.email);
+        
+        // Set basic user IMMEDIATELY so app doesn't hang
+        const basicUser: User = {
+            id: sessionUser.id,
+            name: sessionUser.user_metadata?.full_name || sessionUser.email?.split('@')[0] || 'User',
+            email: sessionUser.email || '',
+            role: 'admin', // Default, will update if profile says client
+        };
+        setUser(basicUser);
+        console.log('[AuthContext] Basic user set, fetching profile...');
+        
         try {
             let userProfile = await fetchProfile(sessionUser.id);
+            console.log('[AuthContext] Profile fetched:', userProfile?.role);
             
-            // If no profile exists, create one (fallback for when trigger didn't fire)
+            // If no profile exists, try to create one (non-blocking)
             if (!userProfile) {
-                console.log('[AuthContext] No profile found, creating one...');
-                const { error: insertError } = await (supabase
-                    .from('profiles') as any)
-                    .insert({
-                        id: sessionUser.id,
-                        email: sessionUser.email || '',
-                        full_name: sessionUser.user_metadata?.full_name || sessionUser.email?.split('@')[0] || 'User',
-                        role: 'advisor',
-                    });
+                console.log('[AuthContext] No profile found, attempting to create...');
+                const { error: insertError } = await (supabase.from('profiles') as any).insert({
+                    id: sessionUser.id,
+                    email: sessionUser.email || '',
+                    full_name: sessionUser.user_metadata?.full_name || sessionUser.email?.split('@')[0] || 'User',
+                    role: 'admin',
+                });
                 
-                if (!insertError) {
+                console.log('[AuthContext] Profile insert result:', insertError?.message || 'success');
+                
+                if (!insertError || insertError.code === '23505') {
                     userProfile = await fetchProfile(sessionUser.id);
-                } else if (insertError.code !== '23505') {
-                    console.error('[AuthContext] Failed to create profile:', insertError);
                 }
             }
             
-            setProfile(userProfile);
-            setUser(mapToUser(sessionUser, userProfile));
+            // Update user with profile data if available
+            if (userProfile) {
+                const role = (userProfile.role === 'client') ? 'client' : 'admin';
+                setProfile(userProfile);
+                setUser({
+                    ...basicUser,
+                    name: userProfile.full_name || basicUser.name,
+                    role: role,
+                    avatarUrl: userProfile.avatar_url || undefined,
+                });
+                console.log('[AuthContext] Session loaded with profile, role:', role);
+                return role;
+            }
+            
+            console.log('[AuthContext] Session loaded without profile, defaulting to advisor');
+            return 'admin';
         } catch (error) {
             console.error('[AuthContext] Error loading user session:', error);
+            return 'admin';
         }
     }, [supabase, fetchProfile]);
 
-    // Initialize auth state via listener
+    // Initialize auth state via listener - this is the SINGLE source of truth
     useEffect(() => {
         console.log('[AuthContext] Setting up auth listener...');
+        let mounted = true;
         
-        // Listen for auth changes
         const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-            console.log('[AuthContext] Auth state changed:', event, session?.user?.email);
+            console.log('[AuthContext] Auth event:', event, session?.user?.email);
             
-            try {
-                if (session?.user) {
-                    // Load user data if not loaded or if user changed
-                    // We check against the current state setter to avoid closure staleness if possible, 
-                    // but here we just rely on the event.
-                    // Note: We deliberately reload on SIGNED_IN/INITIAL_SESSION to ensure freshness.
-                    if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION' || event === 'TOKEN_REFRESHED')) {
-                         await loadUserSession(session.user);
-                    }
-                } else if (event === 'SIGNED_OUT') {
-                    console.log('[AuthContext] User signed out');
-                    setUser(null);
-                    setProfile(null);
+            if (!mounted) return;
+            
+            if (session?.user) {
+                if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION' || event === 'TOKEN_REFRESHED') {
+                    await loadUserSession(session.user);
                 }
-            } catch (err) {
-                console.error('[AuthContext] Auth listener error:', err);
-            } finally {
-                // Critical: Always clear loading state after processing an event
-                // This prevents the "stuck on loading" issue
+            } else if (event === 'SIGNED_OUT') {
+                console.log('[AuthContext] User signed out');
+                setUser(null);
+                setProfile(null);
+            }
+            
+            // Always clear loading after processing
+            if (mounted) {
                 setIsLoading(false);
             }
         });
 
         return () => {
+            mounted = false;
             subscription.unsubscribe();
         };
     }, [supabase, loadUserSession]);
 
-    // Protect routes
+    // Route protection - SINGLE location for all redirects based on auth state
     useEffect(() => {
-        console.log('[AuthContext] Route protection check:', { isLoading, user: user?.email, pathname });
+        // Don't do anything while loading
+        if (isLoading) return;
         
-        if (isLoading) {
-            console.log('[AuthContext] Still loading, skipping route protection');
-            return;
-        }
-
         const publicRoutes = ['/login', '/signup', '/forgot-password'];
         const isPublicRoute = publicRoutes.some(route => pathname.startsWith(route));
 
-        console.log('[AuthContext] Route check:', { isPublicRoute, shouldRedirectToLogin: !user && !isPublicRoute });
+        console.log('[AuthContext] Route protection:', { user: user?.email, pathname, isPublicRoute });
 
         if (!user && !isPublicRoute) {
+            // Not logged in, trying to access protected route
             console.log('[AuthContext] Redirecting to /login');
-            router.push('/login');
+            router.replace('/login');
         } else if (user && pathname === '/login') {
-                if (user.role === 'client') {
-                router.push('/client-dashboard');
-            } else {
-                router.push('/admin-dashboard');
-            }
+            // Logged in but on login page - redirect to dashboard
+            const target = user.role === 'client' ? '/client-dashboard' : '/admin-dashboard';
+            console.log('[AuthContext] Redirecting to:', target);
+            router.replace(target);
         }
     }, [user, pathname, router, isLoading]);
 
+    // Login - just authenticates, redirect handled by route protection effect
     const login = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
+        console.log('[AuthContext] Login attempt:', email);
+        setIsLoading(true);
+        
         try {
-            setIsLoading(true);
-            const { data, error } = await supabase.auth.signInWithPassword({
-                email,
-                password,
-            });
+            const { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
             if (error) {
+                console.log('[AuthContext] Login error:', error.message);
+                setIsLoading(false);
                 return { success: false, error: error.message };
             }
 
             if (data.user) {
-                // Ensure profile is loaded
-                await loadUserSession(data.user);
+                // Load session - the auth listener will also fire but this ensures immediate state
+                const role = await loadUserSession(data.user);
                 
-                // Get the latest user state (from context or freshly derived)
-                // Note: state updates are async, so we use the just-fetched profile logic
-                // But for redirect we can just look at what we know the profile WILL be.
-                // We'll rely on the listener to update state, but we can redirect now.
-                // Re-fetch profile just to be sure for redirect decision? 
-                // loadUserSession already did it.
-                // We can't access 'user' state here immediately.
-                // Let's fetch profile directly for the decision.
-                const { data: profileData } = await (supabase
-                    .from('profiles') as any) // Use any to bypass old types
-                    .select('role')
-                    .eq('id', data.user.id)
-                    .single();
-                
-                const role = profileData?.role || 'advisor';
-
-                // Redirect based on role
-                if (role === 'advisor') {
-                    router.push('/admin-dashboard');
-                } else {
-                    router.push('/client-dashboard');
-                }
+                // Redirect immediately (don't wait for effect)
+                const target = role === 'client' ? '/client-dashboard' : '/admin-dashboard';
+                console.log('[AuthContext] Login success, redirecting to:', target);
+                router.replace(target);
                 
                 return { success: true };
             }
 
+            setIsLoading(false);
             return { success: false, error: 'Login failed' };
         } catch (error) {
-            const authError = error as AuthError;
-            return { success: false, error: authError.message || 'An unexpected error occurred' };
-        } finally {
+            console.error('[AuthContext] Login exception:', error);
             setIsLoading(false);
+            return { success: false, error: (error as AuthError).message || 'An unexpected error occurred' };
         }
     };
 
@@ -213,67 +231,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             const { data, error } = await supabase.auth.signUp({
                 email,
                 password,
-                options: {
-                    data: {
-                        full_name: fullName,
-                    },
-                },
+                options: { data: { full_name: fullName } },
             });
 
             if (error) {
+                setIsLoading(false);
                 return { success: false, error: error.message };
             }
 
             if (data.user) {
-                // Manually create profile as fallback (in case DB trigger doesn't exist)
-                // The trigger should handle this, but this is a safety net
-                try {
-                    const existingProfile = await fetchProfile(data.user.id);
-                    if (!existingProfile) {
-                        const { error: profileError } = await (supabase
-                            .from('profiles') as any)
-                            .insert({
-                                id: data.user.id,
-                                email: email,
-                                full_name: fullName,
-                                role: 'advisor',
-                            });
-                        
-                        if (profileError && profileError.code !== '23505') { // 23505 = unique violation (already exists)
-                            console.warn('Could not create profile:', profileError);
-                        }
-                    }
-                } catch (profileErr) {
-                    console.warn('Profile creation fallback failed:', profileErr);
-                }
-                
+                // Profile creation handled by DB trigger or loadUserSession
                 return { success: true };
             }
 
+            setIsLoading(false);
             return { success: false, error: 'Sign up failed' };
         } catch (error) {
-            const authError = error as AuthError;
-            return { success: false, error: authError.message || 'An unexpected error occurred' };
-        } finally {
             setIsLoading(false);
+            return { success: false, error: (error as AuthError).message || 'An unexpected error occurred' };
         }
     };
 
     const logout = async () => {
         console.log('[AuthContext] Logging out...');
         try {
-            const { error } = await supabase.auth.signOut();
-            if (error) {
-                console.error('[AuthContext] Logout error:', error);
-            }
+            await supabase.auth.signOut();
         } catch (err) {
-            console.error('[AuthContext] Logout exception:', err);
+            console.error('[AuthContext] Logout error:', err);
         }
-        // Always clear local state and redirect, even if signOut fails
         setUser(null);
         setProfile(null);
-        console.log('[AuthContext] Logged out, redirecting to /login');
-        router.push('/login');
+        router.replace('/login');
     };
 
     return (

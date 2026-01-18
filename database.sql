@@ -1,20 +1,13 @@
 -- =====================================================
--- MUTUAL FUND NEXUS - COMPLETE DATABASE SETUP
+-- MUTUAL FUND NEXUS - SIMPLIFIED DATABASE SETUP
 -- 
--- Run this ENTIRE script in Supabase SQL Editor
--- (Dashboard > SQL Editor) for a fresh setup.
---
--- This will:
--- 1. Drop all existing tables (clean slate)
--- 2. Create all tables with proper relationships
--- 3. Set up RLS policies for security
--- 4. Create triggers for auto-profile creation
+-- SIMPLIFIED MODEL:
+-- - profiles: ALL users (admin & client) in one table
+-- - No separate clients table
+-- - Holdings/SIPs/Transactions link directly to profiles
 -- =====================================================
 
--- =====================================================
--- STEP 0: CLEAN UP (Drop existing tables)
--- Run this only if you want a fresh start
--- =====================================================
+-- Clean up existing tables
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 DROP FUNCTION IF EXISTS public.handle_new_user() CASCADE;
 DROP FUNCTION IF EXISTS public.handle_updated_at() CASCADE;
@@ -27,34 +20,40 @@ DROP TABLE IF EXISTS public.clients CASCADE;
 DROP TABLE IF EXISTS public.mutual_funds CASCADE;
 DROP TABLE IF EXISTS public.profiles CASCADE;
 
--- Enable UUID extension
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 -- =====================================================
--- 1. PROFILES (User accounts linked to Supabase Auth)
+-- 1. PROFILES - ALL USERS (Admin & Client)
 -- =====================================================
 CREATE TABLE public.profiles (
-  id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE PRIMARY KEY,
   email text NOT NULL,
   full_name text,
-  role text CHECK (role IN ('advisor', 'client')) DEFAULT 'advisor',
+  role text CHECK (role IN ('admin', 'client')) DEFAULT 'admin',
+  
+  -- Admin reference (for clients only)
+  advisor_id uuid REFERENCES public.profiles(id) ON DELETE SET NULL,
+  
+  -- Client-specific fields (null for admins)
+  phone text,
+  pan text,
+  kyc_status text CHECK (kyc_status IN ('pending', 'verified', 'rejected', 'expired')),
+  notes text,
+  
+  -- Settings
   avatar_url text,
-  -- Email notification preferences
   email_sip_reminders boolean DEFAULT true,
   email_sip_executed boolean DEFAULT true,
   reminder_days_before integer DEFAULT 2,
+  
   created_at timestamptz DEFAULT now(),
-  updated_at timestamptz DEFAULT now(),
-  PRIMARY KEY (id)
+  updated_at timestamptz DEFAULT now()
 );
 
-COMMENT ON TABLE public.profiles IS 'User profiles linked to Supabase Auth. Admin/Advisor/Client roles.';
-COMMENT ON COLUMN public.profiles.email_sip_reminders IS 'Whether to send email reminders for upcoming SIPs';
-COMMENT ON COLUMN public.profiles.email_sip_executed IS 'Whether to send email confirmations when SIPs are executed';
-COMMENT ON COLUMN public.profiles.reminder_days_before IS 'Number of days before SIP execution to send reminder (1, 2, or 3)';
+COMMENT ON TABLE public.profiles IS 'All users - both admins and clients. Clients have advisor_id pointing to their admin.';
 
 -- =====================================================
--- 2. MUTUAL FUNDS (Master Data)
+-- 2. MUTUAL FUNDS (Master Data - unchanged)
 -- =====================================================
 CREATE TABLE public.mutual_funds (
   code text NOT NULL PRIMARY KEY,
@@ -66,33 +65,12 @@ CREATE TABLE public.mutual_funds (
   last_updated timestamptz
 );
 
-COMMENT ON TABLE public.mutual_funds IS 'Master table of mutual fund schemes with current NAV';
-
 -- =====================================================
--- 3. CLIENTS (Managed by Advisors)
--- =====================================================
-CREATE TABLE public.clients (
-  id uuid NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
-  advisor_id uuid REFERENCES public.profiles(id) ON DELETE SET NULL,
-  name text NOT NULL,
-  email text,
-  phone text,
-  pan text NOT NULL UNIQUE,
-  status text CHECK (status IN ('active', 'inactive')) DEFAULT 'active',
-  kyc_status text CHECK (kyc_status IN ('pending', 'verified', 'rejected', 'expired')) DEFAULT 'pending',
-  notes text,
-  created_at timestamptz DEFAULT now(),
-  updated_at timestamptz DEFAULT now()
-);
-
-COMMENT ON TABLE public.clients IS 'Client records managed by advisors. Clients can have login accounts in profiles table.';
-
--- =====================================================
--- 4. HOLDINGS (Client Investments)
+-- 3. HOLDINGS - Linked to profiles.id directly
 -- =====================================================
 CREATE TABLE public.holdings (
   id uuid NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
-  client_id uuid NOT NULL REFERENCES public.clients(id) ON DELETE CASCADE,
+  user_id uuid NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
   scheme_code text REFERENCES public.mutual_funds(code),
   units numeric NOT NULL DEFAULT 0,
   average_price numeric NOT NULL DEFAULT 0,
@@ -100,17 +78,15 @@ CREATE TABLE public.holdings (
   current_nav numeric,
   created_at timestamptz DEFAULT now(),
   updated_at timestamptz DEFAULT now(),
-  UNIQUE (client_id, scheme_code)
+  UNIQUE (user_id, scheme_code)
 );
 
-COMMENT ON TABLE public.holdings IS 'Holdings of mutual funds per client';
-
 -- =====================================================
--- 5. TRANSACTIONS
+-- 4. TRANSACTIONS
 -- =====================================================
 CREATE TABLE public.transactions (
   id uuid NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
-  client_id uuid NOT NULL REFERENCES public.clients(id) ON DELETE CASCADE,
+  user_id uuid NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
   scheme_code text REFERENCES public.mutual_funds(code),
   type text CHECK (type IN ('buy', 'sell', 'sip', 'switch')) NOT NULL,
   amount numeric NOT NULL,
@@ -121,14 +97,12 @@ CREATE TABLE public.transactions (
   created_at timestamptz DEFAULT now()
 );
 
-COMMENT ON TABLE public.transactions IS 'Transaction history for all client investments';
-
 -- =====================================================
--- 6. SIPS (Systematic Investment Plans)
+-- 5. SIPS (Systematic Investment Plans)
 -- =====================================================
 CREATE TABLE public.sips (
   id uuid NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
-  client_id uuid NOT NULL REFERENCES public.clients(id) ON DELETE CASCADE,
+  user_id uuid NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
   scheme_code text REFERENCES public.mutual_funds(code),
   amount numeric NOT NULL,
   frequency text CHECK (frequency IN ('monthly', 'quarterly', 'weekly')) DEFAULT 'monthly',
@@ -139,10 +113,8 @@ CREATE TABLE public.sips (
   updated_at timestamptz DEFAULT now()
 );
 
-COMMENT ON TABLE public.sips IS 'SIP configurations for clients';
-
 -- =====================================================
--- 7. NOTIFICATIONS
+-- 6. NOTIFICATIONS
 -- =====================================================
 CREATE TABLE public.notifications (
   id uuid NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -154,185 +126,155 @@ CREATE TABLE public.notifications (
   created_at timestamptz DEFAULT now()
 );
 
-COMMENT ON TABLE public.notifications IS 'In-app notifications for users';
-
 -- =====================================================
--- ROW LEVEL SECURITY (RLS) POLICIES
+-- ROW LEVEL SECURITY (RLS)
 -- =====================================================
 
--- Enable RLS on all tables
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.mutual_funds ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.clients ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.holdings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.transactions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.sips ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
 
--- PROFILES: Users can only access their own profile
-CREATE POLICY "Users can view their own profile"
+-- PROFILES POLICIES
+-- Users can view their own profile
+CREATE POLICY "Users can view own profile"
   ON public.profiles FOR SELECT
   USING (auth.uid() = id);
 
-CREATE POLICY "Users can update their own profile"
+-- Admins can view their clients' profiles
+CREATE POLICY "Admins can view their clients"
+  ON public.profiles FOR SELECT
+  USING (advisor_id = auth.uid());
+
+-- Users can update their own profile
+CREATE POLICY "Users can update own profile"
   ON public.profiles FOR UPDATE
   USING (auth.uid() = id);
 
-CREATE POLICY "Users can insert their own profile"
+-- Admins can update their clients' profiles
+CREATE POLICY "Admins can update their clients"
+  ON public.profiles FOR UPDATE
+  USING (advisor_id = auth.uid());
+
+-- Users can insert their own profile (for trigger)
+CREATE POLICY "Users can insert own profile"
   ON public.profiles FOR INSERT
   WITH CHECK (auth.uid() = id);
 
--- MUTUAL FUNDS: All authenticated users can view
-CREATE POLICY "Authenticated users can view mutual funds"
+-- Admins can insert client profiles (requires service role in practice)
+CREATE POLICY "Admins can insert client profiles"
+  ON public.profiles FOR INSERT
+  WITH CHECK (advisor_id = auth.uid());
+
+-- MUTUAL FUNDS - Everyone can read
+CREATE POLICY "Anyone can read mutual funds"
   ON public.mutual_funds FOR SELECT
   TO authenticated
   USING (true);
 
-CREATE POLICY "Authenticated users can insert mutual funds"
+CREATE POLICY "Authenticated can insert mutual funds"
   ON public.mutual_funds FOR INSERT
   TO authenticated
   WITH CHECK (true);
 
-CREATE POLICY "Authenticated users can update mutual funds"
+CREATE POLICY "Authenticated can update mutual funds"
   ON public.mutual_funds FOR UPDATE
   TO authenticated
   USING (true);
 
--- CLIENTS: Advisors see their clients, Admins see all, Clients see their own record
-CREATE POLICY "Advisors can view their own clients"
-  ON public.clients FOR SELECT
-  TO authenticated
-  USING (advisor_id = auth.uid());
-
-
-
-CREATE POLICY "Clients can view their own record"
-  ON public.clients FOR SELECT
-  TO authenticated
-  USING (
-    email = (SELECT email FROM public.profiles WHERE id = auth.uid())
-  );
-
-CREATE POLICY "Advisors can insert their own clients"
-  ON public.clients FOR INSERT
-  TO authenticated
-  WITH CHECK (advisor_id = auth.uid());
-
-CREATE POLICY "Advisors can update their own clients"
-  ON public.clients FOR UPDATE
-  TO authenticated
-  USING (advisor_id = auth.uid());
-
-CREATE POLICY "Advisors can delete their own clients"
-  ON public.clients FOR DELETE
-  TO authenticated
-  USING (advisor_id = auth.uid());
-
--- HOLDINGS: Access via client relationship
-CREATE POLICY "Advisors can view holdings of their clients"
+-- HOLDINGS POLICIES
+-- Users can see their own holdings
+CREATE POLICY "Users can view own holdings"
   ON public.holdings FOR SELECT
-  TO authenticated
+  USING (auth.uid() = user_id);
+
+-- Admins can see their clients' holdings
+CREATE POLICY "Admins can view client holdings"
+  ON public.holdings FOR SELECT
   USING (EXISTS (
-    SELECT 1 FROM public.clients
-    WHERE clients.id = holdings.client_id
-    AND clients.advisor_id = auth.uid()
+    SELECT 1 FROM public.profiles
+    WHERE profiles.id = holdings.user_id
+    AND profiles.advisor_id = auth.uid()
   ));
 
-CREATE POLICY "Clients can view their own holdings"
-  ON public.holdings FOR SELECT
-  TO authenticated
-  USING (EXISTS (
-    SELECT 1 FROM public.clients
-    WHERE clients.id = holdings.client_id
-    AND clients.email = (SELECT email FROM public.profiles WHERE id = auth.uid())
-  ));
-
-CREATE POLICY "Advisors can manage holdings of their clients"
+-- Users/Admins can manage holdings
+CREATE POLICY "Users can manage own holdings"
   ON public.holdings FOR ALL
-  TO authenticated
+  USING (auth.uid() = user_id);
+
+CREATE POLICY "Admins can manage client holdings"
+  ON public.holdings FOR ALL
   USING (EXISTS (
-    SELECT 1 FROM public.clients
-    WHERE clients.id = holdings.client_id
-    AND clients.advisor_id = auth.uid()
+    SELECT 1 FROM public.profiles
+    WHERE profiles.id = holdings.user_id
+    AND profiles.advisor_id = auth.uid()
   ));
 
--- TRANSACTIONS: Access via client relationship
-CREATE POLICY "Advisors can view transactions of their clients"
+-- TRANSACTIONS POLICIES (same pattern)
+CREATE POLICY "Users can view own transactions"
   ON public.transactions FOR SELECT
-  TO authenticated
-  USING (EXISTS (
-    SELECT 1 FROM public.clients
-    WHERE clients.id = transactions.client_id
-    AND clients.advisor_id = auth.uid()
-  ));
+  USING (auth.uid() = user_id);
 
-CREATE POLICY "Clients can view their own transactions"
+CREATE POLICY "Admins can view client transactions"
   ON public.transactions FOR SELECT
-  TO authenticated
   USING (EXISTS (
-    SELECT 1 FROM public.clients
-    WHERE clients.id = transactions.client_id
-    AND clients.email = (SELECT email FROM public.profiles WHERE id = auth.uid())
+    SELECT 1 FROM public.profiles
+    WHERE profiles.id = transactions.user_id
+    AND profiles.advisor_id = auth.uid()
   ));
 
-CREATE POLICY "Advisors can manage transactions of their clients"
+CREATE POLICY "Users can manage own transactions"
   ON public.transactions FOR ALL
-  TO authenticated
+  USING (auth.uid() = user_id);
+
+CREATE POLICY "Admins can manage client transactions"
+  ON public.transactions FOR ALL
   USING (EXISTS (
-    SELECT 1 FROM public.clients
-    WHERE clients.id = transactions.client_id
-    AND clients.advisor_id = auth.uid()
+    SELECT 1 FROM public.profiles
+    WHERE profiles.id = transactions.user_id
+    AND profiles.advisor_id = auth.uid()
   ));
 
--- SIPS: Access via client relationship
-CREATE POLICY "Advisors can view SIPs of their clients"
+-- SIPS POLICIES (same pattern)
+CREATE POLICY "Users can view own SIPs"
   ON public.sips FOR SELECT
-  TO authenticated
-  USING (EXISTS (
-    SELECT 1 FROM public.clients
-    WHERE clients.id = sips.client_id
-    AND clients.advisor_id = auth.uid()
-  ));
+  USING (auth.uid() = user_id);
 
-CREATE POLICY "Clients can view their own SIPs"
+CREATE POLICY "Admins can view client SIPs"
   ON public.sips FOR SELECT
-  TO authenticated
   USING (EXISTS (
-    SELECT 1 FROM public.clients
-    WHERE clients.id = sips.client_id
-    AND clients.email = (SELECT email FROM public.profiles WHERE id = auth.uid())
+    SELECT 1 FROM public.profiles
+    WHERE profiles.id = sips.user_id
+    AND profiles.advisor_id = auth.uid()
   ));
 
-CREATE POLICY "Advisors can manage SIPs of their clients"
+CREATE POLICY "Users can manage own SIPs"
   ON public.sips FOR ALL
-  TO authenticated
+  USING (auth.uid() = user_id);
+
+CREATE POLICY "Admins can manage client SIPs"
+  ON public.sips FOR ALL
   USING (EXISTS (
-    SELECT 1 FROM public.clients
-    WHERE clients.id = sips.client_id
-    AND clients.advisor_id = auth.uid()
+    SELECT 1 FROM public.profiles
+    WHERE profiles.id = sips.user_id
+    AND profiles.advisor_id = auth.uid()
   ));
 
--- NOTIFICATIONS: Users see their own
-CREATE POLICY "Users can view their own notifications"
+-- NOTIFICATIONS POLICIES
+CREATE POLICY "Users can view own notifications"
   ON public.notifications FOR SELECT
-  TO authenticated
   USING (auth.uid() = user_id);
 
-CREATE POLICY "Users can update their own notifications"
-  ON public.notifications FOR UPDATE
-  TO authenticated
+CREATE POLICY "Users can manage own notifications"
+  ON public.notifications FOR ALL
   USING (auth.uid() = user_id);
 
-CREATE POLICY "Users can insert their own notifications"
-  ON public.notifications FOR INSERT
-  TO authenticated
-  WITH CHECK (auth.uid() = user_id);
-
 -- =====================================================
--- TRIGGERS AND FUNCTIONS
+-- TRIGGERS
 -- =====================================================
 
--- Function to update updated_at timestamp
 CREATE OR REPLACE FUNCTION public.handle_updated_at()
 RETURNS trigger AS $$
 BEGIN
@@ -341,13 +283,8 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Apply updated_at trigger to all relevant tables
 CREATE TRIGGER handle_updated_at_profiles
   BEFORE UPDATE ON public.profiles
-  FOR EACH ROW EXECUTE FUNCTION public.handle_updated_at();
-
-CREATE TRIGGER handle_updated_at_clients
-  BEFORE UPDATE ON public.clients
   FOR EACH ROW EXECUTE FUNCTION public.handle_updated_at();
 
 CREATE TRIGGER handle_updated_at_holdings
@@ -359,8 +296,7 @@ CREATE TRIGGER handle_updated_at_sips
   FOR EACH ROW EXECUTE FUNCTION public.handle_updated_at();
 
 -- =====================================================
--- AUTO-CREATE PROFILE ON USER SIGNUP
--- This trigger creates a profile when a user signs up
+-- AUTO-CREATE PROFILE ON SIGNUP
 -- =====================================================
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS trigger
@@ -369,50 +305,45 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 DECLARE
-  new_role text := 'advisor';
+  new_role text := 'admin';
+  new_advisor_id uuid := NULL;
 BEGIN
-  -- Check if role is provided in metadata (e.g. created via API)
+  -- Check metadata for role (set by API when creating clients)
   IF NEW.raw_user_meta_data->>'role' = 'client' THEN
     new_role := 'client';
+    new_advisor_id := (NEW.raw_user_meta_data->>'advisor_id')::uuid;
   END IF;
 
-  INSERT INTO public.profiles (id, email, full_name, role)
+  INSERT INTO public.profiles (id, email, full_name, role, advisor_id)
   VALUES (
     NEW.id, 
     COALESCE(NEW.email, ''), 
     COALESCE(NEW.raw_user_meta_data->>'full_name', 'User'), 
-    new_role
+    new_role,
+    new_advisor_id
   );
   RETURN NEW;
 EXCEPTION
   WHEN unique_violation THEN
-    -- Profile already exists, that's fine
     RETURN NEW;
   WHEN others THEN
-    -- Log but don't fail
     RAISE WARNING 'handle_new_user failed: %', SQLERRM;
     RETURN NEW;
 END;
 $$;
 
--- Trigger on auth.users table
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
 
 -- =====================================================
--- SETUP COMPLETE!
--- =====================================================
+-- DONE! 
 -- 
--- NEXT STEPS:
--- 1. Run this entire script in Supabase SQL Editor
--- 2. Go to Authentication > Providers > Email
--- 3. Disable "Confirm email" for testing (optional)
--- 4. Register a new user via the app (Sign Up).
---    They will automatically be an 'advisor' and have full access.
---    No manual SQL update is needed.
---
--- TESTING:
--- Register as advisor -> Manage Clients -> Add Client.
--- Then log in as Client to see their dashboard.
+-- New simplified flow:
+-- 1. Admin signs up -> gets profile with role='admin'
+-- 2. Admin creates client via API -> auth user created with 
+--    metadata {role: 'client', advisor_id: admin's id}
+-- 3. Trigger creates profile with role='client', advisor_id set
+-- 4. Client can login and see their dashboard
+-- 5. Admin can see all their clients in profiles table
 -- =====================================================

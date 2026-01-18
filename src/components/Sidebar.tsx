@@ -22,16 +22,16 @@ import {
 } from 'lucide-react';
 
 const menuItems = [
-    { icon: LayoutDashboard, label: 'Dashboard', href: '/admin-dashboard', roles: ['admin', 'advisor'] },
+    { icon: LayoutDashboard, label: 'Dashboard', href: '/admin-dashboard', roles: ['admin'] },
     { icon: LayoutDashboard, label: 'My Dashboard', href: '/client-dashboard', roles: ['client'] },
-    { icon: Users, label: 'Clients', href: '/clients', roles: ['admin', 'advisor'] },
-    { icon: UserPlus, label: 'Manage Clients', href: '/manage', roles: ['admin', 'advisor'] },
-    { icon: BarChart3, label: 'Portfolio', href: '/portfolio', roles: ['admin', 'advisor', 'client'] },
-    { icon: Scale, label: 'Compare Funds', href: '/compare', roles: ['admin', 'advisor'] },
-    { icon: Calculator, label: 'Calculators', href: '/calculators', roles: ['admin', 'advisor', 'client'] },
-    { icon: PiggyBank, label: 'Mutual Funds', href: '/mutual-funds', roles: ['admin', 'advisor'] },
-    { icon: Clock, label: 'History', href: '/history', roles: ['admin', 'advisor'] },
-    { icon: Settings, label: 'Settings', href: '/settings', roles: ['admin', 'advisor', 'client'] },
+    { icon: Users, label: 'Clients', href: '/clients', roles: ['admin'] },
+    { icon: UserPlus, label: 'Manage Clients', href: '/manage', roles: ['admin'] },
+    { icon: BarChart3, label: 'Portfolio', href: '/portfolio', roles: ['admin', 'client'] },
+    { icon: Scale, label: 'Compare Funds', href: '/compare', roles: ['admin'] },
+    { icon: Calculator, label: 'Calculators', href: '/calculators', roles: ['admin', 'client'] },
+    { icon: PiggyBank, label: 'Mutual Funds', href: '/mutual-funds', roles: ['admin'] },
+    { icon: Clock, label: 'History', href: '/history', roles: ['admin'] },
+    { icon: Settings, label: 'Settings', href: '/settings', roles: ['admin', 'client'] },
 ];
 
 export default function Sidebar() {

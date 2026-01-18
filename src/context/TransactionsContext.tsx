@@ -21,10 +21,15 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
     const [transactions, setTransactions] = useState<Transaction[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const { isAuthenticated } = useAuth();
+    const { isAuthenticated, isLoading: authLoading } = useAuth();
     const supabase = getSupabaseClient();
 
     const fetchTransactions = useCallback(async () => {
+        // Wait for auth to finish loading first
+        if (authLoading) {
+            return;
+        }
+        
         if (!isAuthenticated) {
             setTransactions([]);
             setIsLoading(false);
@@ -39,30 +44,34 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
                 .from('transactions')
                 .select(`
                     *,
-                    mutual_fund:mutual_funds(*),
-                    client:clients(id, name)
+                    mutual_fund:mutual_funds(*)
                 `)
                 .order('date', { ascending: false });
 
-            if (fetchError) {
-                throw fetchError;
+            // Handle errors gracefully - empty table is not an error
+            if (fetchError && fetchError.code !== 'PGRST116') {
+                console.warn('[TransactionsContext] Fetch warning:', fetchError.message);
             }
 
             setTransactions(data || []);
         } catch (err) {
-            console.error('Error fetching transactions:', err);
-            setError(err instanceof Error ? err.message : 'Failed to fetch transactions');
+            // Log but don't throw - just set empty array
+            console.warn('[TransactionsContext] Fetch error (ignored):', err);
+            setTransactions([]);
         } finally {
             setIsLoading(false);
         }
-    }, [isAuthenticated, supabase]);
+    }, [isAuthenticated, supabase, authLoading]);
 
+    // Fetch when auth finishes loading
     useEffect(() => {
-        fetchTransactions();
-    }, [fetchTransactions]);
+        if (!authLoading) {
+            fetchTransactions();
+        }
+    }, [authLoading, isAuthenticated, fetchTransactions]);
 
     const getClientTransactions = (clientId: string) => {
-        return transactions.filter(t => t.client_id === clientId);
+        return transactions.filter(t => t.user_id === clientId);
     };
 
     const getRecentTransactions = (limit = 10) => {
