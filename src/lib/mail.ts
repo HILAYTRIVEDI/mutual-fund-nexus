@@ -15,7 +15,7 @@ function getResendClient(): Resend {
 }
 
 // Default from address (configured in environment)
-const FROM_EMAIL = process.env.EMAIL_FROM || 'Mutual Fund Nexus <noreply@mutualfundnexus.com>';
+const FROM_EMAIL = process.env.EMAIL_FROM || 'RuaCapital <noreply@ruacapital.com>';
 
 interface SIPReminderData {
   clientName: string;
@@ -70,7 +70,7 @@ function generateSIPReminderHTML(data: SIPReminderData): string {
           <tr>
             <td>
               <h1 style="margin: 0; font-size: 28px; font-weight: 700; background: linear-gradient(135deg, #48cae4 0%, #8B5CF6 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">
-                💰 Mutual Fund Nexus
+                💰 RuaCapital
               </h1>
             </td>
           </tr>
@@ -149,7 +149,7 @@ function generateSIPReminderHTML(data: SIPReminderData): string {
           <tr>
             <td align="center">
               <p style="margin: 0 0 8px 0; font-size: 14px; color: #9CA3AF;">
-                ${data.advisorName ? `Your Advisor: ${data.advisorName}` : 'Mutual Fund Nexus'}
+                ${data.advisorName ? `Your Advisor: ${data.advisorName}` : 'RuaCapital'}
               </p>
               <p style="margin: 0; font-size: 12px; color: #6B7280;">
                 This is an automated reminder. Please do not reply to this email.
@@ -186,7 +186,7 @@ function generateSIPExecutedHTML(data: SIPExecutedData): string {
           <tr>
             <td>
               <h1 style="margin: 0; font-size: 28px; font-weight: 700; background: linear-gradient(135deg, #48cae4 0%, #8B5CF6 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">
-                💰 Mutual Fund Nexus
+                💰 RuaCapital
               </h1>
             </td>
           </tr>
@@ -281,7 +281,7 @@ function generateSIPExecutedHTML(data: SIPExecutedData): string {
           <tr>
             <td align="center">
               <p style="margin: 0 0 8px 0; font-size: 14px; color: #9CA3AF;">
-                ${data.advisorName ? `Your Advisor: ${data.advisorName}` : 'Mutual Fund Nexus'}
+                ${data.advisorName ? `Your Advisor: ${data.advisorName}` : 'RuaCapital'}
               </p>
               <p style="margin: 0; font-size: 12px; color: #6B7280;">
                 This is an automated notification. Please do not reply to this email.
@@ -353,7 +353,7 @@ export async function sendTestEmail(to: string): Promise<{ success: boolean; err
     const { error } = await getResendClient().emails.send({
       from: FROM_EMAIL,
       to,
-      subject: '🧪 Test Email from Mutual Fund Nexus',
+      subject: '🧪 Test Email from RuaCapital',
       html: `
         <div style="font-family: sans-serif; padding: 20px; background: #0a0e14; color: #ffffff;">
           <h1 style="color: #48cae4;">Email Configuration Working! 🎉</h1>

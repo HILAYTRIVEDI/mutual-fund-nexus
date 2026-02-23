@@ -15,7 +15,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     const [theme, setTheme] = useState<Theme>(() => {
         // Only run on client
         if (typeof window !== 'undefined') {
-            const savedTheme = localStorage.getItem('mf-nexus-theme') as Theme;
+            const savedTheme = localStorage.getItem('ruacapital-theme') as Theme;
             if (savedTheme) {
                 document.documentElement.setAttribute('data-theme', savedTheme);
                 return savedTheme;
@@ -27,7 +27,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     const toggleTheme = () => {
         const newTheme = theme === 'dark' ? 'light' : 'dark';
         setTheme(newTheme);
-        localStorage.setItem('mf-nexus-theme', newTheme);
+        localStorage.setItem('ruacapital-theme', newTheme);
         document.documentElement.setAttribute('data-theme', newTheme);
     };
 

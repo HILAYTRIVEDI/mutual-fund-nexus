@@ -18,7 +18,7 @@ interface Guide {
 const guides: Guide[] = [
     {
         id: '1',
-        title: 'Getting Started with MF Nexus',
+        title: 'Getting Started with RuaCapital',
         description: 'Learn the basics of the platform and set up your first client in minutes.',
         category: 'Beginner',
         duration: '5 min read',
@@ -137,7 +137,7 @@ export default function HelpPage() {
                 <header className="mb-4 md:mb-8 pr-12 md:pr-0">
                     <h1 className="text-xl md:text-2xl font-bold mb-1 md:mb-2">Quick Guides</h1>
                     <p className="text-[var(--text-secondary)] text-xs md:text-sm">
-                        Step-by-step tutorials to help you get the most out of MF Nexus
+                        Step-by-step tutorials to help you get the most out of RuaCapital
                     </p>
                 </header>
 

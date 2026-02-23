@@ -1,4 +1,4 @@
-# 💰 Mutual Fund Nexus
+# 💰 RuaCapital
 
 A comprehensive mutual fund portfolio management platform for financial advisors and their clients. Built with **Next.js 16**, **React 19**, **Supabase**, and **Tailwind CSS**.
 
@@ -69,8 +69,8 @@ A comprehensive mutual fund portfolio management platform for financial advisors
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/yourusername/mutual-fund-nexus.git
-   cd mutual-fund-nexus
+   git clone https://github.com/yourusername/ruacapital.git
+   cd ruacapital
    ```
 
 2. **Install dependencies**

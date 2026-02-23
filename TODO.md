@@ -1,4 +1,4 @@
-# Mutual Fund Nexus - Feature Roadmap
+# RuaCapital - Feature Roadmap
 
 ## ✅ Completed Features
 - [x] Dashboard with AUM chart, Asset Allocation, Top Holdings

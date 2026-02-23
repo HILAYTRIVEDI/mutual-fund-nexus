@@ -1,5 +1,5 @@
 -- =====================================================
--- MUTUAL FUND NEXUS - SIMPLIFIED DATABASE SETUP
+-- RUACAPITAL - SIMPLIFIED DATABASE SETUP
 -- 
 -- SIMPLIFIED MODEL:
 -- - profiles: ALL users (admin & client) in one table

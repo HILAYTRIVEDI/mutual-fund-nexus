@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document explains how authentication and database access work in Mutual Fund Nexus.
+This document explains how authentication and database access work in RuaCapital.
 
 ---
 
@@ -134,7 +134,7 @@ SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 
 # Email (optional - for SIP alerts)
 RESEND_API_KEY=re_xxx
-EMAIL_FROM=Mutual Fund Nexus <noreply@yourdomain.com>
+EMAIL_FROM=RuaCapital <noreply@yourdomain.com>
 ```
 
 ---

@@ -16,7 +16,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Mutual Fund Nexus - Investment Dashboard",
+  title: "RuaCapital - Investment Dashboard",
   description: "Premium mutual fund portfolio management dashboard",
 };
 

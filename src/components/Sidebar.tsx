@@ -70,9 +70,9 @@ export default function Sidebar() {
             {/* Logo */}
             <div className="mb-8 md:mb-10">
                 <h1 className="text-xl font-bold text-[var(--text-primary)] tracking-tight">
-                    <span className="bg-gradient-to-r from-[var(--accent-mint)] to-[#90e0ef] bg-clip-text text-transparent">MF</span> Nexus
+                    <span className="bg-gradient-to-r from-[var(--accent-mint)] to-[#90e0ef] bg-clip-text text-transparent">Rua</span>Capital
                 </h1>
-                <p className="text-[var(--text-secondary)] text-xs mt-1">Mutual Fund Portfolio</p>
+                <p className="text-[var(--text-secondary)] text-xs mt-1">Investment Dashboard</p>
             </div>
 
             {/* Navigation */}
