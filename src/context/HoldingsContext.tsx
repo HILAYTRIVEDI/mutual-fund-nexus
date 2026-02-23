@@ -80,39 +80,51 @@ export function HoldingsProvider({ children }: { children: ReactNode }) {
                 return;
             }
 
-            // Fetch current NAVs and calculate values
-            const holdingsWithValues: HoldingWithValue[] = await Promise.all(
-                data.map(async (holding: any) => {
-                    let currentNav = holding.mutual_fund?.current_nav || 0;
-                    
-                    // Try to fetch latest NAV from MFAPI if we have a scheme code
-                    if (holding.scheme_code) {
-                        try {
-                            const navData = await getSchemeLatestNAV(parseInt(holding.scheme_code));
-                            if (navData.data?.[0]?.nav) {
-                                currentNav = parseFloat(navData.data[0].nav);
-                            }
-                        } catch {
-                            // Use cached NAV from database
+            // Batch NAV fetch: collect unique scheme codes and fetch each only once
+            const uniqueSchemeCodes = [...new Set(
+                data.map((h: any) => h.scheme_code).filter(Boolean) as string[]
+            )];
+
+            // Fetch NAVs in parallel — one request per unique scheme code
+            const navCache: Record<string, number> = {};
+            await Promise.all(
+                uniqueSchemeCodes.map(async (code) => {
+                    // Skip custom funds (no MFAPI data)
+                    if (code.startsWith('CUSTOM-')) return;
+                    try {
+                        const navData = await getSchemeLatestNAV(parseInt(code));
+                        if (navData?.data?.[0]?.nav) {
+                            navCache[code] = parseFloat(navData.data[0].nav);
                         }
+                    } catch {
+                        // MFAPI unavailable — will fall back to DB-cached NAV
                     }
-
-                    const currentValue = holding.units * currentNav;
-                    const investedAmount = holding.invested_amount || 0;
-                    const gainLoss = currentValue - investedAmount;
-                    const gainLossPercentage = investedAmount > 0 
-                        ? (gainLoss / investedAmount) * 100 
-                        : 0;
-
-                    return {
-                        ...holding,
-                        current_nav: currentNav,
-                        current_value: currentValue,
-                        gain_loss: gainLoss,
-                        gain_loss_percentage: gainLossPercentage,
-                    };
                 })
             );
+
+            // Map holdings with cached NAV values
+            const holdingsWithValues: HoldingWithValue[] = data.map((holding: any) => {
+                const code = holding.scheme_code;
+                // Priority: live MFAPI cache → DB-joined mutual_fund record → 0
+                const currentNav = (code && navCache[code])
+                    ? navCache[code]
+                    : (holding.mutual_fund?.current_nav || 0);
+
+                const currentValue = holding.units * currentNav;
+                const investedAmount = holding.invested_amount || 0;
+                const gainLoss = currentValue - investedAmount;
+                const gainLossPercentage = investedAmount > 0 
+                    ? (gainLoss / investedAmount) * 100 
+                    : 0;
+
+                return {
+                    ...holding,
+                    current_nav: currentNav,
+                    current_value: currentValue,
+                    gain_loss: gainLoss,
+                    gain_loss_percentage: gainLossPercentage,
+                };
+            });
 
             setHoldings(holdingsWithValues);
         } catch (err) {

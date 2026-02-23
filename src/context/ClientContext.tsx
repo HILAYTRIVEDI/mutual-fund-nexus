@@ -188,8 +188,19 @@ export function ClientProvider({ children }: { children: ReactNode }) {
 
     const deleteClient = async (id: string): Promise<{ success: boolean; error?: string }> => {
         try {
-            // Hard delete the profile (allowed by RLS 'Admins can delete client profiles')
-            // This leaves the Auth User but removes the profile and data access
+            // Forcefully delete all related data to prevent orphan data / foreign key constraint errors
+            // This is safer in case ON DELETE CASCADE is missing or improperly configured in the DB.
+            const [holdingsRes, sipsRes, txRes] = await Promise.all([
+                supabase.from('holdings').delete().eq('user_id', id),
+                supabase.from('sips').delete().eq('user_id', id),
+                supabase.from('transactions').delete().eq('user_id', id)
+            ]);
+
+            if (holdingsRes.error) console.warn('Holdings drop error:', holdingsRes.error);
+            if (sipsRes.error) console.warn('SIPs drop error:', sipsRes.error);
+            if (txRes.error) console.warn('Tx drop error:', txRes.error);
+
+            // Now delete the profile
             const { error: deleteError } = await (supabase
                 .from('profiles') as any)
                 .delete()

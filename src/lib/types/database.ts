@@ -83,6 +83,8 @@ export interface SIP {
   start_date: string;
   next_execution_date: string | null;
   status: 'active' | 'paused' | 'cancelled';
+  step_up_amount?: number;
+  step_up_interval?: 'Yearly' | 'Half-Yearly' | 'Quarterly';
   created_at: string;
   updated_at: string;
   // Joined data

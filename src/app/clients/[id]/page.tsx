@@ -32,9 +32,9 @@ export default function ClientDetailPage() {
     
     const { ltcgTax, stcgTax } = useSettings();
     const { clients, deleteClient, isLoading: clientsLoading } = useClientContext();
-    const { holdings } = useHoldings();
-    const { sips } = useSIPs();
-    const { transactions } = useTransactions();
+    const { holdings, deleteHolding, refreshHoldings } = useHoldings();
+    const { sips, cancelSIP, refreshSIPs } = useSIPs();
+    const { transactions, refreshTransactions } = useTransactions();
     
     const [activeTab, setActiveTab] = useState<'investments' | 'transactions' | 'notes'>('investments');
     const [notes, setNotes] = useState('');
@@ -63,9 +63,31 @@ export default function ClientDetailPage() {
         if (confirm('Are you sure you want to delete this client? This action cannot be undone.')) {
             const result = await deleteClient(clientId);
             if (result.success) {
+                // Refresh all related contexts to remove local state of Holdings/SIPs/Transactions
+                Promise.all([refreshHoldings(), refreshSIPs(), refreshTransactions()]).catch(console.error);
                 router.replace('/manage');
             } else {
                 alert('Failed to delete client: ' + (result.error || 'Unknown error'));
+            }
+        }
+    };
+
+    const handleDeleteInvestment = async (holdingId: string, schemeCode: string | null) => {
+        const fundName = clientHoldings.find(h => h.id === holdingId)?.mutual_fund?.name || schemeCode || 'this fund';
+        if (!confirm(`Remove investment in "${fundName}"? This will delete the holding and cancel any active SIP for this fund.`)) return;
+
+        // Delete holding
+        const result = await deleteHolding(holdingId);
+        if (!result.success) {
+            alert('Failed to remove investment: ' + (result.error || 'Unknown error'));
+            return;
+        }
+
+        // Cancel any active SIP for the same user + scheme
+        if (schemeCode) {
+            const matchingSips = clientSIPs.filter(s => s.scheme_code === schemeCode && s.status === 'active');
+            for (const sip of matchingSips) {
+                await cancelSIP(sip.id);
             }
         }
     };
@@ -302,7 +324,8 @@ export default function ClientDetailPage() {
                                         <div className="col-span-2 text-[var(--text-secondary)] text-xs font-medium uppercase text-right">Invested</div>
                                         <div className="col-span-2 text-[var(--text-secondary)] text-xs font-medium uppercase text-right">Current</div>
                                         <div className="col-span-2 text-[var(--text-secondary)] text-xs font-medium uppercase text-right">Returns</div>
-                                        <div className="col-span-2 text-[var(--text-secondary)] text-xs font-medium uppercase text-center">Units</div>
+                                        <div className="col-span-1 text-[var(--text-secondary)] text-xs font-medium uppercase text-center">Units</div>
+                                        <div className="col-span-1 text-[var(--text-secondary)] text-xs font-medium uppercase text-center"></div>
                                     </div>
                                     <div className="divide-y divide-[var(--border-primary)]">
                                         {clientHoldings.map((holding) => {
@@ -337,10 +360,19 @@ export default function ClientDetailPage() {
                                                             {returns.returnAmount >= 0 ? '+' : ''}{formatCurrency(returns.returnAmount)}
                                                         </p>
                                                     </div>
-                                                    <div className="col-span-2 flex items-center justify-center">
+                                                    <div className="col-span-1 flex items-center justify-center">
                                                         <span className="text-[var(--text-primary)] text-sm">
                                                             {holding.units.toFixed(3)}
                                                         </span>
+                                                    </div>
+                                                    <div className="col-span-1 flex items-center justify-center">
+                                                        <button
+                                                            onClick={() => handleDeleteInvestment(holding.id, holding.scheme_code)}
+                                                            className="p-1.5 rounded-lg text-[var(--text-secondary)] hover:text-[var(--accent-red)] hover:bg-[var(--accent-red)]/10 transition-colors"
+                                                            title="Remove investment"
+                                                        >
+                                                            <Trash2 size={14} />
+                                                        </button>
                                                     </div>
                                                 </div>
                                             );

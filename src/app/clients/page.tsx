@@ -83,8 +83,13 @@ function ClientsPageContent() {
 
             const entries = [];
 
+            // Only split into SIP/Lumpsum if they actually have a current balance, 
+            // OR if they have no balance but an active SIP is set up.
+            const hasActiveBalance = totalInvested > 0;
+            const hasActiveSIPRecord = clientSips.some(s => s.status === 'active');
+
             // Add SIP Entry if applicable
-            if (sipInvestedRaw > 0 || (clientSips.some(s => s.status === 'active') && lumpInvestedRaw === 0 && totalInvested === 0)) {
+            if ((sipInvestedRaw > 0 && hasActiveBalance) || hasActiveSIPRecord) {
                 // Determine metrics (Pro-rated)
                 const invested = totalInvested * sipRatio;
                 const current = totalCurrentValue * sipRatio;
@@ -107,7 +112,7 @@ function ClientsPageContent() {
             }
 
             // Add Lumpsum Entry if applicable
-            if (lumpInvestedRaw > 0) {
+            if (lumpInvestedRaw > 0 && hasActiveBalance) {
                  const invested = totalInvested * lumpRatio;
                  const current = totalCurrentValue * lumpRatio;
                  const pnl = current - invested;

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Search, Plus, Trash2, X, UserPlus, PiggyBank, Loader2, Check, Edit2, Key, Copy, ShieldCheck, Eye, EyeOff } from 'lucide-react';
+import { Search, Plus, Trash2, X, UserPlus, PiggyBank, Loader2, Check, Edit2, Key, Copy, ShieldCheck, Eye, EyeOff, TrendingUp } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
 import { searchSchemes, type MutualFundScheme, getSchemeLatestNAV } from '@/lib/mfapi';
 import { useClientContext, type Client } from '@/context/ClientContext';
@@ -32,9 +32,9 @@ const generatePassword = (pan: string, aadhar: string) => {
 
 function ManageClientsContent() {
     const { clients, addClient, updateClient, deleteClient } = useClientContext();
-    const { addHolding } = useHoldings();
-    const { addSIP } = useSIPs();
-    const { addTransaction } = useTransactions();
+    const { addHolding, refreshHoldings } = useHoldings();
+    const { addSIP, refreshSIPs } = useSIPs();
+    const { addTransaction, refreshTransactions } = useTransactions();
     const searchParams = useSearchParams();
     const router = useRouter();
     
@@ -59,6 +59,11 @@ function ManageClientsContent() {
         startDate: '',
         schemeCode: 0,
         schemeName: '',
+        stepUpAmount: '',
+        stepUpInterval: 'Yearly' as 'Yearly' | 'Half-Yearly' | 'Quarterly',
+        isCustomFund: false,
+        customFundName: '',
+        customFundNAV: '',
     });
 
     // Fund search state
@@ -145,7 +150,8 @@ function ManageClientsContent() {
         }
 
         // If a fund is selected, at least one investment type should have an amount
-        if (formData.schemeCode > 0) {
+        const hasFundSelected = formData.isCustomFund ? formData.customFundName.trim() !== '' : formData.schemeCode > 0;
+        if (hasFundSelected) {
             const hasLumpsum = formData.amount && parseFloat(formData.amount) > 0;
             const hasSIP = formData.sipAmount && parseFloat(formData.sipAmount) > 0;
             
@@ -192,32 +198,42 @@ function ManageClientsContent() {
             }
 
             // If fund was selected, create holdings and transactions (for BOTH new and existing clients)
-            if (targetClientId && formData.schemeCode > 0) {
+            const hasScheme = formData.isCustomFund ? formData.customFundName.trim() !== '' : formData.schemeCode > 0;
+            if (targetClientId && hasScheme) {
                 console.log('Processing investment for client:', targetClientId);
-                console.log('Scheme code:', formData.schemeCode);
-                console.log('Amount:', formData.amount);
-                console.log('SIP Amount:', formData.sipAmount);
                 
                 const supabase = getSupabaseClient();
                 
-                // Fetch latest NAV
+                let effectiveSchemeCode: string;
+                let effectiveSchemeName: string;
                 let currentNav = 10;
-                try {
-                    const navData = await getSchemeLatestNAV(formData.schemeCode);
-                    if (navData?.data?.[0]) {
-                        currentNav = parseFloat(navData.data[0].nav);
+                
+                if (formData.isCustomFund) {
+                    // Custom fund: generate unique code
+                    effectiveSchemeCode = `CUSTOM-${Date.now()}`;
+                    effectiveSchemeName = formData.customFundName.trim();
+                    currentNav = parseFloat(formData.customFundNAV) || 10;
+                } else {
+                    effectiveSchemeCode = formData.schemeCode.toString();
+                    effectiveSchemeName = formData.schemeName;
+                    // Fetch latest NAV from API
+                    try {
+                        const navData = await getSchemeLatestNAV(formData.schemeCode);
+                        if (navData?.data?.[0]) {
+                            currentNav = parseFloat(navData.data[0].nav);
+                        }
+                    } catch (e) {
+                        console.warn('Could not fetch latest NAV, using default', e);
                     }
-                } catch (e) {
-                    console.warn('Could not fetch latest NAV, using default', e);
                 }
 
                 // Upsert mutual fund
                 await (supabase.from('mutual_funds') as any).upsert({
-                    code: formData.schemeCode.toString(),
-                    name: formData.schemeName,
+                    code: effectiveSchemeCode,
+                    name: effectiveSchemeName,
                     category: null,
                     type: null,
-                    fund_house: null,
+                    fund_house: formData.isCustomFund ? 'Custom' : null,
                     current_nav: currentNav,
                     last_updated: new Date().toISOString()
                 });
@@ -252,11 +268,9 @@ function ManageClientsContent() {
                     console.log('Creating initial holding...', { lumpsumAmount, sipFirstAmount, total: totalInitialAmount });
                     const totalUnits = currentNav > 0 ? totalInitialAmount / currentNav : 0;
                     
-                    // Note: This assumes new fund for client. If exists, it might error (unique constraint).
-                    // In a perfect world, we'd check existence and update, but for now we try insert.
                     await addHolding({
                         user_id: targetClientId,
-                        scheme_code: formData.schemeCode.toString(),
+                        scheme_code: effectiveSchemeCode,
                         units: totalUnits,
                         average_price: currentNav,
                     });
@@ -266,7 +280,7 @@ function ManageClientsContent() {
                         const units = currentNav > 0 ? lumpsumAmount / currentNav : 0;
                         await addTransaction({
                             user_id: targetClientId,
-                            scheme_code: formData.schemeCode.toString(),
+                            scheme_code: effectiveSchemeCode,
                             type: 'buy',
                             amount: lumpsumAmount,
                             units: units,
@@ -281,7 +295,7 @@ function ManageClientsContent() {
                         const units = currentNav > 0 ? sipFirstAmount / currentNav : 0;
                         await addTransaction({
                             user_id: targetClientId,
-                            scheme_code: formData.schemeCode.toString(),
+                            scheme_code: effectiveSchemeCode,
                             type: 'sip',
                             amount: sipFirstAmount,
                             units: units,
@@ -295,15 +309,24 @@ function ManageClientsContent() {
                 // Create SIP Record if applicable
                 if (sipAmountInput > 0) {
                     console.log('Setting up SIP record...');
-                    await addSIP({
+                    const sipPayload: any = {
                         user_id: targetClientId,
-                        scheme_code: formData.schemeCode.toString(),
+                        scheme_code: effectiveSchemeCode,
                         amount: sipAmountInput,
                         frequency: 'monthly',
                         start_date: formData.startDate || new Date().toISOString(),
                         next_execution_date: nextExecutionDate.toISOString(),
                         status: 'active'
-                    });
+                    };
+                    
+                    // Add step-up fields if provided
+                    const stepUp = parseFloat(formData.stepUpAmount);
+                    if (stepUp > 0) {
+                        sipPayload.step_up_amount = stepUp;
+                        sipPayload.step_up_interval = formData.stepUpInterval;
+                    }
+                    
+                    await addSIP(sipPayload);
                 }
             }
 
@@ -339,6 +362,11 @@ function ManageClientsContent() {
             startDate: '',
             schemeCode: 0,
             schemeName: '',
+            stepUpAmount: '',
+            stepUpInterval: 'Yearly',
+            isCustomFund: false,
+            customFundName: '',
+            customFundNAV: '',
         });
         setFundSearch('');
         setShowAddModal(true);
@@ -357,9 +385,14 @@ function ManageClientsContent() {
         }
     }, [searchParams, clients, showAddModal, router]);
 
-    const handleDeleteClient = (clientId: string) => {
+    const handleDeleteClient = async (clientId: string) => {
         if (confirm('Are you sure you want to remove this client?')) {
-            deleteClient(clientId);
+            const result = await deleteClient(clientId);
+            if (result.success) {
+                Promise.all([refreshHoldings(), refreshSIPs(), refreshTransactions()]).catch(console.error);
+            } else {
+                alert('Failed to delete client: ' + (result.error || 'Unknown error'));
+            }
         }
     };
 
@@ -377,6 +410,11 @@ function ManageClientsContent() {
             startDate: '',
             schemeCode: 0,
             schemeName: '',
+            stepUpAmount: '',
+            stepUpInterval: 'Yearly',
+            isCustomFund: false,
+            customFundName: '',
+            customFundNAV: '',
         });
         setFundSearch('');
         setFundResults([]);
@@ -730,39 +768,96 @@ function ManageClientsContent() {
 
                             {/* Mutual Fund Search */}
                             <div className="relative" ref={fundDropdownRef}>
-                                <label className="text-[#9CA3AF] text-xs mb-2 block">Select Mutual Fund *</label>
-                                <div className="relative">
-                                    <PiggyBank className="absolute left-4 top-1/2 -translate-y-1/2 text-[#9CA3AF]" size={18} />
-                                    <input
-                                        type="text"
-                                        placeholder="Search mutual funds..."
-                                        value={fundSearch}
-                                        onChange={(e) => { setFundSearch(e.target.value); setShowFundDropdown(true); }}
-                                        onFocus={() => setShowFundDropdown(true)}
-                                        className="w-full pl-12 pr-10 py-2.5 md:py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-[#9CA3AF] focus:outline-none focus:border-[#48cae4]/50 text-sm"
-                                    />
-                                    {fundSearching && (
-                                        <Loader2 className="absolute right-4 top-1/2 -translate-y-1/2 text-[#48cae4] animate-spin" size={18} />
-                                    )}
-                                    {formData.schemeCode > 0 && !fundSearching && (
-                                        <Check className="absolute right-4 top-1/2 -translate-y-1/2 text-[#48cae4]" size={18} />
-                                    )}
-                                </div>
+                                <label className="text-[#9CA3AF] text-xs mb-2 flex items-center justify-between">
+                                    <span>Select Mutual Fund *</span>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setFormData(prev => ({
+                                                ...prev,
+                                                isCustomFund: !prev.isCustomFund,
+                                                schemeCode: 0,
+                                                schemeName: '',
+                                                customFundName: '',
+                                                customFundNAV: '',
+                                            }));
+                                            setFundSearch('');
+                                            setFundResults([]);
+                                        }}
+                                        className="text-[#48cae4] hover:text-[#90e0ef] transition-colors text-[11px] font-medium flex items-center gap-1"
+                                    >
+                                        <Plus size={12} />
+                                        {formData.isCustomFund ? 'Search API Instead' : 'Add Custom Fund'}
+                                    </button>
+                                </label>
 
-                                {/* Fund Results Dropdown */}
-                                {showFundDropdown && fundResults.length > 0 && (
-                                    <div className="absolute z-10 w-full mt-2 bg-[#151A21] border border-white/10 rounded-xl shadow-xl max-h-48 overflow-y-auto">
-                                        {fundResults.map((fund) => (
-                                            <button
-                                                key={fund.schemeCode}
-                                                onClick={() => handleSelectFund(fund)}
-                                                className="w-full text-left px-4 py-3 hover:bg-white/5 transition-colors border-b border-white/5 last:border-0"
-                                            >
-                                                <p className="text-white text-sm truncate">{fund.schemeName}</p>
-                                                <p className="text-[#9CA3AF] text-xs">Code: {fund.schemeCode}</p>
-                                            </button>
-                                        ))}
+                                {formData.isCustomFund ? (
+                                    /* Custom Fund Inputs */
+                                    <div className="space-y-3">
+                                        <div className="p-3 rounded-xl bg-[#48cae4]/5 border border-[#48cae4]/20">
+                                            <p className="text-[10px] text-[#48cae4] mb-2 font-medium uppercase tracking-wider">Custom Fund Details</p>
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                                <div>
+                                                    <label className="text-[#9CA3AF] text-[10px] mb-1 block">Fund Name *</label>
+                                                    <input
+                                                        type="text"
+                                                        placeholder="e.g. ABC Equity Fund"
+                                                        value={formData.customFundName}
+                                                        onChange={(e) => setFormData(prev => ({ ...prev, customFundName: e.target.value }))}
+                                                        className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder-[#9CA3AF] focus:outline-none focus:border-[#48cae4]/50 text-sm"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="text-[#9CA3AF] text-[10px] mb-1 block">Current NAV *</label>
+                                                    <input
+                                                        type="number"
+                                                        step="0.01"
+                                                        placeholder="e.g. 45.50"
+                                                        value={formData.customFundNAV}
+                                                        onChange={(e) => setFormData(prev => ({ ...prev, customFundNAV: e.target.value }))}
+                                                        className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder-[#9CA3AF] focus:outline-none focus:border-[#48cae4]/50 text-sm"
+                                                    />
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
+                                ) : (
+                                    /* API Fund Search */
+                                    <>
+                                        <div className="relative">
+                                            <PiggyBank className="absolute left-4 top-1/2 -translate-y-1/2 text-[#9CA3AF]" size={18} />
+                                            <input
+                                                type="text"
+                                                placeholder="Search mutual funds..."
+                                                value={fundSearch}
+                                                onChange={(e) => { setFundSearch(e.target.value); setShowFundDropdown(true); }}
+                                                onFocus={() => setShowFundDropdown(true)}
+                                                className="w-full pl-12 pr-10 py-2.5 md:py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-[#9CA3AF] focus:outline-none focus:border-[#48cae4]/50 text-sm"
+                                            />
+                                            {fundSearching && (
+                                                <Loader2 className="absolute right-4 top-1/2 -translate-y-1/2 text-[#48cae4] animate-spin" size={18} />
+                                            )}
+                                            {formData.schemeCode > 0 && !fundSearching && (
+                                                <Check className="absolute right-4 top-1/2 -translate-y-1/2 text-[#48cae4]" size={18} />
+                                            )}
+                                        </div>
+
+                                        {/* Fund Results Dropdown */}
+                                        {showFundDropdown && fundResults.length > 0 && (
+                                            <div className="absolute z-10 w-full mt-2 bg-[#151A21] border border-white/10 rounded-xl shadow-xl max-h-48 overflow-y-auto">
+                                                {fundResults.map((fund) => (
+                                                    <button
+                                                        key={fund.schemeCode}
+                                                        onClick={() => handleSelectFund(fund)}
+                                                        className="w-full text-left px-4 py-3 hover:bg-white/5 transition-colors border-b border-white/5 last:border-0"
+                                                    >
+                                                        <p className="text-white text-sm truncate">{fund.schemeName}</p>
+                                                        <p className="text-[#9CA3AF] text-xs">Code: {fund.schemeCode}</p>
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </>
                                 )}
                             </div>
 
@@ -820,6 +915,43 @@ function ManageClientsContent() {
                                     </div>
                                 )}
                             </div>
+
+                            {/* Step-up SIP */}
+                            {formData.investmentType === 'SIP' && (
+                                <div className="p-3 rounded-xl bg-[var(--accent-purple)]/5 border border-[var(--accent-purple)]/20">
+                                    <p className="text-[10px] text-[var(--accent-purple)] mb-2 font-medium uppercase tracking-wider flex items-center gap-1">
+                                        <TrendingUp size={12} />
+                                        Step-up SIP (Optional)
+                                    </p>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                        <div>
+                                            <label className="text-[#9CA3AF] text-[10px] mb-1 block">Step-up Amount (₹)</label>
+                                            <input
+                                                type="number"
+                                                placeholder="e.g. 500"
+                                                value={formData.stepUpAmount}
+                                                onChange={(e) => setFormData(prev => ({ ...prev, stepUpAmount: e.target.value }))}
+                                                className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder-[#9CA3AF] focus:outline-none focus:border-[var(--accent-purple)]/50 text-sm"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="text-[#9CA3AF] text-[10px] mb-1 block">Step-up Interval</label>
+                                            <select
+                                                value={formData.stepUpInterval}
+                                                onChange={(e) => setFormData(prev => ({ ...prev, stepUpInterval: e.target.value as 'Yearly' | 'Half-Yearly' | 'Quarterly' }))}
+                                                className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:border-[var(--accent-purple)]/50 text-sm appearance-none"
+                                            >
+                                                <option value="Yearly" className="bg-[#151A21]">Yearly</option>
+                                                <option value="Half-Yearly" className="bg-[#151A21]">Half-Yearly</option>
+                                                <option value="Quarterly" className="bg-[#151A21]">Quarterly</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <p className="text-[9px] text-[#9CA3AF] mt-2">
+                                        SIP amount will increase by ₹{formData.stepUpAmount || '0'} every {formData.stepUpInterval === 'Quarterly' ? '3 months' : formData.stepUpInterval === 'Half-Yearly' ? '6 months' : 'year'}
+                                    </p>
+                                </div>
+                            )}
 
                             {/* Start Date */}
                             <div>
