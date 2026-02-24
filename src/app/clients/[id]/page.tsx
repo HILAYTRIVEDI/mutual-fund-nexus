@@ -170,7 +170,7 @@ export default function ClientDetailPage() {
             {/* Main Content */}
             <main className="flex-1">
                 {/* Header */}
-                <header className="mb-6">
+                <header className="mb-6 pr-14 md:pr-0">
                     <Link
                         href="/clients"
                         className="inline-flex items-center gap-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)] mb-4 transition-colors"

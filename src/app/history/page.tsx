@@ -264,26 +264,26 @@ export default function HistoryPage() {
             {/* Main Content */}
             <main className="flex-1">
                 {/* Header */}
-                <header className="mb-6">
+                <header className="mb-6 pr-14 md:pr-0">
                     <h1 className="text-2xl font-bold">Activity History</h1>
                     <p className="text-[#9CA3AF] text-sm">Complete log of all operations and transactions</p>
                 </header>
 
                 {/* Stats */}
-                <div className="grid grid-cols-4 gap-4 mb-6">
-                    <div className="glass-card rounded-2xl p-4 gradient-border">
+                <div className="flex lg:grid lg:grid-cols-4 gap-3 md:gap-4 mb-6 overflow-x-auto pb-2 lg:pb-0 -mx-4 px-4 lg:mx-0 lg:px-0">
+                    <div className="glass-card rounded-2xl p-4 gradient-border flex-shrink-0 min-w-[130px] lg:min-w-0">
                         <p className="text-[#9CA3AF] text-xs">Total Logs</p>
                         <p className="text-white text-xl font-bold">{activityLogs.length}</p>
                     </div>
-                    <div className="glass-card rounded-2xl p-4 gradient-border">
+                    <div className="glass-card rounded-2xl p-4 gradient-border flex-shrink-0 min-w-[130px] lg:min-w-0">
                         <p className="text-[#9CA3AF] text-xs">Today</p>
                         <p className="text-white text-xl font-bold">{todayLogs}</p>
                     </div>
-                    <div className="glass-card rounded-2xl p-4 gradient-border">
+                    <div className="glass-card rounded-2xl p-4 gradient-border flex-shrink-0 min-w-[130px] lg:min-w-0">
                         <p className="text-[#9CA3AF] text-xs">Successful</p>
                         <p className="text-[#C4A265] text-xl font-bold">{successLogs}</p>
                     </div>
-                    <div className="glass-card rounded-2xl p-4 gradient-border">
+                    <div className="glass-card rounded-2xl p-4 gradient-border flex-shrink-0 min-w-[130px] lg:min-w-0">
                         <p className="text-[#9CA3AF] text-xs">Failed</p>
                         <p className="text-[#EF4444] text-xl font-bold">{failedLogs}</p>
                     </div>

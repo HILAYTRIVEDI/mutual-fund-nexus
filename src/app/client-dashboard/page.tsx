@@ -132,7 +132,7 @@ export default function ClientDashboard() {
             <main className="flex-1 min-w-0">
                 {/* Header */}
                 <header className="mb-6 md:mb-8">
-                    <div className="flex items-center justify-between">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pr-14 md:pr-0">
                         <div>
                             <h1 className="text-xl md:text-3xl font-bold">
                                 Welcome, <span className="bg-gradient-to-r from-[var(--accent-mint)] to-[var(--accent-blue)] bg-clip-text text-transparent">{user?.name?.split(' ')[0] || 'Investor'}</span>
@@ -144,7 +144,7 @@ export default function ClientDashboard() {
                         <div className="flex items-center gap-3">
                             <button
                                 onClick={() => setShowPostTax(!showPostTax)}
-                                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border transition-all ${showPostTax
+                                className={`flex items-center gap-2 px-3 py-2 md:py-1.5 min-h-[44px] md:min-h-0 rounded-lg border transition-all ${showPostTax
                                     ? 'bg-[var(--accent-mint)]/10 border-[var(--accent-mint)]/20 text-[var(--accent-mint)]'
                                     : 'bg-[var(--bg-hover)] border-[var(--border-primary)] text-[var(--text-secondary)]'
                                     }`}
@@ -226,7 +226,7 @@ export default function ClientDashboard() {
                 </div>
 
                 {/* Bottom Row: Key Holdings & SIP Summary */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     {/* Top Holdings Preview */}
                     <div className="glass-card rounded-2xl p-4 md:p-6">
                         <div className="flex items-center justify-between mb-4">

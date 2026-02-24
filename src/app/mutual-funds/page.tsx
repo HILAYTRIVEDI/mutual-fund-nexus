@@ -182,7 +182,7 @@ export default function MutualFundsPage() {
                 {/* Schemes List */}
                 <div className="glass-card rounded-2xl border border-white/5 overflow-hidden">
                     {/* Desktop Table Header */}
-                    <div className="hidden md:grid grid-cols-12 gap-4 p-4 bg-white/5 border-b border-white/10">
+                    <div className="hidden lg:grid grid-cols-12 gap-4 p-4 bg-white/5 border-b border-white/10">
                         <div className="col-span-2 text-[#9CA3AF] text-xs font-medium uppercase">Code</div>
                         <div className="col-span-8 text-[#9CA3AF] text-xs font-medium uppercase">Scheme Name</div>
                         <div className="col-span-2 text-[#9CA3AF] text-xs font-medium uppercase text-right">Action</div>
@@ -208,7 +208,7 @@ export default function MutualFundsPage() {
                                     onClick={() => handleViewScheme(scheme.schemeCode)}
                                 >
                                     {/* Mobile Layout */}
-                                    <div className="md:hidden">
+                                    <div className="lg:hidden">
                                         <div className="flex items-start justify-between gap-3 mb-2">
                                             <div className="flex items-center gap-2">
                                                 <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#C4A265]/20 to-[#C4A265]/5 flex items-center justify-center flex-shrink-0">
@@ -225,7 +225,7 @@ export default function MutualFundsPage() {
                                     </div>
 
                                     {/* Desktop Layout */}
-                                    <div className="hidden md:grid grid-cols-12 gap-4 items-center">
+                                    <div className="hidden lg:grid grid-cols-12 gap-4 items-center">
                                         <div className="col-span-2 flex items-center gap-2">
                                             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#C4A265]/20 to-[#C4A265]/5 flex items-center justify-center group-hover:scale-110 transition-transform">
                                                 <Building2 size={14} className="text-[#C4A265]" />

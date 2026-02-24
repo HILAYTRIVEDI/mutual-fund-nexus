@@ -135,7 +135,7 @@ export default function DistributionCard({ customData }: DistributionCardProps =
     return (
         <div className="glass-card rounded-2xl p-6 gradient-border relative overflow-hidden transition-colors duration-300">
             {/* Gradient overlay */}
-            <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent-purple)]/10 via-transparent to-[var(--accent-mint)]/5 pointer-events-none" />
+            <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent-gold)]/10 via-transparent to-[var(--accent-slate)]/5 pointer-events-none" />
 
             <div className="flex items-center justify-between mb-4 relative z-10">
                 <h3 className="text-[var(--text-primary)] font-semibold">Asset Allocation</h3>

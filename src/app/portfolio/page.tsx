@@ -191,26 +191,26 @@ export default function PortfolioPage() {
                 </header>
 
                 {/* Summary Cards - Scrollable on mobile */}
-                <div className="flex md:grid md:grid-cols-4 gap-3 md:gap-4 mb-4 md:mb-6 overflow-x-auto pb-2 md:pb-0 -mx-4 px-4 md:mx-0 md:px-0">
-                    <div className="glass-card rounded-2xl p-3 md:p-4 gradient-border flex-shrink-0 w-[140px] md:w-auto">
+                <div className="flex lg:grid lg:grid-cols-4 gap-3 md:gap-4 mb-4 md:mb-6 overflow-x-auto pb-2 lg:pb-0 -mx-4 px-4 lg:mx-0 lg:px-0">
+                    <div className="glass-card rounded-2xl p-3 md:p-4 gradient-border flex-shrink-0 min-w-[140px] lg:min-w-0">
                         <p className="text-[var(--text-secondary)] text-[10px] md:text-xs mb-1">Total Invested</p>
-                        <p className="text-[var(--text-primary)] text-lg md:text-xl font-bold">{formatCurrency(totalInvested)}</p>
+                        <p className="text-[var(--text-primary)] text-lg md:text-xl font-bold truncate">{formatCurrency(totalInvested)}</p>
                     </div>
-                    <div className="glass-card rounded-2xl p-3 md:p-4 gradient-border flex-shrink-0 w-[140px] md:w-auto">
+                    <div className="glass-card rounded-2xl p-3 md:p-4 gradient-border flex-shrink-0 min-w-[140px] lg:min-w-0">
                         <p className="text-[var(--text-secondary)] text-[10px] md:text-xs mb-1">Current Value</p>
-                        <p className="text-[var(--text-primary)] text-lg md:text-xl font-bold">{formatCurrency(totalCurrent)}</p>
+                        <p className="text-[var(--text-primary)] text-lg md:text-xl font-bold truncate">{formatCurrency(totalCurrent)}</p>
                     </div>
-                    <div className="glass-card rounded-2xl p-3 md:p-4 gradient-border flex-shrink-0 w-[140px] md:w-auto">
+                    <div className="glass-card rounded-2xl p-3 md:p-4 gradient-border flex-shrink-0 min-w-[140px] lg:min-w-0">
                         <p className="text-[var(--text-secondary)] text-[10px] md:text-xs mb-1">
                             {showPostTax ? 'Returns (Post-Tax)' : 'Total Returns'}
                         </p>
-                        <p className={`text-lg md:text-xl font-bold ${totalAdjustedReturns >= 0 ? 'text-[var(--accent-mint)]' : 'text-[var(--accent-red)]'}`}>
+                        <p className={`text-lg md:text-xl font-bold truncate ${totalAdjustedReturns >= 0 ? 'text-[var(--accent-mint)]' : 'text-[var(--accent-red)]'}`}>
                             {totalAdjustedReturns >= 0 ? '+' : ''}{formatCurrency(totalAdjustedReturns)}
                         </p>
                     </div>
-                    <div className="glass-card rounded-2xl p-3 md:p-4 gradient-border flex-shrink-0 w-[140px] md:w-auto">
+                    <div className="glass-card rounded-2xl p-3 md:p-4 gradient-border flex-shrink-0 min-w-[140px] lg:min-w-0">
                         <p className="text-[var(--text-secondary)] text-[10px] md:text-xs mb-1">Overall Returns %</p>
-                        <p className={`text-lg md:text-xl font-bold ${parseFloat(totalReturnsPercentage) >= 0 ? 'text-[var(--accent-mint)]' : 'text-[var(--accent-red)]'}`}>
+                        <p className={`text-lg md:text-xl font-bold truncate ${parseFloat(totalReturnsPercentage) >= 0 ? 'text-[var(--accent-mint)]' : 'text-[var(--accent-red)]'}`}>
                             {parseFloat(totalReturnsPercentage) >= 0 ? '+' : ''}{totalReturnsPercentage}%
                         </p>
                     </div>

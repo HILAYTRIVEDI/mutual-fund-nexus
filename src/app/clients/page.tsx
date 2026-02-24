@@ -279,38 +279,38 @@ function ClientsPageContent() {
                 </header>
 
                 {/* Stats Cards - Scrollable on mobile */}
-                <div className="flex md:grid md:grid-cols-5 gap-3 md:gap-4 mb-4 md:mb-6 overflow-x-auto pb-2 md:pb-0 -mx-4 px-4 md:mx-0 md:px-0">
-                    <div className="glass-card rounded-2xl p-3 md:p-4 gradient-border flex-shrink-0 w-[140px] md:w-auto">
+                <div className="flex lg:grid lg:grid-cols-5 gap-3 md:gap-4 mb-4 md:mb-6 overflow-x-auto pb-2 lg:pb-0 -mx-4 px-4 lg:mx-0 lg:px-0">
+                    <div className="glass-card rounded-2xl p-3 md:p-4 gradient-border flex-shrink-0 min-w-[140px] lg:min-w-0">
                         <div className="flex items-center gap-2 md:gap-3">
                             <div className="w-8 h-8 md:w-10 md:h-10 rounded-xl bg-[#C4A265]/20 flex items-center justify-center">
                                 <Users size={16} className="md:w-5 md:h-5 text-[#C4A265]" />
                             </div>
                             <div>
                                 <p className="text-[#9CA3AF] text-[10px] md:text-xs">Total Clients</p>
-                                <p className="text-white text-lg md:text-xl font-bold">{filteredClients.length}</p>
+                                <p className="text-white text-lg md:text-xl font-bold truncate">{filteredClients.length}</p>
                             </div>
                         </div>
                     </div>
-                    <div className="glass-card rounded-2xl p-3 md:p-4 gradient-border flex-shrink-0 w-[140px] md:w-auto">
+                    <div className="glass-card rounded-2xl p-3 md:p-4 gradient-border flex-shrink-0 min-w-[140px] lg:min-w-0">
                         <p className="text-[#9CA3AF] text-[10px] md:text-xs">Total AUM</p>
-                        <p className="text-white text-lg md:text-xl font-bold">{formatCurrency(totalAUM)}</p>
+                        <p className="text-white text-lg md:text-xl font-bold truncate">{formatCurrency(totalAUM)}</p>
                     </div>
-                    <div className="glass-card rounded-2xl p-3 md:p-4 gradient-border flex-shrink-0 w-[140px] md:w-auto">
+                    <div className="glass-card rounded-2xl p-3 md:p-4 gradient-border flex-shrink-0 min-w-[140px] lg:min-w-0">
                         <p className="text-[#9CA3AF] text-[10px] md:text-xs">Total P&L</p>
-                        <p className={`text-lg md:text-xl font-bold ${totalPnL >= 0 ? 'text-[#C4A265]' : 'text-[#EF4444]'}`}>
+                        <p className={`text-lg md:text-xl font-bold truncate ${totalPnL >= 0 ? 'text-[#C4A265]' : 'text-[#EF4444]'}`}>
                             {totalPnL >= 0 ? '+' : ''}{formatCurrency(totalPnL)}
                         </p>
                     </div>
-                    <div className="glass-card rounded-2xl p-3 md:p-4 gradient-border flex-shrink-0 w-[140px] md:w-auto">
+                    <div className="glass-card rounded-2xl p-3 md:p-4 gradient-border flex-shrink-0 min-w-[140px] lg:min-w-0">
                         <p className="text-[#9CA3AF] text-[10px] md:text-xs">SIP Clients</p>
 
-                        <p className="text-[#C4A265] text-lg md:text-xl font-bold">
+                        <p className="text-[#C4A265] text-lg md:text-xl font-bold truncate">
                             {filteredClients.filter(c => c.investmentType.includes('SIP')).length}
                         </p>
                     </div>
-                    <div className="glass-card rounded-2xl p-3 md:p-4 gradient-border flex-shrink-0 w-[140px] md:w-auto">
+                    <div className="glass-card rounded-2xl p-3 md:p-4 gradient-border flex-shrink-0 min-w-[140px] lg:min-w-0">
                         <p className="text-[#9CA3AF] text-[10px] md:text-xs">Lumpsum</p>
-                        <p className="text-[#5B7FA4] text-lg md:text-xl font-bold">
+                        <p className="text-[#5B7FA4] text-lg md:text-xl font-bold truncate">
                             {filteredClients.filter(c => c.investmentType.includes('Lumpsum')).length}
                         </p>
                     </div>

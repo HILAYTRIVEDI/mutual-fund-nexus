@@ -87,7 +87,7 @@ export default function CalculatorsPage() {
         <div className="min-h-screen bg-[var(--bg-primary)] text-[var(--text-primary)] p-4 md:p-6 flex flex-col md:flex-row gap-4 md:gap-6 transition-colors duration-300">
             <main className="flex-1 min-w-0">
                 {/* Header */}
-                <header className="mb-6">
+                <header className="mb-6 pr-14 md:pr-0">
                     <div className="flex items-center gap-3 mb-2">
                         <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[var(--accent-mint)] to-[var(--accent-blue)] flex items-center justify-center">
                             <Calculator size={20} className="text-white" />
