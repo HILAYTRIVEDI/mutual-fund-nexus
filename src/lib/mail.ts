@@ -69,7 +69,7 @@ function generateSIPReminderHTML(data: SIPReminderData): string {
         <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-bottom: 32px;">
           <tr>
             <td>
-              <h1 style="margin: 0; font-size: 28px; font-weight: 700; background: linear-gradient(135deg, #48cae4 0%, #8B5CF6 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">
+              <h1 style="margin: 0; font-size: 28px; font-weight: 700; background: linear-gradient(135deg, #C4A265 0%, #5B7FA4 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">
                 💰 RuaCapital
               </h1>
             </td>
@@ -83,7 +83,7 @@ function generateSIPReminderHTML(data: SIPReminderData): string {
               <!-- Alert Badge -->
               <table role="presentation" cellspacing="0" cellpadding="0" style="margin-bottom: 24px;">
                 <tr>
-                  <td style="background: linear-gradient(135deg, #48cae4 0%, #48cae4 100%); color: #0a0e14; font-size: 12px; font-weight: 600; padding: 6px 16px; border-radius: 20px; text-transform: uppercase; letter-spacing: 0.5px;">
+                  <td style="background: linear-gradient(135deg, #C4A265 0%, #C4A265 100%); color: #0a0e14; font-size: 12px; font-weight: 600; padding: 6px 16px; border-radius: 20px; text-transform: uppercase; letter-spacing: 0.5px;">
                     ⏰ SIP Reminder
                   </td>
                 </tr>
@@ -115,7 +115,7 @@ function generateSIPReminderHTML(data: SIPReminderData): string {
                             <tr>
                               <td style="width: 50%;">
                                 <p style="margin: 0; font-size: 12px; color: #9CA3AF; text-transform: uppercase; letter-spacing: 0.5px;">Amount</p>
-                                <p style="margin: 4px 0 0 0; font-size: 20px; color: #48cae4; font-weight: 700;">${formatCurrency(data.amount)}</p>
+                                <p style="margin: 4px 0 0 0; font-size: 20px; color: #C4A265; font-weight: 700;">${formatCurrency(data.amount)}</p>
                               </td>
                               <td style="width: 50%; text-align: right;">
                                 <p style="margin: 0; font-size: 12px; color: #9CA3AF; text-transform: uppercase; letter-spacing: 0.5px;">Execution Date</p>
@@ -134,7 +134,7 @@ function generateSIPReminderHTML(data: SIPReminderData): string {
               <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
                 <tr>
                   <td align="center">
-                    <a href="#" style="display: inline-block; background: linear-gradient(135deg, #48cae4 0%, #8B5CF6 100%); color: #ffffff; font-size: 14px; font-weight: 600; padding: 14px 32px; border-radius: 12px; text-decoration: none;">
+                    <a href="#" style="display: inline-block; background: linear-gradient(135deg, #C4A265 0%, #5B7FA4 100%); color: #ffffff; font-size: 14px; font-weight: 600; padding: 14px 32px; border-radius: 12px; text-decoration: none;">
                       View Portfolio
                     </a>
                   </td>
@@ -185,7 +185,7 @@ function generateSIPExecutedHTML(data: SIPExecutedData): string {
         <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-bottom: 32px;">
           <tr>
             <td>
-              <h1 style="margin: 0; font-size: 28px; font-weight: 700; background: linear-gradient(135deg, #48cae4 0%, #8B5CF6 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">
+              <h1 style="margin: 0; font-size: 28px; font-weight: 700; background: linear-gradient(135deg, #C4A265 0%, #5B7FA4 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">
                 💰 RuaCapital
               </h1>
             </td>
@@ -266,7 +266,7 @@ function generateSIPExecutedHTML(data: SIPExecutedData): string {
               <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
                 <tr>
                   <td align="center">
-                    <a href="#" style="display: inline-block; background: linear-gradient(135deg, #48cae4 0%, #8B5CF6 100%); color: #ffffff; font-size: 14px; font-weight: 600; padding: 14px 32px; border-radius: 12px; text-decoration: none;">
+                    <a href="#" style="display: inline-block; background: linear-gradient(135deg, #C4A265 0%, #5B7FA4 100%); color: #ffffff; font-size: 14px; font-weight: 600; padding: 14px 32px; border-radius: 12px; text-decoration: none;">
                       View Transaction History
                     </a>
                   </td>
@@ -356,7 +356,7 @@ export async function sendTestEmail(to: string): Promise<{ success: boolean; err
       subject: '🧪 Test Email from RuaCapital',
       html: `
         <div style="font-family: sans-serif; padding: 20px; background: #0a0e14; color: #ffffff;">
-          <h1 style="color: #48cae4;">Email Configuration Working! 🎉</h1>
+          <h1 style="color: #C4A265;">Email Configuration Working! 🎉</h1>
           <p style="color: #9CA3AF;">Your email alerts are properly configured.</p>
           <p style="color: #6B7280; font-size: 12px;">Sent at: ${new Date().toISOString()}</p>
         </div>

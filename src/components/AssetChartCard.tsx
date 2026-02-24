@@ -135,7 +135,7 @@ export default function AssetChartCard({ customChartData, customAumValues }: Ass
     return (
         <div className="glass-card rounded-2xl p-4 md:p-6 col-span-1 lg:col-span-2 gradient-border mint-glow relative overflow-hidden transition-colors duration-300">
             {/* Gradient overlay */}
-            <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent-mint)]/10 via-transparent to-[var(--accent-purple)]/5 pointer-events-none" />
+            <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent-gold)]/10 via-transparent to-[var(--accent-slate)]/5 pointer-events-none" />
 
             {/* Header */}
             <div className="flex items-start md:items-center justify-between mb-4 md:mb-6 relative z-10">
@@ -169,7 +169,7 @@ export default function AssetChartCard({ customChartData, customAumValues }: Ass
                         key={filter}
                         onClick={() => setActiveFilter(filter)}
                         className={`px-2.5 md:px-4 py-1.5 md:py-2 rounded-lg text-xs md:text-sm font-medium transition-all duration-200 ${activeFilter === filter
-                            ? 'bg-gradient-to-r from-[var(--accent-mint)]/20 to-[var(--accent-mint)]/10 text-[var(--accent-mint)] border border-[var(--accent-mint)]/30 shadow-lg shadow-[var(--accent-mint)]/10'
+                            ? 'bg-gradient-to-r from-[var(--accent-gold)]/20 to-[var(--accent-gold)]/10 text-[var(--accent-gold)] border border-[var(--accent-gold)]/30 shadow-lg shadow-[var(--accent-gold)]/10'
                             : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]'
                             }`}
                     >
@@ -193,13 +193,13 @@ export default function AssetChartCard({ customChartData, customAumValues }: Ass
                         <AreaChart data={chartData}>
                             <defs>
                                 <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="0%" stopColor="#48cae4" stopOpacity={0.4} />
-                                    <stop offset="50%" stopColor="#48cae4" stopOpacity={0.15} />
-                                    <stop offset="100%" stopColor="#48cae4" stopOpacity={0} />
+                                    <stop offset="0%" stopColor="#C4A265" stopOpacity={0.4} />
+                                    <stop offset="50%" stopColor="#C4A265" stopOpacity={0.15} />
+                                    <stop offset="100%" stopColor="#C4A265" stopOpacity={0} />
                                 </linearGradient>
                                 <linearGradient id="strokeGradient" x1="0" y1="0" x2="1" y2="0">
-                                    <stop offset="0%" stopColor="#48cae4" />
-                                    <stop offset="100%" stopColor="#90e0ef" />
+                                    <stop offset="0%" stopColor="#C4A265" />
+                                    <stop offset="100%" stopColor="#D4B87A" />
                                 </linearGradient>
                             </defs>
                             <CartesianGrid strokeDasharray="3 3" stroke="var(--border-primary)" vertical={false} />
@@ -228,7 +228,7 @@ export default function AssetChartCard({ customChartData, customAumValues }: Ass
                                     border: '1px solid var(--border-primary)',
                                     borderRadius: '12px',
                                     color: 'var(--text-primary)',
-                                    boxShadow: '0 4px 20px rgba(16, 185, 129, 0.2)',
+                                    boxShadow: '0 4px 20px rgba(196, 162, 101, 0.2)',
                                 }}
                                 formatter={(value: number | undefined) => {
                                     const val = value ?? 0;

@@ -61,22 +61,22 @@ export default function MutualFundCard({ scheme, onClose }: MutualFundCardProps)
     return (
         <div className="glass-card rounded-2xl overflow-hidden relative">
             {/* Gradient overlay */}
-            <div className="absolute inset-0 bg-gradient-to-br from-[#48cae4]/10 via-transparent to-[#8B5CF6]/5 pointer-events-none" />
+            <div className="absolute inset-0 bg-gradient-to-br from-[#C4A265]/10 via-transparent to-[#5B7FA4]/5 pointer-events-none" />
 
             {/* Header */}
             <div className="p-6 border-b border-white/10 relative z-10">
                 <div className="flex items-start justify-between">
                     <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-2">
-                            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#48cae4]/20 to-[#48cae4]/5 flex items-center justify-center">
-                                <Building2 size={20} className="text-[#48cae4]" />
+                            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#C4A265]/20 to-[#C4A265]/5 flex items-center justify-center">
+                                <Building2 size={20} className="text-[#C4A265]" />
                             </div>
                             <span className="text-[#9CA3AF] text-sm font-mono">#{scheme.meta.scheme_code}</span>
                         </div>
                         <h2 className="text-white text-lg font-semibold mb-1 pr-8">
                             {scheme.meta.scheme_name}
                         </h2>
-                        <p className="text-[#48cae4] text-sm font-medium">{scheme.meta.fund_house}</p>
+                        <p className="text-[#C4A265] text-sm font-medium">{scheme.meta.fund_house}</p>
                     </div>
                     <button
                         onClick={onClose}
@@ -98,7 +98,7 @@ export default function MutualFundCard({ scheme, onClose }: MutualFundCardProps)
                     <div className="bg-white/5 rounded-xl p-4">
                         <p className="text-[#9CA3AF] text-xs mb-1">1M Change</p>
                         {change1M !== null ? (
-                            <div className={`flex items-center gap-1 ${change1M >= 0 ? 'text-[#48cae4]' : 'text-[#EF4444]'}`}>
+                            <div className={`flex items-center gap-1 ${change1M >= 0 ? 'text-[#C4A265]' : 'text-[#EF4444]'}`}>
                                 {change1M >= 0 ? <TrendingUp size={20} /> : <TrendingDown size={20} />}
                                 <span className="text-2xl font-bold">{change1M >= 0 ? '+' : ''}{change1M.toFixed(2)}%</span>
                             </div>
@@ -118,7 +118,7 @@ export default function MutualFundCard({ scheme, onClose }: MutualFundCardProps)
                 <h3 className="text-white font-semibold mb-4">NAV History (1 Year)</h3>
                 {historyLoading ? (
                     <div className="h-[200px] flex items-center justify-center">
-                        <Loader2 className="animate-spin text-[#48cae4] mr-2" size={24} />
+                        <Loader2 className="animate-spin text-[#C4A265] mr-2" size={24} />
                         <span className="text-[#9CA3AF]">Loading chart...</span>
                     </div>
                 ) : chartData.length > 0 ? (
@@ -127,8 +127,8 @@ export default function MutualFundCard({ scheme, onClose }: MutualFundCardProps)
                             <AreaChart data={chartData}>
                                 <defs>
                                     <linearGradient id="navGradient" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="0%" stopColor="#48cae4" stopOpacity={0.4} />
-                                        <stop offset="100%" stopColor="#48cae4" stopOpacity={0} />
+                                        <stop offset="0%" stopColor="#C4A265" stopOpacity={0.4} />
+                                        <stop offset="100%" stopColor="#C4A265" stopOpacity={0} />
                                     </linearGradient>
                                 </defs>
                                 <XAxis
@@ -166,7 +166,7 @@ export default function MutualFundCard({ scheme, onClose }: MutualFundCardProps)
                                 <Area
                                     type="monotone"
                                     dataKey="nav"
-                                    stroke="#48cae4"
+                                    stroke="#C4A265"
                                     strokeWidth={2}
                                     fill="url(#navGradient)"
                                 />
@@ -183,7 +183,7 @@ export default function MutualFundCard({ scheme, onClose }: MutualFundCardProps)
             {/* Metadata */}
             <div className="p-6 pt-0 relative z-10">
                 <div className="flex flex-wrap gap-2">
-                    <span className="flex items-center gap-1 px-3 py-1.5 bg-[#8B5CF6]/10 border border-[#8B5CF6]/20 rounded-full text-[#8B5CF6] text-xs">
+                    <span className="flex items-center gap-1 px-3 py-1.5 bg-[#5B7FA4]/10 border border-[#5B7FA4]/20 rounded-full text-[#5B7FA4] text-xs">
                         <Tag size={12} />
                         {scheme.meta.scheme_type}
                     </span>

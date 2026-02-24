@@ -118,7 +118,7 @@ export default function CalculatorsPage() {
                         onClick={() => setActiveCalculator('lumpsum')}
                         className={`px-4 md:px-6 py-2.5 rounded-lg text-sm font-medium transition-all duration-300 flex items-center gap-2 ${
                             activeCalculator === 'lumpsum'
-                                ? 'bg-gradient-to-r from-[var(--accent-purple)] to-[#a78bfa] text-white shadow-md'
+                                ? 'bg-gradient-to-r from-[var(--accent-purple)] to-[#D4B87A] text-white shadow-md'
                                 : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
                         }`}
                     >

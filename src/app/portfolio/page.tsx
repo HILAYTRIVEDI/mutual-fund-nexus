@@ -25,7 +25,7 @@ interface PortfolioHolding {
     investedDate: string; // Added for tax calculation
 }
 
-const colors = ['#48cae4', '#3B82F6', '#8B5CF6', '#F59E0B', '#EC4899', '#6366F1'];
+const colors = ['#C4A265', '#3B82F6', '#5B7FA4', '#F59E0B', '#EC4899', '#6366F1'];
 
 import { useHoldings } from '@/context/HoldingsContext';
 import { Loader2 } from 'lucide-react';

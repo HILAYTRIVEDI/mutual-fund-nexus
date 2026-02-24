@@ -270,7 +270,7 @@ function ClientsPageContent() {
                     </div>
                     <button
                         onClick={exportToCSV}
-                        className="px-3 md:px-4 py-2 md:py-2.5 rounded-xl bg-gradient-to-r from-[#48cae4]/20 to-[#48cae4]/10 border border-[#48cae4]/30 text-[#48cae4] font-medium flex items-center justify-center gap-2 hover:from-[#48cae4]/30 hover:to-[#48cae4]/20 hover:shadow-lg hover:shadow-[#48cae4]/20 transition-all text-sm self-start sm:self-auto"
+                        className="px-3 md:px-4 py-2 md:py-2.5 rounded-xl bg-gradient-to-r from-[#C4A265]/20 to-[#C4A265]/10 border border-[#C4A265]/30 text-[#C4A265] font-medium flex items-center justify-center gap-2 hover:from-[#C4A265]/30 hover:to-[#C4A265]/20 hover:shadow-lg hover:shadow-[#C4A265]/20 transition-all text-sm self-start sm:self-auto"
                     >
                         <Download size={16} />
                         <span className="hidden sm:inline">Export CSV</span>
@@ -282,8 +282,8 @@ function ClientsPageContent() {
                 <div className="flex md:grid md:grid-cols-5 gap-3 md:gap-4 mb-4 md:mb-6 overflow-x-auto pb-2 md:pb-0 -mx-4 px-4 md:mx-0 md:px-0">
                     <div className="glass-card rounded-2xl p-3 md:p-4 gradient-border flex-shrink-0 w-[140px] md:w-auto">
                         <div className="flex items-center gap-2 md:gap-3">
-                            <div className="w-8 h-8 md:w-10 md:h-10 rounded-xl bg-[#48cae4]/20 flex items-center justify-center">
-                                <Users size={16} className="md:w-5 md:h-5 text-[#48cae4]" />
+                            <div className="w-8 h-8 md:w-10 md:h-10 rounded-xl bg-[#C4A265]/20 flex items-center justify-center">
+                                <Users size={16} className="md:w-5 md:h-5 text-[#C4A265]" />
                             </div>
                             <div>
                                 <p className="text-[#9CA3AF] text-[10px] md:text-xs">Total Clients</p>
@@ -297,20 +297,20 @@ function ClientsPageContent() {
                     </div>
                     <div className="glass-card rounded-2xl p-3 md:p-4 gradient-border flex-shrink-0 w-[140px] md:w-auto">
                         <p className="text-[#9CA3AF] text-[10px] md:text-xs">Total P&L</p>
-                        <p className={`text-lg md:text-xl font-bold ${totalPnL >= 0 ? 'text-[#48cae4]' : 'text-[#EF4444]'}`}>
+                        <p className={`text-lg md:text-xl font-bold ${totalPnL >= 0 ? 'text-[#C4A265]' : 'text-[#EF4444]'}`}>
                             {totalPnL >= 0 ? '+' : ''}{formatCurrency(totalPnL)}
                         </p>
                     </div>
                     <div className="glass-card rounded-2xl p-3 md:p-4 gradient-border flex-shrink-0 w-[140px] md:w-auto">
                         <p className="text-[#9CA3AF] text-[10px] md:text-xs">SIP Clients</p>
 
-                        <p className="text-[#48cae4] text-lg md:text-xl font-bold">
+                        <p className="text-[#C4A265] text-lg md:text-xl font-bold">
                             {filteredClients.filter(c => c.investmentType.includes('SIP')).length}
                         </p>
                     </div>
                     <div className="glass-card rounded-2xl p-3 md:p-4 gradient-border flex-shrink-0 w-[140px] md:w-auto">
                         <p className="text-[#9CA3AF] text-[10px] md:text-xs">Lumpsum</p>
-                        <p className="text-[#8B5CF6] text-lg md:text-xl font-bold">
+                        <p className="text-[#5B7FA4] text-lg md:text-xl font-bold">
                             {filteredClients.filter(c => c.investmentType.includes('Lumpsum')).length}
                         </p>
                     </div>
@@ -318,7 +318,7 @@ function ClientsPageContent() {
 
                 {/* Search & Filters */}
                 <div className="glass-card rounded-2xl p-3 md:p-4 mb-4 md:mb-6 relative overflow-hidden">
-                    <div className="absolute inset-0 bg-gradient-to-r from-[#48cae4]/5 via-transparent to-[#8B5CF6]/5 pointer-events-none" />
+                    <div className="absolute inset-0 bg-gradient-to-r from-[#C4A265]/5 via-transparent to-[#5B7FA4]/5 pointer-events-none" />
                     <div className="relative z-10 flex flex-col sm:flex-row items-stretch sm:items-center gap-3 md:gap-4">
                         {/* Search */}
                         <div className="flex-1 relative">
@@ -328,7 +328,7 @@ function ClientsPageContent() {
                                 placeholder="Search clients..."
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
-                                className="w-full pl-10 md:pl-12 pr-4 py-2.5 md:py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-[#9CA3AF] focus:outline-none focus:border-[#48cae4]/50 transition-all text-sm"
+                                className="w-full pl-10 md:pl-12 pr-4 py-2.5 md:py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-[#9CA3AF] focus:outline-none focus:border-[#C4A265]/50 transition-all text-sm"
                             />
                         </div>
 
@@ -337,14 +337,14 @@ function ClientsPageContent() {
                             <button
                                 onClick={() => setShowFilters(!showFilters)}
                                 className={`flex-1 sm:flex-none px-3 md:px-4 py-2.5 md:py-3 rounded-xl flex items-center justify-center gap-2 transition-all text-sm ${showFilters || hasActiveFilters
-                                    ? 'bg-[#48cae4]/20 text-[#48cae4] border border-[#48cae4]/30'
+                                    ? 'bg-[#C4A265]/20 text-[#C4A265] border border-[#C4A265]/30'
                                     : 'bg-white/5 text-[#9CA3AF] border border-white/10 hover:bg-white/10'
                                     }`}
                             >
                                 <Filter size={16} />
                                 <span>Filters</span>
                                 {hasActiveFilters && (
-                                    <span className="w-2 h-2 rounded-full bg-[#48cae4]" />
+                                    <span className="w-2 h-2 rounded-full bg-[#C4A265]" />
                                 )}
                             </button>
 
@@ -370,7 +370,7 @@ function ClientsPageContent() {
                                     <select
                                         value={fundHouseFilter}
                                         onChange={(e) => setFundHouseFilter(e.target.value)}
-                                        className="w-full px-3 md:px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white appearance-none cursor-pointer focus:outline-none focus:border-[#48cae4]/50 text-sm"
+                                        className="w-full px-3 md:px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white appearance-none cursor-pointer focus:outline-none focus:border-[#C4A265]/50 text-sm"
                                     >
                                         {fundHouses.map((fh) => (
                                             <option key={fh} value={fh} className="bg-[#151A21]">
@@ -389,7 +389,7 @@ function ClientsPageContent() {
                                     <select
                                         value={typeFilter}
                                         onChange={(e) => setTypeFilter(e.target.value)}
-                                        className="w-full px-3 md:px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white appearance-none cursor-pointer focus:outline-none focus:border-[#48cae4]/50 text-sm"
+                                        className="w-full px-3 md:px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white appearance-none cursor-pointer focus:outline-none focus:border-[#C4A265]/50 text-sm"
                                     >
                                         {investmentTypes.map((type) => (
                                             <option key={type} value={type} className="bg-[#151A21]">
@@ -408,7 +408,7 @@ function ClientsPageContent() {
                                     <select
                                         value={pnlFilter}
                                         onChange={(e) => setPnlFilter(e.target.value)}
-                                        className="w-full px-3 md:px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white appearance-none cursor-pointer focus:outline-none focus:border-[#48cae4]/50 text-sm"
+                                        className="w-full px-3 md:px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white appearance-none cursor-pointer focus:outline-none focus:border-[#C4A265]/50 text-sm"
                                     >
                                         {pnlFilters.map((pnl) => (
                                             <option key={pnl} value={pnl} className="bg-[#151A21]">
@@ -454,7 +454,7 @@ function ClientsPageContent() {
                                     <div className="lg:hidden p-4 hover:bg-gradient-to-r hover:from-white/5 hover:to-transparent transition-all duration-300">
                                         <div className="flex items-start justify-between gap-3 mb-3">
                                             <div className="flex items-center gap-3">
-                                                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#48cae4] to-[#8B5CF6] flex items-center justify-center text-white font-semibold text-xs flex-shrink-0">
+                                                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#C4A265] to-[#5B7FA4] flex items-center justify-center text-white font-semibold text-xs flex-shrink-0">
                                                     {client.name.split(' ').map(n => n[0]).join('')}
                                                 </div>
                                                 <div>
@@ -464,8 +464,8 @@ function ClientsPageContent() {
                                             </div>
                                             <span
                                                 className={`px-2 py-1 rounded-md text-xs font-medium flex-shrink-0 ${client.investmentType === 'SIP'
-                                                    ? 'bg-[#48cae4]/10 text-[#48cae4]'
-                                                    : 'bg-[#8B5CF6]/10 text-[#8B5CF6]'
+                                                    ? 'bg-[#C4A265]/10 text-[#C4A265]'
+                                                    : 'bg-[#5B7FA4]/10 text-[#5B7FA4]'
                                                     }`}
                                             >
                                                 {client.investmentType}
@@ -477,7 +477,7 @@ function ClientsPageContent() {
                                                 <p className="text-[#9CA3AF] mb-1">Current Value</p>
                                                 <p className="text-white font-medium">{formatCurrency(client.currentValue)}</p>
                                             </div>
-                                            <div className={`text-right flex items-center gap-1 ${client.pnl >= 0 ? 'text-[#48cae4]' : 'text-[#EF4444]'}`}>
+                                            <div className={`text-right flex items-center gap-1 ${client.pnl >= 0 ? 'text-[#C4A265]' : 'text-[#EF4444]'}`}>
                                                 {client.pnl >= 0 ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
                                                 <div>
                                                     <p className="font-medium">{client.pnlPercentage >= 0 ? '+' : ''}{client.pnlPercentage.toFixed(2)}%</p>
@@ -492,7 +492,7 @@ function ClientsPageContent() {
                                         {/* Client Info */}
                                         <div className="col-span-2">
                                             <div className="flex items-center gap-2">
-                                                <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[#48cae4] to-[#8B5CF6] flex items-center justify-center text-white font-semibold text-xs flex-shrink-0">
+                                                <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[#C4A265] to-[#5B7FA4] flex items-center justify-center text-white font-semibold text-xs flex-shrink-0">
                                                     {client.name.split(' ').map(n => n[0]).join('')}
                                                 </div>
                                                 <div className="min-w-0">
@@ -532,8 +532,8 @@ function ClientsPageContent() {
                                         <div className="col-span-1 flex items-center justify-center">
                                             <span
                                                 className={`px-2 py-1 rounded-md text-xs font-medium ${client.investmentType === 'SIP'
-                                                    ? 'bg-[#48cae4]/10 text-[#48cae4]'
-                                                    : 'bg-[#8B5CF6]/10 text-[#8B5CF6]'
+                                                    ? 'bg-[#C4A265]/10 text-[#C4A265]'
+                                                    : 'bg-[#5B7FA4]/10 text-[#5B7FA4]'
                                                     }`}
                                             >
                                                 {client.investmentType}
@@ -547,7 +547,7 @@ function ClientsPageContent() {
 
                                         {/* P&L */}
                                         <div className="col-span-2 flex items-center justify-end">
-                                            <div className={`flex items-center gap-1 ${client.pnl >= 0 ? 'text-[#48cae4]' : 'text-[#EF4444]'}`}>
+                                            <div className={`flex items-center gap-1 ${client.pnl >= 0 ? 'text-[#C4A265]' : 'text-[#EF4444]'}`}>
                                                 {client.pnl >= 0 ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
                                                 <div className="text-right">
                                                     <span className="text-sm font-medium block">

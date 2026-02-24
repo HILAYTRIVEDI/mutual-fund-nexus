@@ -106,7 +106,7 @@ export default function LoginPage() {
         <div className="min-h-screen w-full bg-[var(--bg-primary)] flex items-center justify-center p-4 relative overflow-hidden">
             {/* Background Decorations */}
             <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
-                <div className="absolute top-[-20%] left-[-10%] w-[600px] h-[600px] rounded-full bg-[var(--accent-mint)]/10 blur-[100px]" />
+                <div className="absolute top-[-20%] left-[-10%] w-[600px] h-[600px] rounded-full bg-[var(--accent-gold)]/10 blur-[100px]" />
                 <div className="absolute bottom-[-20%] right-[-10%] w-[500px] h-[500px] rounded-full bg-[var(--accent-purple)]/10 blur-[100px]" />
             </div>
 
@@ -118,7 +118,7 @@ export default function LoginPage() {
             <div className="w-full max-w-md glass-card p-8 rounded-3xl relative z-10 border border-[var(--border-primary)] shadow-2xl shadow-black/20">
                 {/* Header */}
                 <div className="text-center mb-6">
-                    <div className="mx-auto w-16 h-16 bg-gradient-to-br from-[var(--accent-mint)] to-[var(--accent-blue)] rounded-2xl flex items-center justify-center shadow-lg shadow-[var(--accent-mint)]/20 mb-4">
+                    <div className="mx-auto w-16 h-16 bg-gradient-to-br from-[var(--accent-gold)] to-[var(--accent-blue)] rounded-2xl flex items-center justify-center shadow-lg shadow-[var(--accent-gold)]/20 mb-4">
                         <ShieldCheck size={32} className="text-white" />
                     </div>
                     <h1 className="text-2xl font-bold bg-gradient-to-r from-[var(--text-primary)] to-[var(--text-secondary)] bg-clip-text text-transparent">
@@ -136,7 +136,7 @@ export default function LoginPage() {
                         onClick={() => switchMode('login')}
                         className={`flex-1 py-2.5 px-4 rounded-lg text-sm font-medium transition-all duration-300 ${
                             mode === 'login'
-                                ? 'bg-gradient-to-r from-[var(--accent-mint)] to-[var(--accent-blue)] text-white shadow-md'
+                                ? 'bg-gradient-to-r from-[var(--accent-gold)] to-[var(--accent-blue)] text-white shadow-md'
                                 : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
                         }`}
                     >
@@ -147,7 +147,7 @@ export default function LoginPage() {
                         onClick={() => switchMode('register')}
                         className={`flex-1 py-2.5 px-4 rounded-lg text-sm font-medium transition-all duration-300 ${
                             mode === 'register'
-                                ? 'bg-gradient-to-r from-[var(--accent-mint)] to-[var(--accent-blue)] text-white shadow-md'
+                                ? 'bg-gradient-to-r from-[var(--accent-gold)] to-[var(--accent-blue)] text-white shadow-md'
                                 : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
                         }`}
                     >
@@ -157,9 +157,9 @@ export default function LoginPage() {
 
                 {/* Success Message */}
                 {successMessage && (
-                    <div className="mb-4 p-3 rounded-xl bg-[var(--accent-mint)]/10 border border-[var(--accent-mint)]/20 flex items-start gap-3 animate-fade-in">
-                        <CheckCircle size={18} className="text-[var(--accent-mint)] shrink-0 mt-0.5" />
-                        <p className="text-[var(--accent-mint)] text-xs">{successMessage}</p>
+                    <div className="mb-4 p-3 rounded-xl bg-[var(--accent-gold)]/10 border border-[var(--accent-gold)]/20 flex items-start gap-3 animate-fade-in">
+                        <CheckCircle size={18} className="text-[var(--accent-gold)] shrink-0 mt-0.5" />
+                        <p className="text-[var(--accent-gold)] text-xs">{successMessage}</p>
                     </div>
                 )}
 
@@ -177,12 +177,12 @@ export default function LoginPage() {
                         <div className="space-y-1.5">
                             <label className="text-xs font-medium text-[var(--text-secondary)] ml-1">Email Address</label>
                             <div className="relative group">
-                                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-secondary)] group-focus-within:text-[var(--accent-mint)] transition-colors" size={18} />
+                                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-secondary)] group-focus-within:text-[var(--accent-gold)] transition-colors" size={18} />
                                 <input
                                     type="email"
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}
-                                    className="w-full pl-11 pr-4 py-3 bg-[var(--bg-hover)]/50 border border-[var(--border-primary)] rounded-xl text-[var(--text-primary)] placeholder-[var(--text-secondary)]/50 focus:outline-none focus:border-[var(--accent-mint)] focus:ring-1 focus:ring-[var(--accent-mint)]/50 transition-all text-sm"
+                                    className="w-full pl-11 pr-4 py-3 bg-[var(--bg-hover)]/50 border border-[var(--border-primary)] rounded-xl text-[var(--text-primary)] placeholder-[var(--text-secondary)]/50 focus:outline-none focus:border-[var(--accent-gold)] focus:ring-1 focus:ring-[var(--accent-gold)]/50 transition-all text-sm"
                                     placeholder="name@example.com"
                                     required
                                 />
@@ -192,12 +192,12 @@ export default function LoginPage() {
                         <div className="space-y-1.5">
                             <label className="text-xs font-medium text-[var(--text-secondary)] ml-1">Password</label>
                             <div className="relative group">
-                                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-secondary)] group-focus-within:text-[var(--accent-mint)] transition-colors" size={18} />
+                                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-secondary)] group-focus-within:text-[var(--accent-gold)] transition-colors" size={18} />
                                 <input
                                     type="password"
                                     value={password}
                                     onChange={(e) => setPassword(e.target.value)}
-                                    className="w-full pl-11 pr-4 py-3 bg-[var(--bg-hover)]/50 border border-[var(--border-primary)] rounded-xl text-[var(--text-primary)] placeholder-[var(--text-secondary)]/50 focus:outline-none focus:border-[var(--accent-mint)] focus:ring-1 focus:ring-[var(--accent-mint)]/50 transition-all text-sm"
+                                    className="w-full pl-11 pr-4 py-3 bg-[var(--bg-hover)]/50 border border-[var(--border-primary)] rounded-xl text-[var(--text-primary)] placeholder-[var(--text-secondary)]/50 focus:outline-none focus:border-[var(--accent-gold)] focus:ring-1 focus:ring-[var(--accent-gold)]/50 transition-all text-sm"
                                     placeholder="••••••••"
                                     required
                                 />
@@ -207,7 +207,7 @@ export default function LoginPage() {
                         <button
                             type="submit"
                             disabled={isLoading}
-                            className="w-full mt-6 py-3 px-4 bg-gradient-to-r from-[var(--accent-mint)] to-[#90e0ef] text-white font-semibold rounded-xl hover:shadow-lg hover:shadow-[var(--accent-mint)]/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2 group disabled:opacity-70 disabled:cursor-not-allowed"
+                            className="w-full mt-6 py-3 px-4 bg-gradient-to-r from-[var(--accent-gold)] to-[#D4B87A] text-white font-semibold rounded-xl hover:shadow-lg hover:shadow-[var(--accent-gold)]/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2 group disabled:opacity-70 disabled:cursor-not-allowed"
                         >
                             {isLoading ? (
                                 <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -227,12 +227,12 @@ export default function LoginPage() {
                         <div className="space-y-1.5">
                             <label className="text-xs font-medium text-[var(--text-secondary)] ml-1">Full Name</label>
                             <div className="relative group">
-                                <User className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-secondary)] group-focus-within:text-[var(--accent-mint)] transition-colors" size={18} />
+                                <User className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-secondary)] group-focus-within:text-[var(--accent-gold)] transition-colors" size={18} />
                                 <input
                                     type="text"
                                     value={fullName}
                                     onChange={(e) => setFullName(e.target.value)}
-                                    className="w-full pl-11 pr-4 py-3 bg-[var(--bg-hover)]/50 border border-[var(--border-primary)] rounded-xl text-[var(--text-primary)] placeholder-[var(--text-secondary)]/50 focus:outline-none focus:border-[var(--accent-mint)] focus:ring-1 focus:ring-[var(--accent-mint)]/50 transition-all text-sm"
+                                    className="w-full pl-11 pr-4 py-3 bg-[var(--bg-hover)]/50 border border-[var(--border-primary)] rounded-xl text-[var(--text-primary)] placeholder-[var(--text-secondary)]/50 focus:outline-none focus:border-[var(--accent-gold)] focus:ring-1 focus:ring-[var(--accent-gold)]/50 transition-all text-sm"
                                     placeholder="John Doe"
                                     required
                                 />
@@ -242,12 +242,12 @@ export default function LoginPage() {
                         <div className="space-y-1.5">
                             <label className="text-xs font-medium text-[var(--text-secondary)] ml-1">Email Address</label>
                             <div className="relative group">
-                                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-secondary)] group-focus-within:text-[var(--accent-mint)] transition-colors" size={18} />
+                                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-secondary)] group-focus-within:text-[var(--accent-gold)] transition-colors" size={18} />
                                 <input
                                     type="email"
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}
-                                    className="w-full pl-11 pr-4 py-3 bg-[var(--bg-hover)]/50 border border-[var(--border-primary)] rounded-xl text-[var(--text-primary)] placeholder-[var(--text-secondary)]/50 focus:outline-none focus:border-[var(--accent-mint)] focus:ring-1 focus:ring-[var(--accent-mint)]/50 transition-all text-sm"
+                                    className="w-full pl-11 pr-4 py-3 bg-[var(--bg-hover)]/50 border border-[var(--border-primary)] rounded-xl text-[var(--text-primary)] placeholder-[var(--text-secondary)]/50 focus:outline-none focus:border-[var(--accent-gold)] focus:ring-1 focus:ring-[var(--accent-gold)]/50 transition-all text-sm"
                                     placeholder="name@example.com"
                                     required
                                 />
@@ -257,12 +257,12 @@ export default function LoginPage() {
                         <div className="space-y-1.5">
                             <label className="text-xs font-medium text-[var(--text-secondary)] ml-1">Password</label>
                             <div className="relative group">
-                                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-secondary)] group-focus-within:text-[var(--accent-mint)] transition-colors" size={18} />
+                                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-secondary)] group-focus-within:text-[var(--accent-gold)] transition-colors" size={18} />
                                 <input
                                     type="password"
                                     value={password}
                                     onChange={(e) => setPassword(e.target.value)}
-                                    className="w-full pl-11 pr-4 py-3 bg-[var(--bg-hover)]/50 border border-[var(--border-primary)] rounded-xl text-[var(--text-primary)] placeholder-[var(--text-secondary)]/50 focus:outline-none focus:border-[var(--accent-mint)] focus:ring-1 focus:ring-[var(--accent-mint)]/50 transition-all text-sm"
+                                    className="w-full pl-11 pr-4 py-3 bg-[var(--bg-hover)]/50 border border-[var(--border-primary)] rounded-xl text-[var(--text-primary)] placeholder-[var(--text-secondary)]/50 focus:outline-none focus:border-[var(--accent-gold)] focus:ring-1 focus:ring-[var(--accent-gold)]/50 transition-all text-sm"
                                     placeholder="••••••••"
                                     required
                                     minLength={8}
@@ -274,12 +274,12 @@ export default function LoginPage() {
                         <div className="space-y-1.5">
                             <label className="text-xs font-medium text-[var(--text-secondary)] ml-1">Confirm Password</label>
                             <div className="relative group">
-                                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-secondary)] group-focus-within:text-[var(--accent-mint)] transition-colors" size={18} />
+                                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-secondary)] group-focus-within:text-[var(--accent-gold)] transition-colors" size={18} />
                                 <input
                                     type="password"
                                     value={confirmPassword}
                                     onChange={(e) => setConfirmPassword(e.target.value)}
-                                    className="w-full pl-11 pr-4 py-3 bg-[var(--bg-hover)]/50 border border-[var(--border-primary)] rounded-xl text-[var(--text-primary)] placeholder-[var(--text-secondary)]/50 focus:outline-none focus:border-[var(--accent-mint)] focus:ring-1 focus:ring-[var(--accent-mint)]/50 transition-all text-sm"
+                                    className="w-full pl-11 pr-4 py-3 bg-[var(--bg-hover)]/50 border border-[var(--border-primary)] rounded-xl text-[var(--text-primary)] placeholder-[var(--text-secondary)]/50 focus:outline-none focus:border-[var(--accent-gold)] focus:ring-1 focus:ring-[var(--accent-gold)]/50 transition-all text-sm"
                                     placeholder="••••••••"
                                     required
                                 />
@@ -289,7 +289,7 @@ export default function LoginPage() {
                         <button
                             type="submit"
                             disabled={isLoading}
-                            className="w-full mt-6 py-3 px-4 bg-gradient-to-r from-[var(--accent-mint)] to-[#90e0ef] text-white font-semibold rounded-xl hover:shadow-lg hover:shadow-[var(--accent-mint)]/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2 group disabled:opacity-70 disabled:cursor-not-allowed"
+                            className="w-full mt-6 py-3 px-4 bg-gradient-to-r from-[var(--accent-gold)] to-[#D4B87A] text-white font-semibold rounded-xl hover:shadow-lg hover:shadow-[var(--accent-gold)]/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2 group disabled:opacity-70 disabled:cursor-not-allowed"
                         >
                             {isLoading ? (
                                 <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -315,7 +315,7 @@ export default function LoginPage() {
                             <button
                                 type="button"
                                 onClick={() => switchMode('register')}
-                                className="text-[var(--accent-mint)] font-medium hover:underline"
+                                className="text-[var(--accent-gold)] font-medium hover:underline"
                             >
                                 Create an account
                             </button>
@@ -326,7 +326,7 @@ export default function LoginPage() {
                             <button
                                 type="button"
                                 onClick={() => switchMode('login')}
-                                className="text-[var(--accent-mint)] font-medium hover:underline"
+                                className="text-[var(--accent-gold)] font-medium hover:underline"
                             >
                                 Sign in
                             </button>

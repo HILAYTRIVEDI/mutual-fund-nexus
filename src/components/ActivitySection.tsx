@@ -74,10 +74,10 @@ export default function ActivitySection() {
     if (recentTransactions.length === 0) {
         return (
             <div className="glass-card rounded-2xl p-4 md:p-6 gradient-border relative overflow-hidden transition-colors duration-300">
-                <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent-mint)]/5 via-transparent to-[var(--accent-purple)]/5 pointer-events-none" />
+                <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent-gold)]/5 via-transparent to-[var(--accent-slate)]/5 pointer-events-none" />
                 <div className="flex items-center justify-between mb-3 md:mb-4 relative z-10">
                     <h3 className="text-[var(--text-primary)] font-semibold text-sm md:text-base">Recent Transactions</h3>
-                    <Link href="/history" className="text-[var(--accent-mint)] text-xs md:text-sm font-medium hover:underline transition-colors">
+                    <Link href="/history" className="text-[var(--accent-gold)] text-xs md:text-sm font-medium hover:underline transition-colors">
                         View All
                     </Link>
                 </div>
@@ -97,7 +97,7 @@ export default function ActivitySection() {
 
             <div className="flex items-center justify-between mb-3 md:mb-4 relative z-10">
                 <h3 className="text-[var(--text-primary)] font-semibold text-sm md:text-base">Recent Transactions</h3>
-                <Link href="/history" className="text-[var(--accent-mint)] text-xs md:text-sm font-medium hover:underline transition-colors">
+                <Link href="/history" className="text-[var(--accent-gold)] text-xs md:text-sm font-medium hover:underline transition-colors">
                     View All
                 </Link>
             </div>

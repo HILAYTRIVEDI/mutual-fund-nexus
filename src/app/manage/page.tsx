@@ -439,7 +439,7 @@ function ManageClientsContent() {
                     </div>
                     <button
                         onClick={() => setShowAddModal(true)}
-                        className="px-4 md:px-5 py-2 md:py-2.5 rounded-xl bg-gradient-to-r from-[#48cae4] to-[#90e0ef] text-white font-medium flex items-center justify-center gap-2 hover:shadow-lg hover:shadow-[#48cae4]/30 transition-all text-sm self-start sm:self-auto"
+                        className="px-4 md:px-5 py-2 md:py-2.5 rounded-xl bg-gradient-to-r from-[#C4A265] to-[#D4B87A] text-white font-medium flex items-center justify-center gap-2 hover:shadow-lg hover:shadow-[#C4A265]/30 transition-all text-sm self-start sm:self-auto"
                     >
                         <Plus size={18} />
                         Add Client
@@ -455,7 +455,7 @@ function ManageClientsContent() {
                             placeholder="Search clients..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            className="w-full pl-10 md:pl-12 pr-4 py-2.5 md:py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-[#9CA3AF] focus:outline-none focus:border-[#48cae4]/50 transition-all text-sm"
+                            className="w-full pl-10 md:pl-12 pr-4 py-2.5 md:py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-[#9CA3AF] focus:outline-none focus:border-[#C4A265]/50 transition-all text-sm"
                         />
                     </div>
                 </div>
@@ -478,7 +478,7 @@ function ManageClientsContent() {
                             <p className="text-[#9CA3AF] text-sm">No clients found</p>
                             <button
                                 onClick={() => setShowAddModal(true)}
-                                className="mt-4 text-[#48cae4] hover:underline text-sm"
+                                className="mt-4 text-[#C4A265] hover:underline text-sm"
                             >
                                 Add your first client
                             </button>
@@ -491,7 +491,7 @@ function ManageClientsContent() {
                                     <div className="lg:hidden p-4 hover:bg-white/5 transition-all">
                                         <div className="flex items-start justify-between gap-3 mb-3">
                                             <div className="flex items-center gap-3">
-                                                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#48cae4] to-[#8B5CF6] flex items-center justify-center text-white font-semibold text-xs flex-shrink-0">
+                                                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#C4A265] to-[#5B7FA4] flex items-center justify-center text-white font-semibold text-xs flex-shrink-0">
                                                     {client.name.split(' ').map(n => n[0]).join('')}
                                                 </div>
                                                 <div>
@@ -502,7 +502,7 @@ function ManageClientsContent() {
                                             <div className="flex items-center gap-2">
                                                 <button
                                                     onClick={() => handleEditClient(client)}
-                                                    className="p-2 rounded-lg bg-[#48cae4]/10 text-[#48cae4] hover:bg-[#48cae4]/20 transition-colors flex-shrink-0"
+                                                    className="p-2 rounded-lg bg-[#C4A265]/10 text-[#C4A265] hover:bg-[#C4A265]/20 transition-colors flex-shrink-0"
                                                 >
                                                     <Edit2 size={14} />
                                                 </button>
@@ -518,7 +518,7 @@ function ManageClientsContent() {
                                             <span className="text-[#9CA3AF] font-mono">{client.panCard || client.pan || 'NO PAN'}</span>
                                             <span
                                                 className={`px-2.5 py-1 rounded-md font-medium capitalize ${client.status === 'active'
-                                                    ? 'bg-[#48cae4]/10 text-[#48cae4]'
+                                                    ? 'bg-[#C4A265]/10 text-[#C4A265]'
                                                     : 'bg-[#9CA3AF]/10 text-[#9CA3AF]'
                                                     }`}
                                             >
@@ -531,7 +531,7 @@ function ManageClientsContent() {
                                     <div className="hidden lg:grid grid-cols-12 gap-4 p-4 hover:bg-white/5 transition-all items-center">
                                         <div className="col-span-3">
                                             <div className="flex items-center gap-3">
-                                                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#48cae4] to-[#8B5CF6] flex items-center justify-center text-white font-semibold text-sm">
+                                                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#C4A265] to-[#5B7FA4] flex items-center justify-center text-white font-semibold text-sm">
                                                     {client.name.split(' ').map(n => n[0]).join('')}
                                                 </div>
                                                 <div>
@@ -550,7 +550,7 @@ function ManageClientsContent() {
                                         <div className="col-span-2 flex items-center justify-end">
                                             <span
                                                 className={`px-3 py-1 rounded-md text-xs font-medium capitalize ${client.status === 'active'
-                                                    ? 'bg-[#48cae4]/10 text-[#48cae4]'
+                                                    ? 'bg-[#C4A265]/10 text-[#C4A265]'
                                                     : 'bg-[#9CA3AF]/10 text-[#9CA3AF]'
                                                     }`}
                                             >
@@ -560,7 +560,7 @@ function ManageClientsContent() {
                                         <div className="col-span-2 flex items-center justify-center gap-2">
                                             <button
                                                 onClick={() => handleEditClient(client)}
-                                                className="p-2 rounded-lg bg-[#48cae4]/10 text-[#48cae4] hover:bg-[#48cae4]/20 transition-colors"
+                                                className="p-2 rounded-lg bg-[#C4A265]/10 text-[#C4A265] hover:bg-[#C4A265]/20 transition-colors"
                                             >
                                                 <Edit2 size={16} />
                                             </button>
@@ -649,8 +649,8 @@ function ManageClientsContent() {
                         {/* Modal Header */}
                         <div className="p-4 md:p-6 border-b border-white/10 flex items-center justify-between">
                             <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-xl bg-[#48cae4]/20 flex items-center justify-center">
-                                    <UserPlus size={20} className="text-[#48cae4]" />
+                                <div className="w-10 h-10 rounded-xl bg-[#C4A265]/20 flex items-center justify-center">
+                                    <UserPlus size={20} className="text-[#C4A265]" />
                                 </div>
                                 <div>
                                     <h2 className="text-white text-base md:text-lg font-semibold">
@@ -679,7 +679,7 @@ function ManageClientsContent() {
                                     placeholder="Enter client name"
                                     value={formData.name}
                                     onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                                    className="w-full px-4 py-2.5 md:py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-[#9CA3AF] focus:outline-none focus:border-[#48cae4]/50 text-sm"
+                                    className="w-full px-4 py-2.5 md:py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-[#9CA3AF] focus:outline-none focus:border-[#C4A265]/50 text-sm"
                                 />
                             </div>
 
@@ -692,7 +692,7 @@ function ManageClientsContent() {
                                         placeholder="email@example.com"
                                         value={formData.email}
                                         onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
-                                        className="w-full px-4 py-2.5 md:py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-[#9CA3AF] focus:outline-none focus:border-[#48cae4]/50 text-sm"
+                                        className="w-full px-4 py-2.5 md:py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-[#9CA3AF] focus:outline-none focus:border-[#C4A265]/50 text-sm"
                                     />
                                 </div>
                                 <div>
@@ -702,7 +702,7 @@ function ManageClientsContent() {
                                         placeholder="+91 XXXXX XXXXX"
                                         value={formData.phone}
                                         onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
-                                        className="w-full px-4 py-2.5 md:py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-[#9CA3AF] focus:outline-none focus:border-[#48cae4]/50 text-sm"
+                                        className="w-full px-4 py-2.5 md:py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-[#9CA3AF] focus:outline-none focus:border-[#C4A265]/50 text-sm"
                                     />
                                 </div>
                             </div>
@@ -720,7 +720,7 @@ function ManageClientsContent() {
                                             placeholder="Minimum 6 characters"
                                             value={formData.password}
                                             onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
-                                            className="w-full px-4 py-2.5 md:py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-[#9CA3AF] focus:outline-none focus:border-[#48cae4]/50 text-sm pr-12"
+                                            className="w-full px-4 py-2.5 md:py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-[#9CA3AF] focus:outline-none focus:border-[#C4A265]/50 text-sm pr-12"
                                         />
                                         <button
                                             type="button"
@@ -746,7 +746,7 @@ function ManageClientsContent() {
                                         value={formData.panCard}
                                         onChange={(e) => setFormData(prev => ({ ...prev, panCard: e.target.value.toUpperCase() }))}
                                         maxLength={10}
-                                        className="w-full px-4 py-2.5 md:py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-[#9CA3AF] focus:outline-none focus:border-[#48cae4]/50 text-sm"
+                                        className="w-full px-4 py-2.5 md:py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-[#9CA3AF] focus:outline-none focus:border-[#C4A265]/50 text-sm"
                                     />
                                 </div>
                                 <div>
@@ -761,7 +761,7 @@ function ManageClientsContent() {
                                             const formatted = val.replace(/(\d{4})(?=\d)/g, '$1 ');
                                             setFormData(prev => ({ ...prev, aadharCard: formatted }));
                                         }}
-                                        className="w-full px-4 py-2.5 md:py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-[#9CA3AF] focus:outline-none focus:border-[#48cae4]/50 text-sm"
+                                        className="w-full px-4 py-2.5 md:py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-[#9CA3AF] focus:outline-none focus:border-[#C4A265]/50 text-sm"
                                     />
                                 </div>
                             </div>
@@ -784,7 +784,7 @@ function ManageClientsContent() {
                                             setFundSearch('');
                                             setFundResults([]);
                                         }}
-                                        className="text-[#48cae4] hover:text-[#90e0ef] transition-colors text-[11px] font-medium flex items-center gap-1"
+                                        className="text-[#C4A265] hover:text-[#D4B87A] transition-colors text-[11px] font-medium flex items-center gap-1"
                                     >
                                         <Plus size={12} />
                                         {formData.isCustomFund ? 'Search API Instead' : 'Add Custom Fund'}
@@ -794,8 +794,8 @@ function ManageClientsContent() {
                                 {formData.isCustomFund ? (
                                     /* Custom Fund Inputs */
                                     <div className="space-y-3">
-                                        <div className="p-3 rounded-xl bg-[#48cae4]/5 border border-[#48cae4]/20">
-                                            <p className="text-[10px] text-[#48cae4] mb-2 font-medium uppercase tracking-wider">Custom Fund Details</p>
+                                        <div className="p-3 rounded-xl bg-[#C4A265]/5 border border-[#C4A265]/20">
+                                            <p className="text-[10px] text-[#C4A265] mb-2 font-medium uppercase tracking-wider">Custom Fund Details</p>
                                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                                 <div>
                                                     <label className="text-[#9CA3AF] text-[10px] mb-1 block">Fund Name *</label>
@@ -804,7 +804,7 @@ function ManageClientsContent() {
                                                         placeholder="e.g. ABC Equity Fund"
                                                         value={formData.customFundName}
                                                         onChange={(e) => setFormData(prev => ({ ...prev, customFundName: e.target.value }))}
-                                                        className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder-[#9CA3AF] focus:outline-none focus:border-[#48cae4]/50 text-sm"
+                                                        className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder-[#9CA3AF] focus:outline-none focus:border-[#C4A265]/50 text-sm"
                                                     />
                                                 </div>
                                                 <div>
@@ -815,7 +815,7 @@ function ManageClientsContent() {
                                                         placeholder="e.g. 45.50"
                                                         value={formData.customFundNAV}
                                                         onChange={(e) => setFormData(prev => ({ ...prev, customFundNAV: e.target.value }))}
-                                                        className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder-[#9CA3AF] focus:outline-none focus:border-[#48cae4]/50 text-sm"
+                                                        className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder-[#9CA3AF] focus:outline-none focus:border-[#C4A265]/50 text-sm"
                                                     />
                                                 </div>
                                             </div>
@@ -832,13 +832,13 @@ function ManageClientsContent() {
                                                 value={fundSearch}
                                                 onChange={(e) => { setFundSearch(e.target.value); setShowFundDropdown(true); }}
                                                 onFocus={() => setShowFundDropdown(true)}
-                                                className="w-full pl-12 pr-10 py-2.5 md:py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-[#9CA3AF] focus:outline-none focus:border-[#48cae4]/50 text-sm"
+                                                className="w-full pl-12 pr-10 py-2.5 md:py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-[#9CA3AF] focus:outline-none focus:border-[#C4A265]/50 text-sm"
                                             />
                                             {fundSearching && (
-                                                <Loader2 className="absolute right-4 top-1/2 -translate-y-1/2 text-[#48cae4] animate-spin" size={18} />
+                                                <Loader2 className="absolute right-4 top-1/2 -translate-y-1/2 text-[#C4A265] animate-spin" size={18} />
                                             )}
                                             {formData.schemeCode > 0 && !fundSearching && (
-                                                <Check className="absolute right-4 top-1/2 -translate-y-1/2 text-[#48cae4]" size={18} />
+                                                <Check className="absolute right-4 top-1/2 -translate-y-1/2 text-[#C4A265]" size={18} />
                                             )}
                                         </div>
 
@@ -868,7 +868,7 @@ function ManageClientsContent() {
                                     <button
                                         onClick={() => setFormData(prev => ({ ...prev, investmentType: 'SIP' }))}
                                         className={`p-3 md:p-4 rounded-xl border transition-all ${formData.investmentType === 'SIP'
-                                            ? 'bg-[#48cae4]/20 border-[#48cae4]/50 text-[#48cae4]'
+                                            ? 'bg-[#C4A265]/20 border-[#C4A265]/50 text-[#C4A265]'
                                             : 'bg-white/5 border-white/10 text-[#9CA3AF] hover:bg-white/10'
                                             }`}
                                     >
@@ -878,7 +878,7 @@ function ManageClientsContent() {
                                     <button
                                         onClick={() => setFormData(prev => ({ ...prev, investmentType: 'Lumpsum' }))}
                                         className={`p-3 md:p-4 rounded-xl border transition-all ${formData.investmentType === 'Lumpsum'
-                                            ? 'bg-[#8B5CF6]/20 border-[#8B5CF6]/50 text-[#8B5CF6]'
+                                            ? 'bg-[#5B7FA4]/20 border-[#5B7FA4]/50 text-[#5B7FA4]'
                                             : 'bg-white/5 border-white/10 text-[#9CA3AF] hover:bg-white/10'
                                             }`}
                                     >
@@ -899,7 +899,7 @@ function ManageClientsContent() {
                                         placeholder="₹ Amount"
                                         value={formData.amount}
                                         onChange={(e) => setFormData(prev => ({ ...prev, amount: e.target.value }))}
-                                        className="w-full px-4 py-2.5 md:py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-[#9CA3AF] focus:outline-none focus:border-[#48cae4]/50 text-sm"
+                                        className="w-full px-4 py-2.5 md:py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-[#9CA3AF] focus:outline-none focus:border-[#C4A265]/50 text-sm"
                                     />
                                 </div>
                                 {formData.investmentType === 'SIP' && (
@@ -910,7 +910,7 @@ function ManageClientsContent() {
                                             placeholder="₹ Monthly"
                                             value={formData.sipAmount}
                                             onChange={(e) => setFormData(prev => ({ ...prev, sipAmount: e.target.value }))}
-                                            className="w-full px-4 py-2.5 md:py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-[#9CA3AF] focus:outline-none focus:border-[#48cae4]/50 text-sm"
+                                            className="w-full px-4 py-2.5 md:py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-[#9CA3AF] focus:outline-none focus:border-[#C4A265]/50 text-sm"
                                         />
                                     </div>
                                 )}
@@ -960,7 +960,7 @@ function ManageClientsContent() {
                                     type="date"
                                     value={formData.startDate}
                                     onChange={(e) => setFormData(prev => ({ ...prev, startDate: e.target.value }))}
-                                    className="w-full px-4 py-2.5 md:py-3 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:border-[#48cae4]/50 text-sm"
+                                    className="w-full px-4 py-2.5 md:py-3 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:border-[#C4A265]/50 text-sm"
                                 />
                             </div>
                         </div>
@@ -976,7 +976,7 @@ function ManageClientsContent() {
                             <button
                                 onClick={handleAddClient}
                                 disabled={isSubmitting}
-                                className="flex-1 py-2.5 md:py-3 rounded-xl bg-gradient-to-r from-[#48cae4] to-[#90e0ef] text-white font-medium hover:shadow-lg hover:shadow-[#48cae4]/30 transition-all text-sm disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                                className="flex-1 py-2.5 md:py-3 rounded-xl bg-gradient-to-r from-[#C4A265] to-[#D4B87A] text-white font-medium hover:shadow-lg hover:shadow-[#C4A265]/30 transition-all text-sm disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                             >
                                 {isSubmitting ? (
                                     <>

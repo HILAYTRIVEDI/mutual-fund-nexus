@@ -12,7 +12,7 @@ const topFunds = [
         aum: '₹45,234 Cr',
         returns1Y: '+28.5%',
         nav: '₹156.78',
-        color: '#48cae4',
+        color: '#C4A265',
     },
     {
         id: 2,
@@ -34,7 +34,7 @@ const topFunds = [
         aum: '₹38,765 Cr',
         returns1Y: '+18.6%',
         nav: '₹52.18',
-        color: '#8B5CF6',
+        color: '#5B7FA4',
     },
     {
         id: 4,
@@ -53,7 +53,7 @@ export default function MarketSnapshot() {
     return (
         <div className="glass-card rounded-2xl p-6 gradient-border relative overflow-hidden transition-colors duration-300">
             {/* Gradient overlay */}
-            <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent-mint)]/5 via-transparent to-[var(--accent-purple)]/5 pointer-events-none" />
+            <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent-gold)]/5 via-transparent to-[var(--accent-slate)]/5 pointer-events-none" />
 
             <div className="flex items-center justify-between mb-4 relative z-10">
                 <h3 className="text-[var(--text-primary)] font-semibold">Top Performing Funds</h3>

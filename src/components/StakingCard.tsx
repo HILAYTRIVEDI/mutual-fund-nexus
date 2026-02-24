@@ -16,7 +16,7 @@ function formatDate(dateStr: string): string {
     return date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
 }
 
-const colors = ['#48cae4', '#3B82F6', '#8B5CF6', '#F59E0B', '#EC4899'];
+const colors = ['#C4A265', '#5B7FA4', '#D4B87A', '#7A9DBF', '#8B7355'];
 
 export default function StakingCard() {
     const { upcomingSIPs, activeSIPs, isLoading, error } = useSIPs();
@@ -60,11 +60,11 @@ export default function StakingCard() {
     if (displaySIPs.length === 0) {
         return (
             <div className="glass-card rounded-2xl p-4 md:p-6 h-full gradient-border mint-glow relative overflow-hidden transition-colors duration-300">
-                <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent-mint)]/10 via-transparent to-[var(--accent-purple)]/5 pointer-events-none" />
+                <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent-gold)]/10 via-transparent to-[var(--accent-slate)]/5 pointer-events-none" />
                 
                 <div className="mb-4 md:mb-6 relative z-10">
                     <div className="flex items-center gap-1.5 md:gap-2 mb-2">
-                        <Calendar size={16} className="text-[var(--accent-mint)]" />
+                        <Calendar size={16} className="text-[var(--accent-gold)]" />
                         <p className="text-[var(--text-secondary)] text-xs md:text-sm">Upcoming SIPs</p>
                     </div>
                 </div>
@@ -78,7 +78,7 @@ export default function StakingCard() {
                 <div className="mt-3 md:mt-4 relative z-10">
                     <Link
                         href="/clients?type=SIP"
-                        className="block w-full py-2.5 md:py-3 rounded-xl bg-gradient-to-r from-[var(--accent-mint)]/20 to-[var(--accent-mint)]/10 border border-[var(--accent-mint)]/30 text-[var(--accent-mint)] font-medium hover:from-[var(--accent-mint)]/30 hover:to-[var(--accent-mint)]/20 hover:shadow-lg hover:shadow-[var(--accent-mint)]/20 transition-all duration-300 text-center text-sm"
+                        className="block w-full py-2.5 md:py-3 rounded-xl bg-gradient-to-r from-[var(--accent-gold)]/20 to-[var(--accent-gold)]/10 border border-[var(--accent-gold)]/30 text-[var(--accent-gold)] font-medium hover:from-[var(--accent-gold)]/30 hover:to-[var(--accent-gold)]/20 hover:shadow-lg hover:shadow-[var(--accent-gold)]/20 transition-all duration-300 text-center text-sm"
                     >
                         Manage SIPs
                     </Link>
@@ -96,7 +96,7 @@ export default function StakingCard() {
             <div className="mb-4 md:mb-6 relative z-10">
                 <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-1.5 md:gap-2">
-                        <Calendar size={16} className="text-[var(--accent-mint)]" />
+                        <Calendar size={16} className="text-[var(--accent-gold)]" />
                         <p className="text-[var(--text-secondary)] text-xs md:text-sm">Upcoming SIPs</p>
                     </div>
                     <span className="text-[var(--text-secondary)] text-[10px] md:text-xs px-1.5 md:px-2 py-0.5 md:py-1 bg-[var(--bg-hover)] rounded-full">
@@ -168,7 +168,7 @@ export default function StakingCard() {
             <div className="mt-3 md:mt-4 relative z-10">
                 <Link
                     href="/clients?type=SIP"
-                    className="block w-full py-2.5 md:py-3 rounded-xl bg-gradient-to-r from-[var(--accent-mint)]/20 to-[var(--accent-mint)]/10 border border-[var(--accent-mint)]/30 text-[var(--accent-mint)] font-medium hover:from-[var(--accent-mint)]/30 hover:to-[var(--accent-mint)]/20 hover:shadow-lg hover:shadow-[var(--accent-mint)]/20 transition-all duration-300 text-center text-sm"
+                    className="block w-full py-2.5 md:py-3 rounded-xl bg-gradient-to-r from-[var(--accent-gold)]/20 to-[var(--accent-gold)]/10 border border-[var(--accent-gold)]/30 text-[var(--accent-gold)] font-medium hover:from-[var(--accent-gold)]/30 hover:to-[var(--accent-gold)]/20 hover:shadow-lg hover:shadow-[var(--accent-gold)]/20 transition-all duration-300 text-center text-sm"
                 >
                     View All SIPs
                 </Link>

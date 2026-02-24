@@ -14,7 +14,7 @@ function formatCurrency(amount: number): string {
     return `₹${amount.toLocaleString('en-IN')}`;
 }
 
-const colors = ['var(--accent-mint)', 'var(--accent-blue)', 'var(--accent-purple)', '#F59E0B', '#EC4899'];
+const colors = ['var(--accent-gold)', 'var(--accent-slate)', 'var(--accent-mint)', '#D4B87A', '#7A9DBF'];
 
 export default function PortfolioCard() {
     const { holdings, isLoading, error } = useHoldings();
@@ -46,10 +46,10 @@ export default function PortfolioCard() {
     if (topHoldings.length === 0) {
         return (
             <div className="glass-card rounded-2xl p-6 gradient-border relative overflow-hidden transition-colors duration-300">
-                <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent-mint)]/5 via-transparent to-[var(--accent-purple)]/5 pointer-events-none" />
+                <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent-gold)]/5 via-transparent to-[var(--accent-slate)]/5 pointer-events-none" />
                 <div className="flex items-center justify-between mb-6 relative z-10">
                     <h3 className="text-[var(--text-primary)] font-semibold">Top Holdings</h3>
-                    <Link href="/portfolio" className="text-[var(--accent-mint)] text-sm font-medium hover:underline transition-colors">
+                    <Link href="/portfolio" className="text-[var(--accent-gold)] text-sm font-medium hover:underline transition-colors">
                         View All
                     </Link>
                 </div>
@@ -69,7 +69,7 @@ export default function PortfolioCard() {
 
             <div className="flex items-center justify-between mb-6 relative z-10">
                 <h3 className="text-[var(--text-primary)] font-semibold">Top Holdings</h3>
-                <Link href="/portfolio" className="text-[var(--accent-mint)] text-sm font-medium hover:underline transition-colors">
+                <Link href="/portfolio" className="text-[var(--accent-gold)] text-sm font-medium hover:underline transition-colors">
                     View All
                 </Link>
             </div>
@@ -129,7 +129,7 @@ export default function PortfolioCard() {
                                 </div>
                                 <div>
                                     <p className="text-[var(--text-secondary)] text-xs">NAV</p>
-                                    <p className="text-[var(--accent-mint)] text-sm">₹{holding.current_nav.toFixed(2)}</p>
+                                    <p className="text-[var(--accent-gold)] text-sm">₹{holding.current_nav.toFixed(2)}</p>
                                 </div>
                             </div>
                         </div>

@@ -12,7 +12,7 @@ import AssetChartCard from '@/components/AssetChartCard';
 import DistributionCard from '@/components/DistributionCard';
 import Link from 'next/link';
 
-const COLORS = ['#48cae4', '#3B82F6', '#8B5CF6', '#F59E0B', '#EC4899', '#10B981', '#6366F1'];
+const COLORS = ['#C4A265', '#3B82F6', '#5B7FA4', '#F59E0B', '#EC4899', '#10B981', '#6366F1'];
 
 function formatCurrency(amount: number): string {
     if (amount >= 10000000) {

@@ -121,7 +121,7 @@ export default function MutualFundsPage() {
 
                 {/* Search Bar */}
                 <div className="glass-card rounded-2xl p-3 md:p-4 mb-4 md:mb-6 relative overflow-hidden">
-                    <div className="absolute inset-0 bg-gradient-to-r from-[#48cae4]/5 via-transparent to-[#8B5CF6]/5 pointer-events-none" />
+                    <div className="absolute inset-0 bg-gradient-to-r from-[#C4A265]/5 via-transparent to-[#5B7FA4]/5 pointer-events-none" />
                     <div className="relative z-10 flex items-center gap-2 md:gap-3">
                         <div className="flex-1 relative">
                             <Search className="absolute left-3 md:left-4 top-1/2 -translate-y-1/2 text-[#9CA3AF]" size={18} />
@@ -130,7 +130,7 @@ export default function MutualFundsPage() {
                                 placeholder="Search funds (HDFC, SBI, ICICI)..."
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
-                                className="w-full pl-10 md:pl-12 pr-10 py-2.5 md:py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-[#9CA3AF] focus:outline-none focus:border-[#48cae4]/50 focus:ring-1 focus:ring-[#48cae4]/50 transition-all text-sm"
+                                className="w-full pl-10 md:pl-12 pr-10 py-2.5 md:py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-[#9CA3AF] focus:outline-none focus:border-[#C4A265]/50 focus:ring-1 focus:ring-[#C4A265]/50 transition-all text-sm"
                             />
                             {searchQuery && (
                                 <button
@@ -142,7 +142,7 @@ export default function MutualFundsPage() {
                             )}
                         </div>
                         {(searchLoading || loading) && (
-                            <Loader2 className="animate-spin text-[#48cae4] flex-shrink-0" size={20} />
+                            <Loader2 className="animate-spin text-[#C4A265] flex-shrink-0" size={20} />
                         )}
                     </div>
                 </div>
@@ -191,7 +191,7 @@ export default function MutualFundsPage() {
                     {/* Table Body */}
                     {loading && schemes.length === 0 ? (
                         <div className="flex items-center justify-center py-12 md:py-20">
-                            <Loader2 className="animate-spin text-[#48cae4] mr-3" size={24} />
+                            <Loader2 className="animate-spin text-[#C4A265] mr-3" size={24} />
                             <span className="text-[#9CA3AF] text-sm">Loading schemes...</span>
                         </div>
                     ) : schemes.length === 0 ? (
@@ -211,12 +211,12 @@ export default function MutualFundsPage() {
                                     <div className="md:hidden">
                                         <div className="flex items-start justify-between gap-3 mb-2">
                                             <div className="flex items-center gap-2">
-                                                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#48cae4]/20 to-[#48cae4]/5 flex items-center justify-center flex-shrink-0">
-                                                    <Building2 size={14} className="text-[#48cae4]" />
+                                                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#C4A265]/20 to-[#C4A265]/5 flex items-center justify-center flex-shrink-0">
+                                                    <Building2 size={14} className="text-[#C4A265]" />
                                                 </div>
                                                 <span className="text-white text-xs font-mono">{scheme.schemeCode}</span>
                                             </div>
-                                            <button className="px-2.5 py-1 rounded-lg bg-[#48cae4]/10 border border-[#48cae4]/20 text-[#48cae4] text-[10px] font-medium flex items-center gap-1 flex-shrink-0">
+                                            <button className="px-2.5 py-1 rounded-lg bg-[#C4A265]/10 border border-[#C4A265]/20 text-[#C4A265] text-[10px] font-medium flex items-center gap-1 flex-shrink-0">
                                                 <TrendingUp size={10} />
                                                 NAV
                                             </button>
@@ -227,8 +227,8 @@ export default function MutualFundsPage() {
                                     {/* Desktop Layout */}
                                     <div className="hidden md:grid grid-cols-12 gap-4 items-center">
                                         <div className="col-span-2 flex items-center gap-2">
-                                            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#48cae4]/20 to-[#48cae4]/5 flex items-center justify-center group-hover:scale-110 transition-transform">
-                                                <Building2 size={14} className="text-[#48cae4]" />
+                                            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#C4A265]/20 to-[#C4A265]/5 flex items-center justify-center group-hover:scale-110 transition-transform">
+                                                <Building2 size={14} className="text-[#C4A265]" />
                                             </div>
                                             <span className="text-white text-sm font-mono">{scheme.schemeCode}</span>
                                         </div>
@@ -236,7 +236,7 @@ export default function MutualFundsPage() {
                                             <span className="text-white text-sm truncate block">{scheme.schemeName}</span>
                                         </div>
                                         <div className="col-span-2 flex items-center justify-end">
-                                            <button className="px-3 py-1.5 rounded-lg bg-[#48cae4]/10 border border-[#48cae4]/20 text-[#48cae4] text-xs font-medium hover:bg-[#48cae4]/20 transition-colors flex items-center gap-1">
+                                            <button className="px-3 py-1.5 rounded-lg bg-[#C4A265]/10 border border-[#C4A265]/20 text-[#C4A265] text-xs font-medium hover:bg-[#C4A265]/20 transition-colors flex items-center gap-1">
                                                 <TrendingUp size={12} />
                                                 View NAV
                                             </button>
@@ -265,7 +265,7 @@ export default function MutualFundsPage() {
                         <button
                             onClick={handleNextPage}
                             disabled={!hasMore}
-                            className="px-3 md:px-4 py-2 rounded-lg bg-gradient-to-r from-[#48cae4]/20 to-[#48cae4]/10 border border-[#48cae4]/30 text-[#48cae4] disabled:opacity-30 disabled:cursor-not-allowed hover:from-[#48cae4]/30 hover:to-[#48cae4]/20 transition-colors flex items-center gap-1 md:gap-2 text-sm"
+                            className="px-3 md:px-4 py-2 rounded-lg bg-gradient-to-r from-[#C4A265]/20 to-[#C4A265]/10 border border-[#C4A265]/30 text-[#C4A265] disabled:opacity-30 disabled:cursor-not-allowed hover:from-[#C4A265]/30 hover:to-[#C4A265]/20 transition-colors flex items-center gap-1 md:gap-2 text-sm"
                         >
                             <span className="hidden sm:inline">Next</span>
                             <ChevronRight size={14} />
@@ -283,7 +283,7 @@ export default function MutualFundsPage() {
                     <div className="w-full sm:max-w-2xl max-h-[90vh] overflow-y-auto">
                         {schemeLoading ? (
                             <div className="glass-card rounded-t-2xl sm:rounded-2xl p-8 flex items-center justify-center">
-                                <Loader2 className="animate-spin text-[#48cae4] mr-3" size={32} />
+                                <Loader2 className="animate-spin text-[#C4A265] mr-3" size={32} />
                                 <span className="text-white text-lg">Loading scheme details...</span>
                             </div>
                         ) : selectedScheme && (

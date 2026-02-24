@@ -7,13 +7,13 @@ import { Loader2, PieChart as PieChartIcon } from 'lucide-react';
 
 // Color palette for categories
 const categoryColors: Record<string, string> = {
-    'Equity': '#48cae4',
-    'Debt': '#8B5CF6',
-    'Hybrid': '#F59E0B',
+    'Equity': '#C4A265',
+    'Debt': '#5B7FA4',
+    'Hybrid': '#D4B87A',
     'ELSS': '#10B981',
-    'Index': '#3B82F6',
-    'Sectoral': '#EC4899',
-    'Liquid': '#6366F1',
+    'Index': '#7A9DBF',
+    'Sectoral': '#8B7355',
+    'Liquid': '#A0C4E8',
     'Other': '#64748B',
 };
 
@@ -117,7 +117,7 @@ export default function DistributionCard({ customData }: DistributionCardProps =
         return (
             <div className="glass-card rounded-2xl p-6 h-full gradient-border relative overflow-hidden transition-colors duration-300">
                 {/* Gradient overlay */}
-                <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent-purple)]/10 via-transparent to-[var(--accent-mint)]/5 pointer-events-none" />
+                <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent-gold)]/10 via-transparent to-[var(--accent-slate)]/5 pointer-events-none" />
 
                 <div className="flex items-center justify-between mb-4 relative z-10">
                     <h3 className="text-[var(--text-primary)] font-semibold">Asset Allocation</h3>

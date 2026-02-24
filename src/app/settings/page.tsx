@@ -263,7 +263,7 @@ export default function SettingsPage() {
                                     px-6 py-3 rounded-xl font-medium flex items-center gap-2 transition-all
                                     ${isSaving
                                         ? 'bg-[var(--bg-hover)] text-[var(--text-secondary)] cursor-wait'
-                                        : 'bg-gradient-to-r from-[var(--accent-mint)] to-[#90e0ef] text-white hover:shadow-lg hover:shadow-[var(--accent-mint)]/20 active:scale-95'
+                                        : 'bg-gradient-to-r from-[var(--accent-mint)] to-[#D4B87A] text-white hover:shadow-lg hover:shadow-[var(--accent-mint)]/20 active:scale-95'
                                     }
                                 `}
                             >

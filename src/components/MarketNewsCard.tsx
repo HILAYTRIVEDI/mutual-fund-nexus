@@ -41,13 +41,13 @@ export default function MarketNewsCard() {
     return (
         <div className="glass-card rounded-2xl p-6 h-full flex flex-col relative overflow-hidden group">
             {/* Gradient overlay */}
-            <div className="absolute inset-0 bg-gradient-to-br from-[#48cae4]/5 via-transparent to-[#8B5CF6]/5 pointer-events-none transition-opacity duration-300 group-hover:opacity-100 opacity-50" />
+            <div className="absolute inset-0 bg-gradient-to-br from-[#C4A265]/5 via-transparent to-[#5B7FA4]/5 pointer-events-none transition-opacity duration-300 group-hover:opacity-100 opacity-50" />
 
             {/* Header */}
             <div className="flex items-center justify-between mb-6 relative z-10">
                 <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#48cae4]/20 to-[#48cae4]/5 flex items-center justify-center">
-                        <Newspaper size={20} className="text-[#48cae4]" />
+                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#C4A265]/20 to-[#C4A265]/5 flex items-center justify-center">
+                        <Newspaper size={20} className="text-[#C4A265]" />
                     </div>
                     <div>
                         <h3 className="text-[var(--text-primary)] font-semibold">Market News</h3>
@@ -64,7 +64,7 @@ export default function MarketNewsCard() {
                     </button>
                     <Link
                         href="/news"
-                        className="flex items-center gap-1 text-xs font-medium text-[#48cae4] hover:text-[#48cae4]/80 transition-colors"
+                        className="flex items-center gap-1 text-xs font-medium text-[#C4A265] hover:text-[#C4A265]/80 transition-colors"
                     >
                         View All <ArrowRight size={14} />
                     </Link>
@@ -89,7 +89,7 @@ export default function MarketNewsCard() {
                     news.map((item) => (
                         <div key={item.id} className="group/item pb-4 border-b border-[var(--border-primary)] last:border-0 last:pb-0">
                             <div className="flex items-start justify-between mb-1">
-                                <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-[#48cae4]/10 text-[#48cae4]">
+                                <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-[#C4A265]/10 text-[#C4A265]">
                                     {item.source}
                                 </span>
                                 <span className="text-[var(--text-muted)] text-[10px] flex items-center gap-1">
@@ -103,7 +103,7 @@ export default function MarketNewsCard() {
                                 rel="noopener noreferrer"
                                 className="block group-hover/item:translate-x-1 transition-transform duration-300"
                             >
-                                <h4 className="text-[var(--text-primary)] text-sm font-medium leading-snug mb-1 group-hover/item:text-[#48cae4] transition-colors line-clamp-2">
+                                <h4 className="text-[var(--text-primary)] text-sm font-medium leading-snug mb-1 group-hover/item:text-[#C4A265] transition-colors line-clamp-2">
                                     {item.title}
                                 </h4>
                             </a>

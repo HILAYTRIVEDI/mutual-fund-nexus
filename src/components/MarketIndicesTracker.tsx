@@ -30,7 +30,7 @@ const mockIndices: MarketIndex[] = [
         dayHigh: 23625.40,
         dayLow: 23520.15,
         open: 23545.00,
-        color: '#48cae4',
+        color: '#C4A265',
     },
     {
         id: '2',
@@ -56,7 +56,7 @@ const mockIndices: MarketIndex[] = [
         dayHigh: 50450.00,
         dayLow: 50150.25,
         open: 50380.00,
-        color: '#8B5CF6',
+        color: '#5B7FA4',
     },
     {
         id: '4',

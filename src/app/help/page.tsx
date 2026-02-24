@@ -23,7 +23,7 @@ const guides: Guide[] = [
         category: 'Beginner',
         duration: '5 min read',
         icon: Book,
-        color: '#48cae4',
+        color: '#C4A265',
         steps: [
             'Navigate to "Manage Clients" from the sidebar',
             'Enter client details (name, email, phone)',
@@ -55,7 +55,7 @@ const guides: Guide[] = [
         category: 'Essential',
         duration: '6 min read',
         icon: PlayCircle,
-        color: '#8B5CF6',
+        color: '#5B7FA4',
         steps: [
             'View AUM chart with time period filters',
             'Check asset allocation in the donut chart',

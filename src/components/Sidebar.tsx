@@ -70,7 +70,7 @@ export default function Sidebar() {
             {/* Logo */}
             <div className="mb-8 md:mb-10">
                 <h1 className="text-xl font-bold text-[var(--text-primary)] tracking-tight">
-                    <span className="bg-gradient-to-r from-[var(--accent-mint)] to-[#90e0ef] bg-clip-text text-transparent">Rua</span>Capital
+                    <span className="bg-gradient-to-r from-[var(--accent-gold)] to-[#D4B87A] bg-clip-text text-transparent">Rua</span>Capital
                 </h1>
                 <p className="text-[var(--text-secondary)] text-xs mt-1">Investment Dashboard</p>
             </div>
@@ -93,7 +93,7 @@ export default function Sidebar() {
                                         href={item.href}
                                         onClick={() => setIsOpen(false)}
                                         className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${isActive
-                                            ? 'bg-gradient-to-r from-[var(--accent-mint)]/20 to-[var(--accent-mint)]/5 text-[var(--accent-mint)] border border-[var(--accent-mint)]/20'
+                                            ? 'bg-gradient-to-r from-[var(--accent-gold)]/20 to-[var(--accent-gold)]/5 text-[var(--accent-gold)] border border-[var(--accent-gold)]/20'
                                             : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]'
                                             }`}
                                     >
@@ -109,13 +109,13 @@ export default function Sidebar() {
             {/* User Profile */}
             <div className="pt-4 md:pt-6 border-t border-[var(--border-primary)]">
                 {user && (
-                    <div className="flex items-center gap-3 mb-4 p-3 rounded-xl bg-gradient-to-r from-[var(--accent-mint)]/10 to-[var(--accent-purple)]/10">
-                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[var(--accent-mint)] to-[var(--accent-purple)] flex items-center justify-center text-white font-semibold shadow-lg shadow-[var(--glow-mint)]">
+                    <div className="flex items-center gap-3 mb-4 p-3 rounded-xl bg-gradient-to-r from-[var(--accent-gold)]/10 to-[var(--accent-slate)]/10">
+                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[var(--accent-gold)] to-[var(--accent-slate)] flex items-center justify-center text-white font-semibold shadow-lg shadow-[var(--glow-gold)]">
                             {user.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
                         </div>
                         <div className="min-w-0">
                             <p className="text-[var(--text-primary)] font-medium text-sm truncate">{user.name}</p>
-                            <p className="text-[var(--accent-mint)] text-xs truncate capitalize">{user.role} Account</p>
+                            <p className="text-[var(--accent-gold)] text-xs truncate capitalize">{user.role} Account</p>
                         </div>
                     </div>
                 )}
