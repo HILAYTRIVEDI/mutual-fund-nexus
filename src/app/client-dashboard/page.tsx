@@ -212,9 +212,7 @@ export default function ClientDashboard() {
                     
                     {/* Right Column: Distribution & SIPs */}
                     <div className="space-y-6">
-                        <div className="h-[250px] md:h-[300px]">
-                            <DistributionCard customData={distributionData} />
-                        </div>
+                        <DistributionCard customData={distributionData} />
                         
                         {/* Start investing nudge if empty */}
                         {holdings.length === 0 && (

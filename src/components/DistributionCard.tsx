@@ -133,7 +133,7 @@ export default function DistributionCard({ customData }: DistributionCardProps =
     }
 
     return (
-        <div className="glass-card rounded-2xl p-6 h-full gradient-border relative overflow-hidden transition-colors duration-300">
+        <div className="glass-card rounded-2xl p-6 gradient-border relative overflow-hidden transition-colors duration-300">
             {/* Gradient overlay */}
             <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent-purple)]/10 via-transparent to-[var(--accent-mint)]/5 pointer-events-none" />
 
@@ -170,21 +170,21 @@ export default function DistributionCard({ customData }: DistributionCardProps =
                 </ResponsiveContainer>
 
                 {/* Center text */}
-                <div className="absolute inset-0 flex flex-col items-center justify-center">
-                    <p className="text-[var(--text-secondary)] text-xs">{focusItem.name.replace(' Funds', '')}</p>
-                    <p className="text-2xl font-bold text-[var(--text-primary)]">{focusItem.value}%</p>
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center justify-center pointer-events-none w-[90px] text-center">
+                    <p className="text-[var(--text-secondary)] text-[10px] truncate w-full" title={focusItem.name}>{focusItem.name.replace(' Funds', '')}</p>
+                    <p className="text-2xl font-bold text-[var(--text-primary)] mt-0.5">{focusItem.value}%</p>
                 </div>
             </div>
 
             {/* Legend */}
-            <div className="space-y-2 mt-4 relative z-10">
+            <div className="space-y-3 mt-4 relative z-10">
                 {chartData.map((entry) => (
-                    <div key={entry.name} className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: entry.color }} />
-                            <span className="text-[var(--text-secondary)] text-sm">{entry.name}</span>
+                    <div key={entry.name} className="flex items-center justify-between gap-4 cursor-pointer hover:opacity-80 transition-opacity duration-200">
+                        <div className="flex items-center gap-3 flex-1 min-w-0">
+                            <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: entry.color }} />
+                            <span className="text-[var(--text-secondary)] text-sm truncate" title={entry.name}>{entry.name}</span>
                         </div>
-                        <span className="text-[var(--text-primary)] font-medium">{entry.value}%</span>
+                        <span className="text-[var(--text-primary)] font-medium shrink-0">{entry.value}%</span>
                     </div>
                 ))}
             </div>
