@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useRouter } from 'next/navigation';
+// import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { Lock, Mail, ChevronRight, AlertCircle, ShieldCheck, User, CheckCircle } from 'lucide-react';
 import ThemeToggle from '@/components/ThemeToggle';
@@ -19,7 +19,6 @@ export default function LoginPage() {
     const [successMessage, setSuccessMessage] = useState('');
 
     const { login, signUp } = useAuth();
-    const router = useRouter();
 
     const resetForm = () => {
         setEmail('');
@@ -50,7 +49,7 @@ export default function LoginPage() {
                 setError(result.error || 'Login failed');
                 setIsLoading(false);
             }
-        } catch (err) {
+        } catch {
             setError('An unexpected error occurred');
             setIsLoading(false);
         }
@@ -95,7 +94,7 @@ export default function LoginPage() {
             } else {
                 setError(result.error || 'Registration failed');
             }
-        } catch (err) {
+        } catch {
             setError('An unexpected error occurred');
         } finally {
             setIsLoading(false);
@@ -134,22 +133,20 @@ export default function LoginPage() {
                     <button
                         type="button"
                         onClick={() => switchMode('login')}
-                        className={`flex-1 py-2.5 px-4 rounded-lg text-sm font-medium transition-all duration-300 ${
-                            mode === 'login'
-                                ? 'bg-gradient-to-r from-[var(--accent-gold)] to-[var(--accent-blue)] text-white shadow-md'
-                                : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-                        }`}
+                        className={`flex-1 py-2.5 px-4 rounded-lg text-sm font-medium transition-all duration-300 ${mode === 'login'
+                            ? 'bg-gradient-to-r from-[var(--accent-gold)] to-[var(--accent-blue)] text-white shadow-md'
+                            : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+                            }`}
                     >
                         Sign In
                     </button>
                     <button
                         type="button"
                         onClick={() => switchMode('register')}
-                        className={`flex-1 py-2.5 px-4 rounded-lg text-sm font-medium transition-all duration-300 ${
-                            mode === 'register'
-                                ? 'bg-gradient-to-r from-[var(--accent-gold)] to-[var(--accent-blue)] text-white shadow-md'
-                                : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-                        }`}
+                        className={`flex-1 py-2.5 px-4 rounded-lg text-sm font-medium transition-all duration-300 ${mode === 'register'
+                            ? 'bg-gradient-to-r from-[var(--accent-gold)] to-[var(--accent-blue)] text-white shadow-md'
+                            : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+                            }`}
                     >
                         Sign Up
                     </button>

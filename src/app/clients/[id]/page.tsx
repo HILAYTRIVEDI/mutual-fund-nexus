@@ -29,33 +29,33 @@ export default function ClientDetailPage() {
     const params = useParams();
     const router = useRouter();
     const clientId = params.id as string;
-    
+
     const { ltcgTax, stcgTax } = useSettings();
     const { clients, deleteClient, isLoading: clientsLoading } = useClientContext();
     const { holdings, deleteHolding, refreshHoldings } = useHoldings();
     const { sips, cancelSIP, refreshSIPs } = useSIPs();
     const { transactions, refreshTransactions } = useTransactions();
-    
+
     const [activeTab, setActiveTab] = useState<'investments' | 'transactions' | 'notes'>('investments');
     const [notes, setNotes] = useState('');
     const [showPostTax, setShowPostTax] = useState(false);
 
     // Find the client by ID
     const client = clients.find(c => c.id === clientId);
-    
+
     // Filter holdings for this client
     const clientHoldings = holdings.filter(h => h.user_id === clientId);
-    
+
     // Filter SIPs for this client
     const clientSIPs = sips.filter(s => s.user_id === clientId);
-    
+
     // Filter transactions for this client
     const clientTransactions = transactions.filter(t => t.user_id === clientId);
 
     // Set notes from client data
     useEffect(() => {
         if (client?.notes) {
-            setNotes(client.notes);
+            setTimeout(() => setNotes(client.notes || ''), 0);
         }
     }, [client]);
 
@@ -97,7 +97,7 @@ export default function ClientDetailPage() {
         const investedAmount = holding.invested_amount || (holding.units * holding.average_price);
         const currentValue = holding.current_nav ? holding.units * holding.current_nav : investedAmount;
         const grossReturnAmount = currentValue - investedAmount;
-        
+
         if (!showPostTax || grossReturnAmount <= 0) {
             return {
                 returnAmount: grossReturnAmount,
@@ -107,7 +107,8 @@ export default function ClientDetailPage() {
             };
         }
 
-        const startDate = new Date(holding.created_at || Date.now());
+        const now = new Date().toISOString();
+        const startDate = new Date(holding.created_at || now);
         const oneYearAgo = new Date();
         oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
 
@@ -187,31 +188,29 @@ export default function ClientDetailPage() {
                                 <h1 className="text-2xl font-bold">{client.name}</h1>
                                 <p className="text-[var(--text-secondary)] text-sm">Client ID: {client.id.slice(0, 8)}</p>
                                 <div className="flex items-center gap-2 mt-1">
-                                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                                        client.kyc_status === 'verified' 
-                                            ? 'bg-[var(--accent-mint)]/10 text-[var(--accent-mint)]'
-                                            : 'bg-[var(--accent-yellow)]/10 text-[var(--accent-yellow)]'
-                                    }`}>
+                                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${client.kyc_status === 'verified'
+                                        ? 'bg-[var(--accent-mint)]/10 text-[var(--accent-mint)]'
+                                        : 'bg-[var(--accent-yellow)]/10 text-[var(--accent-yellow)]'
+                                        }`}>
                                         {client.kyc_status || 'Pending KYC'}
                                     </span>
-                                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                                        client.status === 'active'
-                                            ? 'bg-[var(--accent-purple)]/10 text-[var(--accent-purple)]'
-                                            : 'bg-[var(--text-secondary)]/10 text-[var(--text-secondary)]'
-                                    }`}>
+                                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${client.status === 'active'
+                                        ? 'bg-[var(--accent-purple)]/10 text-[var(--accent-purple)]'
+                                        : 'bg-[var(--text-secondary)]/10 text-[var(--text-secondary)]'
+                                        }`}>
                                         {client.status || 'Active'}
                                     </span>
                                 </div>
                             </div>
                         </div>
                         <div className="flex items-center gap-2">
-                            <button 
+                            <button
                                 onClick={() => router.push(`/manage?edit=${clientId}`)}
                                 className="p-2 rounded-lg bg-[var(--bg-hover)] border border-[var(--border-primary)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
                             >
                                 <Edit size={18} />
                             </button>
-                            <button 
+                            <button
                                 onClick={handleDelete}
                                 className="p-2 rounded-lg bg-[var(--accent-red)]/10 border border-[var(--accent-red)]/30 text-[var(--accent-red)] hover:bg-[var(--accent-red)]/20 transition-colors"
                             >
@@ -260,8 +259,8 @@ export default function ClientDetailPage() {
                     <button
                         onClick={() => setShowPostTax(!showPostTax)}
                         className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border transition-all ${showPostTax
-                                ? 'bg-[var(--accent-mint)]/10 border-[var(--accent-mint)]/20 text-[var(--accent-mint)]'
-                                : 'bg-[var(--bg-hover)] border-[var(--border-primary)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+                            ? 'bg-[var(--accent-mint)]/10 border-[var(--accent-mint)]/20 text-[var(--accent-mint)]'
+                            : 'bg-[var(--bg-hover)] border-[var(--border-primary)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
                             }`}
                     >
                         <Calculator size={14} />
@@ -338,7 +337,7 @@ export default function ClientDetailPage() {
                                                         </div>
                                                         <div>
                                                             <p className="text-[var(--text-primary)] text-sm font-medium">
-                                                                {(holding as any).mutual_fund?.name || holding.scheme_code || 'Unknown Fund'}
+                                                                {(holding as unknown as { mutual_fund?: { name?: string } }).mutual_fund?.name || holding.scheme_code || 'Unknown Fund'}
                                                             </p>
                                                             <p className="text-[var(--text-secondary)] text-xs">
                                                                 NAV: ₹{holding.current_nav?.toFixed(2) || holding.average_price.toFixed(2)}
@@ -407,11 +406,10 @@ export default function ClientDetailPage() {
                                                     <p className="text-[var(--text-primary)] text-sm">{formatDate(tx.date)}</p>
                                                 </div>
                                                 <div className="col-span-2 flex items-center">
-                                                    <span className={`px-2 py-1 rounded text-xs font-medium ${
-                                                        tx.type === 'sip' ? 'bg-[var(--accent-mint)]/10 text-[var(--accent-mint)]' : 
+                                                    <span className={`px-2 py-1 rounded text-xs font-medium ${tx.type === 'sip' ? 'bg-[var(--accent-mint)]/10 text-[var(--accent-mint)]' :
                                                         tx.type === 'buy' ? 'bg-[var(--accent-blue)]/10 text-[var(--accent-blue)]' :
-                                                        'bg-[var(--accent-purple)]/10 text-[var(--accent-purple)]'
-                                                    }`}>
+                                                            'bg-[var(--accent-purple)]/10 text-[var(--accent-purple)]'
+                                                        }`}>
                                                         {tx.type.toUpperCase()}
                                                     </span>
                                                 </div>
@@ -427,11 +425,10 @@ export default function ClientDetailPage() {
                                                     <p className="text-[var(--text-primary)] text-sm">{tx.units.toFixed(3)}</p>
                                                 </div>
                                                 <div className="col-span-1 flex items-center justify-center">
-                                                    <span className={`w-2 h-2 rounded-full ${
-                                                        tx.status === 'completed' ? 'bg-[var(--accent-mint)]' :
+                                                    <span className={`w-2 h-2 rounded-full ${tx.status === 'completed' ? 'bg-[var(--accent-mint)]' :
                                                         tx.status === 'pending' ? 'bg-[var(--accent-yellow)]' :
-                                                        'bg-[var(--accent-red)]'
-                                                    }`} title={tx.status} />
+                                                            'bg-[var(--accent-red)]'
+                                                        }`} title={tx.status} />
                                                 </div>
                                             </div>
                                         ))}

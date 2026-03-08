@@ -4,7 +4,6 @@ import { useState, useMemo } from 'react';
 import { Search, TrendingUp, TrendingDown, PiggyBank, BarChart3, ArrowUpDown, Calculator } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
 import { useSettings } from '@/context/SettingsContext';
-import { useAuth } from '@/context/AuthContext';
 // import { useClientContext } from '@/context/ClientContext'; // Removed as unused
 
 interface PortfolioHolding {
@@ -46,7 +45,6 @@ type SortDirection = 'asc' | 'desc';
 
 export default function PortfolioPage() {
     const { ltcgTax, stcgTax } = useSettings();
-    const { user } = useAuth();
     const { holdings, isLoading } = useHoldings();
     const [searchQuery, setSearchQuery] = useState('');
     const [sortKey, setSortKey] = useState<SortKey>('allocation');
@@ -57,14 +55,15 @@ export default function PortfolioPage() {
     const holdingsData = useMemo(() => {
         if (!holdings || holdings.length === 0) return [];
 
-        let filteredHoldings = holdings;
-        
+        const filteredHoldings = holdings;
+
 
         const totalValue = filteredHoldings.reduce((sum, h) => sum + h.current_value, 0);
 
         return filteredHoldings.map((h, index) => {
-            const fundName = (h as any).mutual_fund?.name || h.scheme_code || 'Mutual Fund Scheme';
-            const fundHouse = (h as any).mutual_fund?.fund_house || fundName.split(' ')[0] || 'Fund House';
+            const row = h as unknown as { scheme_code?: string; mutual_fund?: { name?: string; fund_house?: string; category?: string; type?: string } };
+            const fundName = row.mutual_fund?.name || row.scheme_code || 'Mutual Fund Scheme';
+            const fundHouse = row.mutual_fund?.fund_house || fundName.split(' ')[0] || 'Fund House';
             const returns = h.current_value - h.invested_amount;
             const returnsPercentage = h.invested_amount > 0 ? (returns / h.invested_amount) * 100 : 0;
             const allocation = totalValue > 0 ? (h.current_value / totalValue) * 100 : 0;
@@ -73,7 +72,7 @@ export default function PortfolioPage() {
                 id: h.id,
                 fundName: fundName,
                 fundHouse: fundHouse,
-                category: (h as any).mutual_fund?.category || 'Equity',
+                category: row.mutual_fund?.category || row.mutual_fund?.type || 'Equity',
                 units: h.units,
                 avgNav: h.average_price,
                 currentNav: h.current_nav,
@@ -81,13 +80,13 @@ export default function PortfolioPage() {
                 currentValue: h.current_value,
                 returns: returns,
                 returnsPercentage: returnsPercentage,
-                xirr: 0, 
+                xirr: 0,
                 allocation: parseFloat(allocation.toFixed(2)),
                 color: getRandomColor(index),
-                investedDate: h.created_at || new Date().toISOString(), 
+                investedDate: h.created_at || new Date().toISOString(),
             };
         });
-    }, [holdings, user]);
+    }, [holdings]);
 
     const handleSort = (key: SortKey) => {
         if (sortKey === key) {
@@ -119,7 +118,7 @@ export default function PortfolioPage() {
 
     if (isLoading) {
         return (
-             <div className="min-h-screen bg-[var(--bg-primary)] text-[var(--text-primary)] p-4 md:p-6 flex flex-col md:flex-row gap-4 md:gap-6 transition-colors duration-300">
+            <div className="min-h-screen bg-[var(--bg-primary)] text-[var(--text-primary)] p-4 md:p-6 flex flex-col md:flex-row gap-4 md:gap-6 transition-colors duration-300">
                 <main className="flex-1 min-w-0 flex items-center justify-center">
                     <div className="text-center">
                         <Loader2 className="animate-spin mx-auto text-[var(--accent-mint)] mb-2" size={32} />

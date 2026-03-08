@@ -29,7 +29,7 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
         if (authLoading) {
             return;
         }
-        
+
         if (!isAuthenticated) {
             setTransactions([]);
             setIsLoading(false);
@@ -82,7 +82,7 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
         console.log('[TransactionsContext] addTransaction called with:', transactionData);
         try {
             const { data, error: insertError } = await (supabase
-                .from('transactions') as any)
+                .from('transactions') as unknown as { insert: (data: unknown) => { select: () => { single: () => Promise<{ data: unknown; error: unknown }> } } })
                 .insert(transactionData)
                 .select()
                 .single();
@@ -95,7 +95,7 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
             console.log('[TransactionsContext] Transaction inserted successfully:', data);
 
             if (data) {
-                setTransactions(prev => [data, ...prev]);
+                setTransactions(prev => [data as Transaction, ...prev]);
                 return { success: true };
             }
 

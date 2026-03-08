@@ -1,5 +1,4 @@
-import Link from 'next/link';
-import { TrendingUp, Users, PiggyBank, ArrowUpRight, ArrowDownRight } from 'lucide-react';
+import { TrendingUp, Users, PiggyBank } from 'lucide-react';
 import GlobalSearch from './GlobalSearch';
 import NotificationBell from './NotificationBell';
 import ThemeToggle from './ThemeToggle';
@@ -7,15 +6,6 @@ import { useClientContext } from '@/context/ClientContext';
 import { useHoldings } from '@/context/HoldingsContext';
 import { useSIPs } from '@/context/SIPContext';
 import { useMemo } from 'react';
-
-interface QuickStat {
-    label: string;
-    value: string;
-    change?: string;
-    isPositive?: boolean;
-    icon: React.ElementType;
-    color: string;
-}
 
 interface DashboardHeaderProps {
     title: string;
@@ -33,7 +23,7 @@ function formatCurrency(amount: number): string {
 
 export default function DashboardHeader({ title, subtitle }: DashboardHeaderProps) {
     const { clients } = useClientContext();
-    const { totalCurrentValue, totalGainLoss, totalInvested } = useHoldings();
+    const { totalGainLoss, totalInvested } = useHoldings();
     const { sips } = useSIPs();
 
     const stats = useMemo(() => {
@@ -46,7 +36,7 @@ export default function DashboardHeader({ title, subtitle }: DashboardHeaderProp
         const startOfWeek = new Date(now);
         startOfWeek.setDate(now.getDate() - now.getDay()); // Sunday
         startOfWeek.setHours(0, 0, 0, 0);
-        
+
         const newSipsThisWeek = sips.filter(s => new Date(s.created_at) >= startOfWeek).length;
         // Total SIP volume this week (amount)
         const newSipsVolume = sips

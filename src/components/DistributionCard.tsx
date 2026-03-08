@@ -20,9 +20,9 @@ const categoryColors: Record<string, string> = {
 // Normalize category names
 function normalizeCategory(category: string | null | undefined): string {
     if (!category) return 'Other';
-    
+
     const lower = category.toLowerCase();
-    
+
     if (lower.includes('equity') || lower.includes('small cap') || lower.includes('mid cap') || lower.includes('large cap') || lower.includes('flexi cap') || lower.includes('multi cap')) {
         return 'Equity';
     }
@@ -44,7 +44,7 @@ function normalizeCategory(category: string | null | undefined): string {
     if (lower.includes('liquid') || lower.includes('money market') || lower.includes('overnight')) {
         return 'Liquid';
     }
-    
+
     return 'Other';
 }
 
@@ -72,7 +72,7 @@ export default function DistributionCard({ customData }: DistributionCardProps =
 
         // Aggregate holdings by normalized category
         const categoryTotals: Record<string, number> = {};
-        
+
         holdings.forEach((holding) => {
             const category = normalizeCategory(holding.mutual_fund?.category || holding.mutual_fund?.type);
             categoryTotals[category] = (categoryTotals[category] || 0) + holding.current_value;
@@ -89,7 +89,7 @@ export default function DistributionCard({ customData }: DistributionCardProps =
             .sort((a, b) => b.value - a.value); // Sort by percentage descending
 
         return result;
-    }, [holdings, totalCurrentValue]);
+    }, [holdings, totalCurrentValue, customData]);
 
     // Use the largest category for center display
     const focusItem = chartData[0];
@@ -145,7 +145,7 @@ export default function DistributionCard({ customData }: DistributionCardProps =
                 <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                         <Pie
-                            data={chartData as any}
+                            data={chartData as unknown as Record<string, unknown>[]}
                             cx="50%"
                             cy="50%"
                             innerRadius={60}

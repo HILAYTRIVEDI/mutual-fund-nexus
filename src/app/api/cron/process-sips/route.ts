@@ -86,7 +86,8 @@ async function processSIPs(request: NextRequest) {
       error?: string;
     }[] = [];
 
-    for (const sip of dueSips as any[]) {
+    for (const rawSip of (dueSips || [])) {
+      const sip = rawSip as { id: string; scheme_code: string; user_id: string; amount: number; frequency: string; start_date: string; next_execution_date: string; step_up_amount?: number; step_up_interval?: string; mutual_fund?: { current_nav: number } };
       try {
         const schemeCode = sip.scheme_code;
         const sipAmount = sip.amount;
@@ -121,8 +122,11 @@ async function processSIPs(request: NextRequest) {
             .select('current_nav')
             .eq('code', schemeCode)
             .single();
-          if (fundRow && (fundRow as any).current_nav > 0) {
-            currentNav = (fundRow as any).current_nav;
+          if (fundRow) {
+            const currentNavValue = (fundRow as Record<string, unknown>).current_nav;
+            if (typeof currentNavValue === 'number' && currentNavValue > 0) {
+              currentNav = currentNavValue;
+            }
           }
         }
 
@@ -171,7 +175,7 @@ async function processSIPs(request: NextRequest) {
             nav: currentNav,
             status: 'completed',
             date: new Date().toISOString(),
-          } as any);
+          } as Record<string, unknown> as never);
 
         if (txError) {
           throw new Error(`Transaction insert failed: ${txError.message}`);
@@ -186,8 +190,8 @@ async function processSIPs(request: NextRequest) {
           .single();
 
         if (existingHolding) {
-          const oldUnits = (existingHolding as any).units || 0;
-          const oldAvg = (existingHolding as any).average_price || 0;
+          const oldUnits = typeof (existingHolding as Record<string, unknown>).units === 'number' ? (existingHolding as Record<string, unknown>).units as number : 0;
+          const oldAvg = typeof (existingHolding as Record<string, unknown>).average_price === 'number' ? (existingHolding as Record<string, unknown>).average_price as number : 0;
           const totalUnits = oldUnits + newUnits;
           // Weighted average: (old_invested + new_invested) / total_units
           const newAvgPrice =
@@ -195,16 +199,16 @@ async function processSIPs(request: NextRequest) {
               ? (oldUnits * oldAvg + sipAmount) / totalUnits
               : currentNav;
 
-          await (supabase.from('holdings') as any)
+          await (supabase.from('holdings') as unknown as { update: (data: unknown) => { eq: (k: string, v: string | number) => Promise<unknown> } })
             .update({
               units: totalUnits,
               average_price: newAvgPrice,
               updated_at: new Date().toISOString(),
             })
-            .eq('id', (existingHolding as any).id);
+            .eq('id', (existingHolding as Record<string, unknown>).id as string);
         } else {
           // No existing holding — create one
-          await (supabase.from('holdings') as any).insert({
+          await (supabase.from('holdings') as unknown as { insert: (data: unknown) => Promise<unknown> }).insert({
             user_id: sip.user_id,
             scheme_code: schemeCode,
             units: newUnits,
@@ -213,7 +217,7 @@ async function processSIPs(request: NextRequest) {
         }
 
         // 6. Update mutual_funds NAV cache
-        await (supabase.from('mutual_funds') as any)
+        await (supabase.from('mutual_funds') as unknown as { update: (data: unknown) => { eq: (k: string, v: string | number) => Promise<unknown> } })
           .update({
             current_nav: currentNav,
             last_updated: new Date().toISOString(),
@@ -244,14 +248,14 @@ async function processSIPs(request: NextRequest) {
             stepUpInterval === 'Quarterly'
               ? 3
               : stepUpInterval === 'Half-Yearly'
-              ? 6
-              : 12; // Yearly
+                ? 6
+                : 12; // Yearly
 
           // Check if next date crosses a step-up boundary
           // e.g., if 12 months have passed since start for Yearly
           const previousMilestone = Math.floor(
             monthsDiff(startDate, new Date(sip.next_execution_date)) /
-              stepMonths
+            stepMonths
           );
           const nextMilestone = Math.floor(monthsElapsed / stepMonths);
 
@@ -262,7 +266,7 @@ async function processSIPs(request: NextRequest) {
         }
 
         // 9. Update SIP record
-        await (supabase.from('sips') as any)
+        await (supabase.from('sips') as unknown as { update: (data: unknown) => { eq: (k: string, v: string | number) => Promise<unknown> } })
           .update({
             next_execution_date: nextDate.toISOString().split('T')[0],
             amount: updatedAmount,

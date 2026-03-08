@@ -11,25 +11,6 @@ import { useHoldings } from '@/context/HoldingsContext';
 import { useSIPs } from '@/context/SIPContext';
 import { useTransactions } from '@/context/TransactionsContext';
 
-function formatCurrency(amount: number): string {
-    if (amount >= 10000000) {
-        return `₹${(amount / 10000000).toFixed(2)} Cr`;
-    } else if (amount >= 100000) {
-        return `₹${(amount / 100000).toFixed(2)} L`;
-    }
-    return `₹${amount.toLocaleString('en-IN')}`;
-}
-
-const generatePassword = (pan: string, aadhar: string) => {
-    // Simple mock encryption: Base64 of PAN + Last 4 of Aadhar
-    const aadharLast4 = aadhar.replace(/\D/g, '').slice(-4);
-    try {
-        return btoa(`${pan}${aadharLast4}`).slice(0, 10);
-    } catch (e) {
-        return 'pass1234'; // Fallback
-    }
-};
-
 function ManageClientsContent() {
     const { clients, addClient, updateClient, deleteClient } = useClientContext();
     const { addHolding, refreshHoldings } = useHoldings();
@@ -37,11 +18,11 @@ function ManageClientsContent() {
     const { addTransaction, refreshTransactions } = useTransactions();
     const searchParams = useSearchParams();
     const router = useRouter();
-    
+
     const [showAddModal, setShowAddModal] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const [editingClient, setEditingClient] = useState<Client | null>(null);
-    const [showCredentialsModal, setShowCredentialsModal] = useState<{email: string, password: string} | null>(null);
+    const [showCredentialsModal, setShowCredentialsModal] = useState<{ email: string, password: string } | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
 
@@ -154,7 +135,7 @@ function ManageClientsContent() {
         if (hasFundSelected) {
             const hasLumpsum = formData.amount && parseFloat(formData.amount) > 0;
             const hasSIP = formData.sipAmount && parseFloat(formData.sipAmount) > 0;
-            
+
             if (!hasLumpsum && !hasSIP) {
                 alert('Please enter at least a Lumpsum Amount or SIP Amount');
                 return;
@@ -201,13 +182,13 @@ function ManageClientsContent() {
             const hasScheme = formData.isCustomFund ? formData.customFundName.trim() !== '' : formData.schemeCode > 0;
             if (targetClientId && hasScheme) {
                 console.log('Processing investment for client:', targetClientId);
-                
+
                 const supabase = getSupabaseClient();
-                
+
                 let effectiveSchemeCode: string;
                 let effectiveSchemeName: string;
                 let currentNav = 10;
-                
+
                 if (formData.isCustomFund) {
                     // Custom fund: generate unique code
                     effectiveSchemeCode = `CUSTOM-${Date.now()}`;
@@ -227,8 +208,7 @@ function ManageClientsContent() {
                     }
                 }
 
-                // Upsert mutual fund
-                await (supabase.from('mutual_funds') as any).upsert({
+                await (supabase.from('mutual_funds') as unknown as { upsert: (data: unknown) => Promise<unknown> }).upsert({
                     code: effectiveSchemeCode,
                     name: effectiveSchemeName,
                     category: null,
@@ -240,18 +220,18 @@ function ManageClientsContent() {
 
                 const lumpsumAmount = parseFloat(formData.amount) || 0;
                 const sipAmountInput = parseFloat(formData.sipAmount) || 0;
-                
+
                 let sipFirstAmount = 0;
                 let nextExecutionDate = formData.startDate ? new Date(formData.startDate) : new Date();
-                
+
                 // Check if SIP should execute immediately (Start Date <= Today)
                 if (sipAmountInput > 0) {
                     const startDate = formData.startDate ? new Date(formData.startDate) : new Date();
                     const today = new Date();
                     // Reset times for date comparison
-                    startDate.setHours(0,0,0,0);
-                    today.setHours(0,0,0,0);
-                    
+                    startDate.setHours(0, 0, 0, 0);
+                    today.setHours(0, 0, 0, 0);
+
                     if (startDate <= today) {
                         console.log('SIP Start Date is today or past, executing first installment...');
                         sipFirstAmount = sipAmountInput;
@@ -260,14 +240,14 @@ function ManageClientsContent() {
                         nextExecutionDate.setMonth(nextExecutionDate.getMonth() + 1);
                     }
                 }
-                
+
                 const totalInitialAmount = lumpsumAmount + sipFirstAmount;
 
                 // Create Holding if there is any initial investment
                 if (totalInitialAmount > 0) {
                     console.log('Creating initial holding...', { lumpsumAmount, sipFirstAmount, total: totalInitialAmount });
                     const totalUnits = currentNav > 0 ? totalInitialAmount / currentNav : 0;
-                    
+
                     await addHolding({
                         user_id: targetClientId,
                         scheme_code: effectiveSchemeCode,
@@ -289,7 +269,7 @@ function ManageClientsContent() {
                             date: new Date().toISOString()
                         });
                     }
-                    
+
                     // Record First SIP Transaction
                     if (sipFirstAmount > 0) {
                         const units = currentNav > 0 ? sipFirstAmount / currentNav : 0;
@@ -309,7 +289,7 @@ function ManageClientsContent() {
                 // Create SIP Record if applicable
                 if (sipAmountInput > 0) {
                     console.log('Setting up SIP record...');
-                    const sipPayload: any = {
+                    const sipPayload = {
                         user_id: targetClientId,
                         scheme_code: effectiveSchemeCode,
                         amount: sipAmountInput,
@@ -318,15 +298,19 @@ function ManageClientsContent() {
                         next_execution_date: nextExecutionDate.toISOString(),
                         status: 'active'
                     };
-                    
+
                     // Add step-up fields if provided
                     const stepUp = parseFloat(formData.stepUpAmount);
-                    if (stepUp > 0) {
-                        sipPayload.step_up_amount = stepUp;
-                        sipPayload.step_up_interval = formData.stepUpInterval;
+                    const setupStepUp = stepUp > 0; // Renamed for clarity
+                    const stepUpAmountInput = stepUp; // Use the parsed value
+                    const stepUpIntervalInput = formData.stepUpInterval; // Use the form value
+
+                    if (setupStepUp) {
+                        (sipPayload as Record<string, unknown>).step_up_amount = stepUpAmountInput;
+                        (sipPayload as Record<string, unknown>).step_up_interval = stepUpIntervalInput;
                     }
-                    
-                    await addSIP(sipPayload);
+
+                    await addSIP(sipPayload as Parameters<typeof addSIP>[0]);
                 }
             }
 
@@ -994,7 +978,7 @@ function ManageClientsContent() {
         </div>
     );
 }
- 
+
 export default function ManageClientsPage() {
     return (
         <Suspense fallback={

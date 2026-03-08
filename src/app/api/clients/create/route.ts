@@ -56,39 +56,39 @@ export async function POST(request: NextRequest) {
 
     // Handle "User already exists" case
     const isUserExistsError = authError && (
-        authError.message?.includes('already registered') || 
-        (authError as any).code === 'email_exists' ||
-        authError.status === 422
+      authError.message?.includes('already registered') ||
+      (authError as unknown as Record<string, unknown>).code === 'email_exists' ||
+      authError.status === 422
     );
 
     if (isUserExistsError) {
-        console.log('User already exists, attempting to recover...');
-        
-        const { data: { users } } = await supabaseAdmin.auth.admin.listUsers();
-        const existingUser = users?.find(u => u.email === email);
-        
-        if (existingUser) {
-            // Update existing profile to be a client of this admin
-            const { error: updateError } = await supabaseAdmin
-                .from('profiles')
-                .upsert({
-                    id: existingUser.id,
-                    email: email,
-                    full_name: name,
-                    role: 'client',
-                    advisor_id: advisorId,
-                    phone: phone || null,
-                    pan: pan || null,
-                    aadhar: aadhar || null,
-                });
-            
-            if (updateError) {
-                console.error('Failed to update existing user profile:', updateError);
-            }
-            
-            authData = { user: existingUser } as any;
-            authError = null;
+      console.log('User already exists, attempting to recover...');
+
+      const { data: { users } } = await supabaseAdmin.auth.admin.listUsers();
+      const existingUser = users?.find(u => u.email === email);
+
+      if (existingUser) {
+        // Update existing profile to be a client of this admin
+        const { error: updateError } = await supabaseAdmin
+          .from('profiles')
+          .upsert({
+            id: existingUser.id,
+            email: email,
+            full_name: name,
+            role: 'client',
+            advisor_id: advisorId,
+            phone: phone || null,
+            pan: pan || null,
+            aadhar: aadhar || null,
+          });
+
+        if (updateError) {
+          console.error('Failed to update existing user profile:', updateError);
         }
+
+        authData = { user: existingUser } as unknown as typeof authData;
+        authError = null;
+      }
     }
 
     if (authError) {
@@ -111,8 +111,8 @@ export async function POST(request: NextRequest) {
     if (phone || pan || aadhar) {
       await supabaseAdmin
         .from('profiles')
-        .update({ 
-          phone: phone || null, 
+        .update({
+          phone: phone || null,
           pan: pan || null,
           aadhar: aadhar || null,
           kyc_status: 'pending'

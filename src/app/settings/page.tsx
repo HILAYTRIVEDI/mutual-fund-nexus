@@ -52,7 +52,7 @@ export default function SettingsPage() {
                     .from('profiles')
                     .select('email_sip_reminders, email_sip_executed, reminder_days_before')
                     .eq('id', user.id)
-                    .single() as { data: { email_sip_reminders?: boolean; email_sip_executed?: boolean; reminder_days_before?: number } | null; error: any };
+                    .single() as unknown as { data: { email_sip_reminders?: boolean; email_sip_executed?: boolean; reminder_days_before?: number } | null; error: unknown };
 
                 if (error) {
                     console.error('Error fetching preferences:', error);
@@ -105,8 +105,7 @@ export default function SettingsPage() {
         setEmailSaveStatus('idle');
 
         try {
-            const { error } = await (supabase
-                .from('profiles') as any)
+            const { error } = await (supabase.from('profiles') as unknown as { update: (data: unknown) => { eq: (col: string, val: string) => Promise<{ error: unknown }> } })
                 .update({
                     email_sip_reminders: emailSipReminders,
                     email_sip_executed: emailSipExecuted,
@@ -314,13 +313,11 @@ export default function SettingsPage() {
                                         </div>
                                         <button
                                             onClick={() => setEmailSipReminders(!emailSipReminders)}
-                                            className={`relative w-12 h-7 rounded-full transition-colors duration-200 ${
-                                                emailSipReminders ? 'bg-[var(--accent-mint)]' : 'bg-[var(--bg-primary)] border border-[var(--border-primary)]'
-                                            }`}
+                                            className={`relative w-12 h-7 rounded-full transition-colors duration-200 ${emailSipReminders ? 'bg-[var(--accent-mint)]' : 'bg-[var(--bg-primary)] border border-[var(--border-primary)]'
+                                                }`}
                                         >
-                                            <div className={`absolute w-5 h-5 bg-white rounded-full top-1 transition-transform duration-200 shadow-sm ${
-                                                emailSipReminders ? 'translate-x-6' : 'translate-x-1'
-                                            }`} />
+                                            <div className={`absolute w-5 h-5 bg-white rounded-full top-1 transition-transform duration-200 shadow-sm ${emailSipReminders ? 'translate-x-6' : 'translate-x-1'
+                                                }`} />
                                         </button>
                                     </div>
 
@@ -337,13 +334,11 @@ export default function SettingsPage() {
                                         </div>
                                         <button
                                             onClick={() => setEmailSipExecuted(!emailSipExecuted)}
-                                            className={`relative w-12 h-7 rounded-full transition-colors duration-200 ${
-                                                emailSipExecuted ? 'bg-[var(--accent-purple)]' : 'bg-[var(--bg-primary)] border border-[var(--border-primary)]'
-                                            }`}
+                                            className={`relative w-12 h-7 rounded-full transition-colors duration-200 ${emailSipExecuted ? 'bg-[var(--accent-purple)]' : 'bg-[var(--bg-primary)] border border-[var(--border-primary)]'
+                                                }`}
                                         >
-                                            <div className={`absolute w-5 h-5 bg-white rounded-full top-1 transition-transform duration-200 shadow-sm ${
-                                                emailSipExecuted ? 'translate-x-6' : 'translate-x-1'
-                                            }`} />
+                                            <div className={`absolute w-5 h-5 bg-white rounded-full top-1 transition-transform duration-200 shadow-sm ${emailSipExecuted ? 'translate-x-6' : 'translate-x-1'
+                                                }`} />
                                         </button>
                                     </div>
 
@@ -360,11 +355,10 @@ export default function SettingsPage() {
                                                         <button
                                                             key={days}
                                                             onClick={() => setReminderDaysBefore(days)}
-                                                            className={`px-4 py-2 rounded-lg font-medium transition-all ${
-                                                                reminderDaysBefore === days
-                                                                    ? 'bg-[var(--accent-blue)] text-white'
-                                                                    : 'bg-[var(--bg-primary)] text-[var(--text-secondary)] border border-[var(--border-primary)] hover:border-[var(--accent-blue)]'
-                                                            }`}
+                                                            className={`px-4 py-2 rounded-lg font-medium transition-all ${reminderDaysBefore === days
+                                                                ? 'bg-[var(--accent-blue)] text-white'
+                                                                : 'bg-[var(--bg-primary)] text-[var(--text-secondary)] border border-[var(--border-primary)] hover:border-[var(--accent-blue)]'
+                                                                }`}
                                                         >
                                                             {days} day{days > 1 ? 's' : ''}
                                                         </button>

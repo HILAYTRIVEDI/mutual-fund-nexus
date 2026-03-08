@@ -20,7 +20,7 @@ type TimeFilter = typeof timeFilters[number];
 function generatePlaceholderChartData(currentValue: number, filter: TimeFilter) {
     const variance = 0.15; // 15% variance for visual effect
     const baseValue = currentValue * (1 - variance);
-    
+
     const dataPoints: Record<TimeFilter, { name: string; value: number }[]> = {
         '1M': [
             { name: 'Week 1', value: baseValue * 0.96 },
@@ -56,7 +56,7 @@ function generatePlaceholderChartData(currentValue: number, filter: TimeFilter) 
             { name: 'Dec', value: currentValue },
         ],
     };
-    
+
     return dataPoints[filter];
 }
 
@@ -104,14 +104,11 @@ export default function AssetChartCard({ customChartData, customAumValues }: Ass
     }, [totalCurrentValue, activeFilter, customChartData]);
 
     // Calculate gain/loss percentage
-    const gainLossPercentage = totalInvested > 0 
+    const gainLossPercentage = totalInvested > 0
         ? ((totalGainLoss / totalInvested) * 100).toFixed(1)
         : '0.0';
 
-    // Calculate period change from chart data
-    const startValue = chartData[0]?.value || 0;
-    const endValue = chartData[chartData.length - 1]?.value || 0;
-    const periodChange = startValue > 0 ? ((endValue - startValue) / startValue * 100).toFixed(1) : '0.0';
+    // Calculate period change from chart data (Removed unused code)
 
     if (isLoading) {
         return (
@@ -148,15 +145,13 @@ export default function AssetChartCard({ customChartData, customAumValues }: Ass
                         <span className="text-[var(--text-secondary)] text-sm md:text-lg">INR</span>
                     </div>
                 </div>
-                <div className={`flex items-center gap-1.5 md:gap-2 px-2 md:px-3 py-1 md:py-1.5 rounded-full ${
-                    parseFloat(gainLossPercentage) >= 0 
-                        ? 'bg-[var(--accent-mint)]/10 border border-[var(--accent-mint)]/20' 
+                <div className={`flex items-center gap-1.5 md:gap-2 px-2 md:px-3 py-1 md:py-1.5 rounded-full ${parseFloat(gainLossPercentage) >= 0
+                        ? 'bg-[var(--accent-mint)]/10 border border-[var(--accent-mint)]/20'
                         : 'bg-[var(--accent-red)]/10 border border-[var(--accent-red)]/20'
-                }`}>
-                    <TrendingUp size={14} className={parseFloat(gainLossPercentage) >= 0 ? 'text-[var(--accent-mint)]' : 'text-[var(--accent-red)]'} />
-                    <span className={`text-xs md:text-sm font-medium ${
-                        parseFloat(gainLossPercentage) >= 0 ? 'text-[var(--accent-mint)]' : 'text-[var(--accent-red)]'
                     }`}>
+                    <TrendingUp size={14} className={parseFloat(gainLossPercentage) >= 0 ? 'text-[var(--accent-mint)]' : 'text-[var(--accent-red)]'} />
+                    <span className={`text-xs md:text-sm font-medium ${parseFloat(gainLossPercentage) >= 0 ? 'text-[var(--accent-mint)]' : 'text-[var(--accent-red)]'
+                        }`}>
                         {parseFloat(gainLossPercentage) >= 0 ? '+' : ''}{gainLossPercentage}%
                     </span>
                 </div>

@@ -3,7 +3,7 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
 import { getSupabaseClient } from '@/lib/supabase';
 import { useAuth } from './AuthContext';
-import type { Holding, HoldingInsert, MutualFund } from '@/lib/types/database';
+import type { Holding, HoldingInsert } from '@/lib/types/database';
 import { getSchemeLatestNAV } from '@/lib/mfapi';
 
 // Extended holding with current value calculation
@@ -40,7 +40,7 @@ export function HoldingsProvider({ children }: { children: ReactNode }) {
     // Fetch holdings with NAV data
     const fetchHoldings = useCallback(async () => {
         console.log('[HoldingsContext] fetchHoldings called', { authLoading, isAuthenticated });
-        
+
         // Wait for auth to finish loading
         if (authLoading) {
             console.log('[HoldingsContext] Auth loading, returning');
@@ -82,7 +82,7 @@ export function HoldingsProvider({ children }: { children: ReactNode }) {
 
             // Batch NAV fetch: collect unique scheme codes and fetch each only once
             const uniqueSchemeCodes = [...new Set(
-                data.map((h: any) => h.scheme_code).filter(Boolean) as string[]
+                data.map((h: Record<string, unknown>) => h.scheme_code).filter(Boolean) as string[]
             )];
 
             // Fetch NAVs in parallel — one request per unique scheme code
@@ -103,7 +103,7 @@ export function HoldingsProvider({ children }: { children: ReactNode }) {
             );
 
             // Map holdings with cached NAV values
-            const holdingsWithValues: HoldingWithValue[] = data.map((holding: any) => {
+            const holdingsWithValues: HoldingWithValue[] = data.map((holding: Holding & { scheme_code: string; units: number; invested_amount?: number; mutual_fund?: { current_nav: number } }) => {
                 const code = holding.scheme_code;
                 // Priority: live MFAPI cache → DB-joined mutual_fund record → 0
                 const currentNav = (code && navCache[code])
@@ -113,8 +113,8 @@ export function HoldingsProvider({ children }: { children: ReactNode }) {
                 const currentValue = holding.units * currentNav;
                 const investedAmount = holding.invested_amount || 0;
                 const gainLoss = currentValue - investedAmount;
-                const gainLossPercentage = investedAmount > 0 
-                    ? (gainLoss / investedAmount) * 100 
+                const gainLossPercentage = investedAmount > 0
+                    ? (gainLoss / investedAmount) * 100
                     : 0;
 
                 return {
@@ -174,13 +174,13 @@ export function HoldingsProvider({ children }: { children: ReactNode }) {
             const istNow = getISTTime();
             const hours = istNow.getHours();
             const minutes = istNow.getMinutes();
-            
+
             // Target refresh time: 3:30 PM IST (market close)
             const targetHour = 15;
             const targetMinute = 30;
-            
+
             let msUntilRefresh: number;
-            
+
             if (hours < targetHour || (hours === targetHour && minutes < targetMinute)) {
                 // Before 9:30 PM today - schedule for today
                 const targetTime = new Date(istNow);
@@ -193,12 +193,12 @@ export function HoldingsProvider({ children }: { children: ReactNode }) {
                 targetTime.setHours(targetHour, targetMinute, 0, 0);
                 msUntilRefresh = targetTime.getTime() - istNow.getTime();
             }
-            
+
             // Cap at 24 hours max to prevent overflow issues
             msUntilRefresh = Math.min(msUntilRefresh, 24 * 60 * 60 * 1000);
-            
+
             console.log(`NAV refresh scheduled in ${Math.round(msUntilRefresh / 1000 / 60)} minutes (3:30 PM IST)`);
-            
+
             return setTimeout(() => {
                 console.log('Scheduled NAV refresh triggered (3:30 PM IST)');
                 fetchHoldings();
@@ -227,7 +227,7 @@ export function HoldingsProvider({ children }: { children: ReactNode }) {
         console.log('[HoldingsContext] addHolding called with:', holdingData);
         try {
             const { data, error: insertError } = await (supabase
-                .from('holdings') as any)
+                .from('holdings') as unknown as { insert: (data: unknown) => { select: () => { single: () => Promise<{ data: unknown; error: unknown }> } } })
                 .insert(holdingData)
                 .select()
                 .single();
@@ -254,7 +254,7 @@ export function HoldingsProvider({ children }: { children: ReactNode }) {
     const updateHolding = async (id: string, updates: Partial<Holding>): Promise<{ success: boolean; error?: string }> => {
         try {
             const { error: updateError } = await (supabase
-                .from('holdings') as any)
+                .from('holdings') as unknown as { update: (data: unknown) => { eq: (col: string, val: string) => Promise<{ error: unknown }> } })
                 .update(updates)
                 .eq('id', id);
 

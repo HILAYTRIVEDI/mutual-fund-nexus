@@ -19,7 +19,6 @@ function formatDate(dateStr?: string): string {
 
 const fundHouses = ['All', 'HDFC', 'SBI', 'ICICI', 'Axis', 'PPFAS', 'Mirae', 'Kotak'];
 const investmentTypes = ['All', 'SIP', 'Lumpsum'];
-const pnlFilters = ['All', 'Profit', 'Loss'];
 
 function formatCurrency(amount: number): string {
     if (amount >= 10000000) {
@@ -33,9 +32,9 @@ function formatCurrency(amount: number): string {
 function ClientsPageContent() {
     const searchParams = useSearchParams();
     const { clients, isLoading: clientsLoading } = useClientContext();
-    const { holdings, isLoading: holdingsLoading, getClientHoldings } = useHoldings();
-    const { sips, isLoading: sipsLoading, getClientSIPs } = useSIPs();
-    const { transactions, isLoading: txLoading, getClientTransactions } = useTransactions();
+    const { getClientHoldings } = useHoldings();
+    const { isLoading: sipsLoading, getClientSIPs } = useSIPs();
+    const { getClientTransactions } = useTransactions();
 
     const [searchQuery, setSearchQuery] = useState('');
     const [fundHouseFilter, setFundHouseFilter] = useState('All');
@@ -58,17 +57,18 @@ function ClientsPageContent() {
             const totalCurrentValue = clientHoldings.reduce((sum, h) => sum + h.current_value, 0);
 
             // Calculate ratios based on transactions
-            let sipInvestedRaw = clientTxs.filter(t => t.type === 'sip').reduce((s, t) => s + t.amount, 0);
-            let lumpInvestedRaw = clientTxs.filter(t => t.type === 'buy').reduce((s, t) => s + t.amount, 0);
+            const sipInvestedRaw = clientTxs.filter(t => t.type === 'sip').reduce((s, t) => s + t.amount, 0);
+            const lumpInvestedRaw = clientTxs.filter(t => t.type === 'buy').reduce((s, t) => s + t.amount, 0);
 
             // Fallback for migrated data (no tx)
+            let effectiveLumpInvestedRaw = lumpInvestedRaw;
             if (sipInvestedRaw === 0 && lumpInvestedRaw === 0 && totalInvested > 0) {
-                lumpInvestedRaw = totalInvested;
+                effectiveLumpInvestedRaw = totalInvested;
             }
 
-            const totalRaw = sipInvestedRaw + lumpInvestedRaw;
+            const totalRaw = sipInvestedRaw + effectiveLumpInvestedRaw;
             const sipRatio = totalRaw > 0 ? sipInvestedRaw / totalRaw : 0;
-            const lumpRatio = totalRaw > 0 ? lumpInvestedRaw / totalRaw : 0;
+            const lumpRatio = totalRaw > 0 ? effectiveLumpInvestedRaw / totalRaw : 0;
 
             const totalSipAmount = clientSips
                 .filter(s => s.status === 'active')
@@ -103,7 +103,7 @@ function ClientsPageContent() {
                     fundHouse: fundHouse || 'Unknown',
                     investmentAmount: invested,
                     currentValue: current,
-                    investmentType: 'SIP', 
+                    investmentType: 'SIP',
                     startDate,
                     pnl,
                     pnlPercentage,
@@ -112,30 +112,30 @@ function ClientsPageContent() {
             }
 
             // Add Lumpsum Entry if applicable
-            if (lumpInvestedRaw > 0 && hasActiveBalance) {
-                 const invested = totalInvested * lumpRatio;
-                 const current = totalCurrentValue * lumpRatio;
-                 const pnl = current - invested;
-                 const pnlPercentage = invested > 0 ? (pnl / invested) * 100 : 0;
+            if (effectiveLumpInvestedRaw > 0 && hasActiveBalance) {
+                const invested = totalInvested * lumpRatio;
+                const current = totalCurrentValue * lumpRatio;
+                const pnl = current - invested;
+                const pnlPercentage = invested > 0 ? (pnl / invested) * 100 : 0;
 
-                 entries.push({
+                entries.push({
                     ...client,
                     uniqueKey: `${client.id}-Lumpsum`,
                     portfolio: portfolioName,
                     fundHouse: fundHouse || 'Unknown',
                     investmentAmount: invested,
                     currentValue: current,
-                    investmentType: 'Lumpsum', 
+                    investmentType: 'Lumpsum',
                     startDate,
                     pnl,
                     pnlPercentage,
                     sipAmount: 0
-                 });
+                });
             }
 
             // Default if no entries
             if (entries.length === 0) {
-                 entries.push({
+                entries.push({
                     ...client,
                     uniqueKey: `${client.id}-Default`,
                     portfolio: portfolioName,
@@ -147,18 +147,18 @@ function ClientsPageContent() {
                     pnl: totalCurrentValue - totalInvested,
                     pnlPercentage: totalInvested > 0 ? ((totalCurrentValue - totalInvested) / totalInvested) * 100 : 0,
                     sipAmount: 0 // Default to 0? Or totalSipAmount if they have SIPs but no transactions?
-                                 // If they have active SIPs but no transactions, they fall into 'Default' if sipInvestedRaw==0.
-                                 // Actually earlier fallback sets lumpInvestedRaw.
-                                 // What if active SIPs exist but no tx and no holdings? (New client).
-                                 // Then sipInvestedRaw=0, lumpInvestedRaw=0. totalInvested=0.
-                                 // Fallback doesn't trigger.
-                                 // entries empty.
-                                 // Default entry added.
-                                 // Should show sipAmount if they have active SIPs?
-                                 // Yes.
-                 });
-                 // Fix: Update Default entry sipAmount
-                 entries[0].sipAmount = totalSipAmount; 
+                    // If they have active SIPs but no transactions, they fall into 'Default' if sipInvestedRaw==0.
+                    // Actually earlier fallback sets lumpInvestedRaw.
+                    // What if active SIPs exist but no tx and no holdings? (New client).
+                    // Then sipInvestedRaw=0, lumpInvestedRaw=0. totalInvested=0.
+                    // Fallback doesn't trigger.
+                    // entries empty.
+                    // Default entry added.
+                    // Should show sipAmount if they have active SIPs?
+                    // Yes.
+                });
+                // Fix: Update Default entry sipAmount
+                entries[0].sipAmount = totalSipAmount;
             }
 
             return entries;
@@ -176,12 +176,12 @@ function ClientsPageContent() {
 
             // Fund house filter
             const matchesFundHouse =
-                fundHouseFilter === 'All' || 
+                fundHouseFilter === 'All' ||
                 (client.fundHouse && client.fundHouse.includes(fundHouseFilter));
 
             // Investment type filter
             const matchesType =
-                typeFilter === 'All' || 
+                typeFilter === 'All' ||
                 (typeFilter === 'SIP' && client.investmentType.includes('SIP')) ||
                 (typeFilter === 'Lumpsum' && client.investmentType.includes('Lumpsum'));
 
@@ -197,7 +197,7 @@ function ClientsPageContent() {
 
     const totalAUM = filteredClients.reduce((sum, c) => sum + c.currentValue, 0);
     const totalPnL = filteredClients.reduce((sum, c) => sum + c.pnl, 0);
-    const isLoading = clientsLoading || holdingsLoading || sipsLoading;
+    const isLoading = clientsLoading || sipsLoading;
 
     if (isLoading) {
         return (
@@ -262,7 +262,7 @@ function ClientsPageContent() {
                     <div className="pr-12 md:pr-0">
                         <div className="flex items-center gap-2 md:gap-3 mb-1 flex-wrap">
                             <h1 className="text-xl md:text-2xl font-bold">Clients Portfolio</h1>
-                            
+
                         </div>
                         <p className="text-[#9CA3AF] text-xs md:text-sm">
                             Manage and monitor all client investments
@@ -410,7 +410,7 @@ function ClientsPageContent() {
                                         onChange={(e) => setPnlFilter(e.target.value)}
                                         className="w-full px-3 md:px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white appearance-none cursor-pointer focus:outline-none focus:border-[#C4A265]/50 text-sm"
                                     >
-                                        {pnlFilters.map((pnl) => (
+                                        {['All', 'Profit', 'Loss'].map((pnl) => (
                                             <option key={pnl} value={pnl} className="bg-[#151A21]">
                                                 {pnl}
                                             </option>
@@ -447,7 +447,7 @@ function ClientsPageContent() {
                             {filteredClients.map((client) => (
                                 <Link
                                     href={`/clients/${client.id}`}
-                                    key={(client as any).uniqueKey || client.id}
+                                    key={client.uniqueKey || client.id}
                                     className="block"
                                 >
                                     {/* Mobile Card View */}

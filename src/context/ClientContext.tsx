@@ -36,11 +36,11 @@ export function ClientProvider({ children }: { children: ReactNode }) {
     // Fetch clients = profiles where advisor_id = current user's id
     const fetchClients = useCallback(async () => {
         console.log('[ClientContext] fetchClients called', { authLoading, userId: user?.id });
-        
+
         if (authLoading) {
             return;
         }
-        
+
         if (!isAuthenticated || !user) {
             setClients([]);
             setIsLoading(false);
@@ -59,7 +59,7 @@ export function ClientProvider({ children }: { children: ReactNode }) {
             setError(null);
 
             console.log('[ClientContext] Fetching clients from profiles where advisor_id =', user.id);
-            
+
             // Clients are profiles where advisor_id = this admin's id
             const { data, error: fetchError } = await supabase
                 .from('profiles')
@@ -76,7 +76,7 @@ export function ClientProvider({ children }: { children: ReactNode }) {
             console.log('[ClientContext] Fetch result:', { count: data?.length || 0 });
 
             // Map to Client type (or empty array)
-            const mappedClients: Client[] = (data || []).map((profile: any) => ({
+            const mappedClients: Client[] = (data || []).map((profile: Profile & { email?: string; pan?: string; aadhar?: string }) => ({
                 ...profile,
                 name: profile.full_name || profile.email?.split('@')[0] || 'Client',
                 panCard: profile.pan,
@@ -103,7 +103,7 @@ export function ClientProvider({ children }: { children: ReactNode }) {
     // Add client - calls API to create auth user, trigger creates profile
     const addClient = async (clientData: { name: string; email: string; phone?: string; pan?: string; aadhar?: string; password: string }): Promise<{ success: boolean; error?: string; data?: Client }> => {
         console.log('[ClientContext] addClient called', { userId: user?.id, clientData: { ...clientData, password: '***' } });
-        
+
         if (!user) {
             return { success: false, error: 'Not authenticated' };
         }
@@ -169,7 +169,7 @@ export function ClientProvider({ children }: { children: ReactNode }) {
     const updateClient = async (id: string, updates: Partial<Profile>): Promise<{ success: boolean; error?: string }> => {
         try {
             const { error: updateError } = await (supabase
-                .from('profiles') as any)
+                .from('profiles') as unknown as { update: (data: unknown) => { eq: (k: string, v: unknown) => { eq: (k: string, v: unknown) => Promise<{ error: unknown }> } } })
                 .update(updates)
                 .eq('id', id)
                 .eq('advisor_id', user?.id); // Security: only update own clients
@@ -202,7 +202,7 @@ export function ClientProvider({ children }: { children: ReactNode }) {
 
             // Now delete the profile
             const { error: deleteError } = await (supabase
-                .from('profiles') as any)
+                .from('profiles') as unknown as { delete: () => { eq: (k: string, v: unknown) => { eq: (k: string, v: unknown) => Promise<{ error: unknown }> } } })
                 .delete()
                 .eq('id', id)
                 .eq('advisor_id', user?.id); // Security: only delete own clients
@@ -220,14 +220,14 @@ export function ClientProvider({ children }: { children: ReactNode }) {
     };
 
     return (
-        <ClientContext.Provider value={{ 
-            clients, 
-            isLoading, 
-            error, 
-            addClient, 
-            updateClient, 
+        <ClientContext.Provider value={{
+            clients,
+            isLoading,
+            error,
+            addClient,
+            updateClient,
             deleteClient,
-            refreshClients: fetchClients 
+            refreshClients: fetchClients
         }}>
             {children}
         </ClientContext.Provider>

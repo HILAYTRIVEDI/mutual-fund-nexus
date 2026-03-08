@@ -13,9 +13,7 @@ import {
     PiggyBank,
     Clock,
     Settings,
-    HelpCircle,
     LogOut,
-    Newspaper,
     Menu,
     X,
     Calculator,
@@ -41,7 +39,7 @@ export default function Sidebar() {
 
     // Close sidebar on route change
     useEffect(() => {
-        setIsOpen(false);
+        setTimeout(() => setIsOpen(false), 0);
     }, [pathname]);
 
     // Lock body scroll when mobile menu is open
@@ -65,7 +63,7 @@ export default function Sidebar() {
         return () => document.removeEventListener('keydown', handleEscape);
     }, []);
 
-    const SidebarContent = () => (
+    const renderSidebarContent = () => (
         <>
             {/* Logo */}
             <div className="mb-8 md:mb-10">
@@ -162,12 +160,12 @@ export default function Sidebar() {
                     <X size={20} />
                 </button>
 
-                <SidebarContent />
+                {renderSidebarContent()}
             </aside>
 
             {/* Desktop Sidebar - Static Position */}
             <aside className="hidden md:flex w-[280px] glass-card rounded-2xl p-6 flex-col mint-glow sticky top-6 h-fit max-h-[calc(100vh-48px)] overflow-y-auto transition-colors duration-300 flex-shrink-0">
-                <SidebarContent />
+                {renderSidebarContent()}
             </aside>
         </>
     );

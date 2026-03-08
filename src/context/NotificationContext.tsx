@@ -90,11 +90,11 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     const markAsRead = async (id: string) => {
         try {
             await (supabase
-                .from('notifications') as any)
+                .from('notifications') as unknown as { update: (data: unknown) => { eq: (k: string, v: unknown) => Promise<{ error: unknown }> } })
                 .update({ read: true })
                 .eq('id', id);
 
-            setNotifications(prev => 
+            setNotifications(prev =>
                 prev.map(n => n.id === id ? { ...n, read: true } : n)
             );
         } catch (err) {
@@ -107,7 +107,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
 
         try {
             await (supabase
-                .from('notifications') as any)
+                .from('notifications') as unknown as { update: (data: unknown) => { eq: (k: string, v: unknown) => { eq: (k: string, v: unknown) => Promise<{ error: unknown }> } } })
                 .update({ read: true })
                 .eq('user_id', user.id)
                 .eq('read', false);
@@ -125,7 +125,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
 
         try {
             const { data, error: insertError } = await (supabase
-                .from('notifications') as any)
+                .from('notifications') as unknown as { insert: (data: unknown) => { select: () => { single: () => Promise<{ data: unknown; error: unknown }> } } })
                 .insert({
                     ...notificationData,
                     user_id: user.id,
@@ -138,7 +138,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
             }
 
             if (data) {
-                setNotifications(prev => [data, ...prev]);
+                setNotifications(prev => [data as Notification, ...prev]);
                 return { success: true };
             }
 

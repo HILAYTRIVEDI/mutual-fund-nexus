@@ -12,6 +12,10 @@ import { getServerSupabaseClient } from '@/lib/supabase-server';
  * - daysAhead: Number of days ahead to check (default: 3)
  * - dryRun: If true, don't actually send emails (default: false)
  */
+
+type SIPRow = { id: string; amount: number; next_execution_date: string; client: { id: string; name: string; email: string; advisor_id: string } | null; mutual_fund: { name: string; code: string } | null };
+type ProfileRow = { id: string; full_name: string; email_sip_reminders: boolean };
+
 export async function POST(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -58,18 +62,18 @@ export async function POST(request: NextRequest) {
     }
 
     // Fetch advisor profiles for names
-    const advisorIds = [...new Set(sips.map((s: any) => s.client?.advisor_id).filter(Boolean))];
+    const advisorIds = [...new Set(sips.map((s: SIPRow) => s.client?.advisor_id).filter(Boolean))];
     const { data: advisors } = await supabase
       .from('profiles')
       .select('id, full_name, email_sip_reminders')
       .in('id', advisorIds);
 
-    const advisorMap = new Map(advisors?.map((a: any) => [a.id, a]) || []);
+    const advisorMap = new Map(advisors?.map((a: ProfileRow) => [a.id, a]) || []);
 
     // Process each SIP
     const results: { sipId: string; clientName: string; success: boolean; error?: string }[] = [];
 
-    for (const sip of sips as any[]) {
+    for (const sip of sips as SIPRow[]) {
       const client = sip.client;
       const mutualFund = sip.mutual_fund;
 
@@ -127,7 +131,7 @@ export async function POST(request: NextRequest) {
 
       // Send email
       const emailResult = await sendSIPReminderEmail(emailData);
-      
+
       results.push({
         sipId: sip.id,
         clientName: client.name,
@@ -143,7 +147,7 @@ export async function POST(request: NextRequest) {
           title: 'SIP Reminder Sent',
           message: `Reminder email sent to ${client.name} for ${mutualFund?.name || 'SIP'} (₹${sip.amount.toLocaleString()})`,
           read: false,
-        } as any);
+        } as never);
       }
     }
 

@@ -19,8 +19,8 @@ function formatDate(dateStr: string): string {
 const colors = ['#C4A265', '#5B7FA4', '#D4B87A', '#7A9DBF', '#8B7355'];
 
 export default function StakingCard() {
-    const { upcomingSIPs, activeSIPs, isLoading, error } = useSIPs();
-    
+    const { activeSIPs, isLoading, error } = useSIPs();
+
     // Get next 4 upcoming SIPs
     const displaySIPs = activeSIPs
         .filter(sip => sip.next_execution_date)
@@ -61,14 +61,14 @@ export default function StakingCard() {
         return (
             <div className="glass-card rounded-2xl p-4 md:p-6 h-full gradient-border mint-glow relative overflow-hidden transition-colors duration-300">
                 <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent-gold)]/10 via-transparent to-[var(--accent-slate)]/5 pointer-events-none" />
-                
+
                 <div className="mb-4 md:mb-6 relative z-10">
                     <div className="flex items-center gap-1.5 md:gap-2 mb-2">
                         <Calendar size={16} className="text-[var(--accent-gold)]" />
                         <p className="text-[var(--text-secondary)] text-xs md:text-sm">Upcoming SIPs</p>
                     </div>
                 </div>
-                
+
                 <div className="flex flex-col items-center justify-center py-8 relative z-10">
                     <PiggyBank size={40} className="text-[var(--text-secondary)] mb-3 opacity-50" />
                     <p className="text-[var(--text-secondary)] text-sm">No SIPs scheduled</p>

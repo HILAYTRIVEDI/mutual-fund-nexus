@@ -3,7 +3,7 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { getSupabaseClient } from '@/lib/supabase';
-import type { User as SupabaseUser, AuthError } from '@supabase/supabase-js';
+import type { User as SupabaseUser } from '@supabase/supabase-js';
 import type { Profile } from '@/lib/types/database';
 
 // Cache keys
@@ -74,16 +74,7 @@ function clearCache(): void {
     }
 }
 
-// Map Supabase user + profile to our User type
-function mapToUser(supabaseUser: SupabaseUser, profile: Profile | null): User {
-    return {
-        id: supabaseUser.id,
-        name: profile?.full_name || supabaseUser.email?.split('@')[0] || 'User',
-        email: supabaseUser.email || '',
-        role: (profile?.role === 'client') ? 'client' : 'admin',
-        avatarUrl: profile?.avatar_url || undefined,
-    };
-}
+// Removed mapToUser as it was unused
 
 export function AuthProvider({ children }: { children: ReactNode }) {
     const [user, setUser] = useState<User | null>(null);
@@ -97,11 +88,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     useEffect(() => {
         const cachedUser = getCachedData<User>(CACHE_KEY_USER);
         const cachedProfile = getCachedData<Profile>(CACHE_KEY_PROFILE);
-        
+
         if (cachedUser) {
             console.log('[AuthContext] Loaded user from cache');
-            setUser(cachedUser);
-            setProfile(cachedProfile);
+            setTimeout(() => {
+                setUser(cachedUser);
+                setProfile(cachedProfile);
+            }, 0);
             // Keep loading true until we verify with Supabase
         }
     }, []);
@@ -111,13 +104,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         console.log('[AuthContext] fetchProfile called for:', userId);
         try {
             // Add timeout to prevent hanging
-            const timeoutPromise = new Promise<{ data: null; error: null }>((resolve) => 
+            const timeoutPromise = new Promise<{ data: null; error: null }>((resolve) =>
                 setTimeout(() => {
                     console.warn('[AuthContext] fetchProfile timed out');
                     resolve({ data: null, error: null });
                 }, 8000)
             );
-            
+
             const fetchPromise = supabase
                 .from('profiles')
                 .select('*')
@@ -125,11 +118,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 .maybeSingle();
 
             const result = await Promise.race([fetchPromise, timeoutPromise]);
-            const { data, error } = result as any;
-            
+            const { data, error } = result as { data: Profile | null; error: Error | null };
+
             console.log('[AuthContext] fetchProfile result:', { hasData: !!data, error: error?.message });
 
-            if (error && error.code !== 'PGRST116') {
+            if (error && (error as { code?: string }).code !== 'PGRST116') {
                 console.error('[AuthContext] Error fetching profile:', error);
                 return null;
             }
@@ -143,11 +136,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Load user session - sets user IMMEDIATELY, then updates with profile
     const loadUserSession = useCallback(async (sessionUser: SupabaseUser): Promise<'admin' | 'client'> => {
         console.log('[AuthContext] loadUserSession called for:', sessionUser.email);
-        
+
         // First check cache
         const cachedUser = getCachedData<User>(CACHE_KEY_USER);
         const cachedProfile = getCachedData<Profile>(CACHE_KEY_PROFILE);
-        
+
         // If cached and same user, use cache immediately
         if (cachedUser && cachedUser.id === sessionUser.id && cachedProfile) {
             console.log('[AuthContext] Using cached user data');
@@ -155,7 +148,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setProfile(cachedProfile);
             return cachedUser.role;
         }
-        
+
         // Set basic user IMMEDIATELY so app doesn't hang
         const basicUser: User = {
             id: sessionUser.id,
@@ -165,28 +158,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         };
         setUser(basicUser);
         console.log('[AuthContext] Basic user set, fetching profile...');
-        
+
         try {
             let userProfile = await fetchProfile(sessionUser.id);
             console.log('[AuthContext] Profile fetched:', userProfile?.role);
-            
+
             // If no profile exists, try to create one (non-blocking)
             if (!userProfile) {
                 console.log('[AuthContext] No profile found, attempting to create...');
-                const { error: insertError } = await (supabase.from('profiles') as any).insert({
+                const { error: insertError } = await (supabase.from('profiles') as unknown as { insert: (data: unknown) => Promise<{ error: { message: string, code?: string } | null }> }).insert({
                     id: sessionUser.id,
                     email: sessionUser.email || '',
                     full_name: sessionUser.user_metadata?.full_name || sessionUser.email?.split('@')[0] || 'User',
                     role: 'admin',
                 });
-                
+
                 console.log('[AuthContext] Profile insert result:', insertError?.message || 'success');
-                
+
                 if (!insertError || insertError.code === '23505') {
                     userProfile = await fetchProfile(sessionUser.id);
                 }
             }
-            
+
             // Update user with profile data if available
             if (userProfile) {
                 const role = (userProfile.role === 'client') ? 'client' : 'admin';
@@ -198,18 +191,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 };
                 setProfile(userProfile);
                 setUser(fullUser);
-                
+
                 // Cache the data
                 setCachedData(CACHE_KEY_USER, fullUser);
                 setCachedData(CACHE_KEY_PROFILE, userProfile);
-                
+
                 console.log('[AuthContext] Session loaded with profile, role:', role);
                 return role;
             }
-            
+
             // Cache basic user if no profile
             setCachedData(CACHE_KEY_USER, basicUser);
-            
+
             console.log('[AuthContext] Session loaded without profile, defaulting to admin');
             return 'admin';
         } catch (error) {

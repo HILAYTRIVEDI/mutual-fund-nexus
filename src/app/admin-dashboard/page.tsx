@@ -5,6 +5,7 @@ import DashboardHeader from '@/components/DashboardHeader';
 import AssetChartCard from '@/components/AssetChartCard';
 import DistributionCard from '@/components/DistributionCard';
 import PortfolioCard from '@/components/PortfolioCard';
+import PendingSettlementsCard from '@/components/PendingSettlementsCard';
 
 import ActivitySection from '@/components/ActivitySection';
 import StakingCard from '@/components/StakingCard';
@@ -29,6 +30,9 @@ export default function Home() {
             <AssetChartCard />
             <DistributionCard />
           </div>
+
+          {/* Pending Settlements (Only visible if active items exist) */}
+          <PendingSettlementsCard />
 
           {/* Row 2: Top Holdings (Full Width) */}
           <PortfolioCard />

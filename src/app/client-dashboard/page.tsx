@@ -50,7 +50,7 @@ export default function ClientDashboard() {
         }, 0);
 
         const currentTotalInvested = holdings.reduce((sum, h) => sum + h.invested_amount, 0);
-        
+
         return {
             netReturns: totalAdjustedReturns,
             netReturnsPercentage: currentTotalInvested > 0 ? (totalAdjustedReturns / currentTotalInvested) * 100 : 0,
@@ -62,19 +62,17 @@ export default function ClientDashboard() {
     const chartData = useMemo(() => {
         if (!totalCurrentValue) return undefined;
 
-        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
         const currentMonthIndex = new Date().getMonth();
 
         // Simulate a curve anchored to the REAL current value
         const generateCurve = (monthsCount: number, volatility: number) => {
-            const data = [];
+            const data: { name: string; value: number }[] = [];
             let val = totalCurrentValue;
             for (let i = 0; i < monthsCount; i++) {
                 const date = new Date();
                 date.setMonth(currentMonthIndex - i);
-                const monthName = months[date.getMonth()];
-                data.unshift({ name: monthName, value: val });
-                val = val / (1 + (Math.random() * volatility));
+                const pseudoRandom = (Math.sin(i * 12.9898 + val) * 43758.5453) % 1;
+                val = val / (1 + (Math.abs(pseudoRandom) * volatility));
             }
             return data;
         };
@@ -96,9 +94,9 @@ export default function ClientDashboard() {
     const distributionData = useMemo(() => {
         const dist: Record<string, number> = {};
         holdings.forEach(h => {
-             // Use Name for allocation distribution
-            const name = (h as any).mutual_fund?.name || (h as any).scheme_code || 'Other';
-            
+            const fundData = h as unknown as { mutual_fund?: { name?: string }, scheme_code?: string };
+            const name = fundData.mutual_fund?.name || fundData.scheme_code || 'Other';
+
             // Or if we strictly want Fund Name:
             dist[name] = (dist[name] || 0) + h.current_value;
         });
@@ -200,26 +198,26 @@ export default function ClientDashboard() {
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
                     {/* Charts */}
                     <div className="lg:col-span-2">
-                         <AssetChartCard 
-                            customChartData={chartData} 
+                        <AssetChartCard
+                            customChartData={chartData}
                             customAumValues={{
                                 currentValue: totalCurrentValue,
                                 investedValue: totalInvested,
                                 gainLoss: totalGainLoss
-                            }} 
+                            }}
                         />
                     </div>
-                    
+
                     {/* Right Column: Distribution & SIPs */}
                     <div className="space-y-6">
                         <DistributionCard customData={distributionData} />
-                        
+
                         {/* Start investing nudge if empty */}
                         {holdings.length === 0 && (
                             <div className="glass-card p-6 rounded-2xl text-center">
                                 <PiggyBank className="w-12 h-12 text-[var(--accent-mint)] mx-auto mb-3" />
                                 <h3 className="font-semibold text-[var(--text-primary)]">Start Investing</h3>
-                                <p className="text-sm text-[var(--text-secondary)] mt-1 mb-4">You haven't started your journey yet.</p>
+                                <p className="text-sm text-[var(--text-secondary)] mt-1 mb-4">You haven&apos;t started your journey yet.</p>
                             </div>
                         )}
                     </div>
@@ -235,10 +233,10 @@ export default function ClientDashboard() {
                                 Portfolio Highlights
                             </h3>
                             <Link href="/portfolio" className="text-xs text-[var(--accent-mint)] flex items-center hover:underline">
-                                View All <ArrowRight size={12} className="ml-1"/>
+                                View All <ArrowRight size={12} className="ml-1" />
                             </Link>
                         </div>
-                        
+
                         {holdings.length > 0 ? (
                             <div className="space-y-3">
                                 {holdings.slice(0, 3).map((h, idx) => (
@@ -282,10 +280,10 @@ export default function ClientDashboard() {
                                 <div className="p-3 rounded-xl bg-[var(--bg-hover)] border border-[var(--border-primary)] col-span-2">
                                     <p className="text-[var(--text-secondary)] text-xs mb-1">Next Due</p>
                                     <p className="text-[var(--text-primary)] font-bold">
-                                         {activeSIPs[0].next_execution_date 
+                                        {activeSIPs[0].next_execution_date
                                             ? new Date(activeSIPs[0].next_execution_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })
                                             : 'N/A'
-                                         }
+                                        }
                                     </p>
                                 </div>
                             </div>

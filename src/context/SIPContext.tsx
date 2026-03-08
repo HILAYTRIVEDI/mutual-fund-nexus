@@ -79,9 +79,9 @@ export function SIPProvider({ children }: { children: ReactNode }) {
 
             // Calculate days until next execution
             const today = new Date();
-            const sipsWithDetails: SIPWithDetails[] = data.map((sip: any) => {
+            const sipsWithDetails: SIPWithDetails[] = data.map((sip: SIP & { mutual_fund?: { name?: string } }) => {
                 const nextDate = sip.next_execution_date ? new Date(sip.next_execution_date) : null;
-                const daysUntilNext = nextDate 
+                const daysUntilNext = nextDate
                     ? Math.ceil((nextDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
                     : null;
 
@@ -127,7 +127,7 @@ export function SIPProvider({ children }: { children: ReactNode }) {
         console.log('[SIPContext] addSIP called with:', sipData);
         try {
             const { data, error: insertError } = await (supabase
-                .from('sips') as any)
+                .from('sips') as unknown as { insert: (data: unknown) => { select: () => { single: () => Promise<{ data: unknown; error: unknown }> } } })
                 .insert(sipData)
                 .select()
                 .single();
@@ -154,7 +154,7 @@ export function SIPProvider({ children }: { children: ReactNode }) {
     const updateSIP = async (id: string, updates: Partial<SIP>): Promise<{ success: boolean; error?: string }> => {
         try {
             const { error: updateError } = await (supabase
-                .from('sips') as any)
+                .from('sips') as unknown as { update: (data: unknown) => { eq: (col: string, val: string) => Promise<{ error: unknown }> } })
                 .update(updates)
                 .eq('id', id);
 
