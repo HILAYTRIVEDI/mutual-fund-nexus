@@ -396,6 +396,19 @@ export default function PortfolioPage() {
                                                     </div>
                                                 </div>
                                             </div>
+                                            <div>
+                                                <p className="text-[var(--text-secondary)] mb-1">Units</p>
+                                                <p className="text-[var(--text-primary)] font-medium">{holding.units.toLocaleString()}</p>
+                                            </div>
+                                            <div className="text-right">
+                                                <p className="text-[var(--text-secondary)] mb-1">Live NAV</p>
+                                                <p className="text-[var(--text-primary)] font-medium flex items-center justify-end gap-1">
+                                                    ₹{holding.currentNav.toFixed(2)}
+                                                    {holding.isStaleNav && (
+                                                        <span className="text-[10px] bg-red-500/10 text-red-500 px-1 rounded">stale</span>
+                                                    )}
+                                                </p>
+                                            </div>
                                         </div>
                                     </div>
 

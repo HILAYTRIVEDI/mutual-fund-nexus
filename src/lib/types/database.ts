@@ -68,6 +68,7 @@ export interface Transaction {
   status: 'pending' | 'completed' | 'failed';
   date: string;
   created_at: string;
+  nse_order_id: string | null;  // NSE Invest platform order ID for allotment sync
   // Joined data
   mutual_fund?: MutualFund;
   profile?: Profile;
@@ -124,7 +125,7 @@ export interface Database {
       };
       transactions: {
         Row: Transaction;
-        Insert: Omit<Transaction, 'id' | 'created_at' | 'mutual_fund' | 'profile'>;
+        Insert: Omit<Transaction, 'id' | 'created_at' | 'mutual_fund' | 'profile' | 'nse_order_id'> & { nse_order_id?: string | null };
         Update: Partial<Omit<Transaction, 'id' | 'created_at'>>;
       };
       sips: {
