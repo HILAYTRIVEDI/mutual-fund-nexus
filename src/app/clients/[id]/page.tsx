@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft, Mail, Phone, Calendar, PiggyBank, TrendingUp, TrendingDown, FileText, Edit, Trash2, Plus, Calculator, Loader2 } from 'lucide-react';
@@ -10,6 +10,7 @@ import { useClientContext } from '@/context/ClientContext';
 import { useHoldings } from '@/context/HoldingsContext';
 import { useSIPs } from '@/context/SIPContext';
 import { useTransactions } from '@/context/TransactionsContext';
+import { calculateXIRR } from '@/lib/utils/finance';
 
 function formatCurrency(amount: number): string {
     if (amount >= 10000000) {
@@ -31,13 +32,14 @@ export default function ClientDetailPage() {
     const clientId = params.id as string;
     
     const { ltcgTax, stcgTax } = useSettings();
-    const { clients, deleteClient, isLoading: clientsLoading } = useClientContext();
+    const { clients, deleteClient, updateClient, isLoading: clientsLoading } = useClientContext();
     const { holdings, deleteHolding, refreshHoldings } = useHoldings();
     const { sips, cancelSIP, refreshSIPs } = useSIPs();
     const { transactions, refreshTransactions } = useTransactions();
     
     const [activeTab, setActiveTab] = useState<'investments' | 'transactions' | 'notes'>('investments');
     const [notes, setNotes] = useState('');
+    const [isSavingNote, setIsSavingNote] = useState(false);
     const [showPostTax, setShowPostTax] = useState(false);
 
     // Find the client by ID
@@ -95,19 +97,31 @@ export default function ClientDetailPage() {
     // Calculate returns for a single holding
     const getHoldingReturns = (holding: typeof clientHoldings[0]) => {
         const investedAmount = holding.invested_amount || (holding.units * holding.average_price);
-        const currentValue = holding.current_nav ? holding.units * holding.current_nav : investedAmount;
+        const currentNav = holding.current_nav || holding.average_price;
+        const isStaleNav = !holding.current_nav;
+        const currentValue = holding.units * currentNav;
         const grossReturnAmount = currentValue - investedAmount;
         
+        const fundTxs = clientTransactions.filter(t => t.scheme_code === holding.scheme_code);
+        const cashFlows = fundTxs.map(t => ({
+            amount: (t.type === 'buy' || t.type === 'sip') ? -t.amount : t.amount,
+            date: new Date(t.date || t.created_at)
+        }));
+        cashFlows.push({ amount: currentValue, date: new Date() });
+        const xirr = calculateXIRR(cashFlows);
+
         if (!showPostTax || grossReturnAmount <= 0) {
             return {
                 returnAmount: grossReturnAmount,
                 returnPercentage: investedAmount > 0 ? (grossReturnAmount / investedAmount) * 100 : 0,
                 currentValue,
                 investedAmount,
+                isStaleNav,
+                xirr
             };
         }
 
-        const startDate = new Date(holding.created_at || Date.now());
+        const startDate = new Date(holding.created_at || new Date());
         const oneYearAgo = new Date();
         oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
 
@@ -123,17 +137,35 @@ export default function ClientDetailPage() {
             isLongTerm,
             currentValue,
             investedAmount,
+            isStaleNav,
+            xirr
         };
     };
 
     // Calculate totals
     const totalInvested = clientHoldings.reduce((sum, h) => sum + (h.invested_amount || h.units * h.average_price), 0);
-    const totalCurrent = clientHoldings.reduce((sum, h) => {
-        const currentValue = h.current_nav ? h.units * h.current_nav : (h.invested_amount || h.units * h.average_price);
-        return sum + currentValue;
-    }, 0);
+    const totalCurrent = clientHoldings.reduce((sum, h) => sum + getHoldingReturns(h).currentValue, 0);
     const totalReturns = clientHoldings.reduce((sum, h) => sum + getHoldingReturns(h).returnAmount, 0);
     const returnsPercentage = totalInvested > 0 ? ((totalReturns / totalInvested) * 100).toFixed(2) : '0.00';
+
+    const portfolioXirr = useMemo(() => {
+        if (!clientTransactions.length || totalCurrent === 0) return 0;
+        const cashFlows = clientTransactions.map(t => ({
+            amount: (t.type === 'buy' || t.type === 'sip') ? -t.amount : t.amount,
+            date: new Date(t.date || t.created_at)
+        }));
+        cashFlows.push({ amount: totalCurrent, date: new Date() });
+        return calculateXIRR(cashFlows);
+    }, [clientTransactions, totalCurrent]);
+
+    const handleSaveNote = async () => {
+        setIsSavingNote(true);
+        const res = await updateClient(clientId, { notes });
+        if (!res.success) {
+            alert('Failed to save notes: ' + (res.error || 'Unknown error'));
+        }
+        setIsSavingNote(false);
+    };
 
     // Loading state
     if (clientsLoading) {
@@ -278,16 +310,29 @@ export default function ClientDetailPage() {
                         <p className="text-[var(--text-primary)] text-xl font-bold">{formatCurrency(totalCurrent)}</p>
                     </div>
                     <div className="glass-card rounded-2xl p-4 gradient-border">
-                        <p className="text-[var(--text-secondary)] text-xs mb-1">{showPostTax ? 'Net Returns' : 'Total Returns'}</p>
+                        <select 
+                            value={showPostTax ? 'post' : 'pre'} 
+                            onChange={(e) => setShowPostTax(e.target.value === 'post')}
+                            className="bg-transparent text-[var(--text-secondary)] text-xs mb-1 focus:outline-none cursor-pointer hover:text-[var(--text-primary)] transition-colors"
+                        >
+                            <option value="pre" className="bg-[var(--bg-primary)]">Total Returns</option>
+                            <option value="post" className="bg-[var(--bg-primary)]">Net Returns (Post-Tax)</option>
+                        </select>
                         <p className={`text-xl font-bold ${totalReturns >= 0 ? 'text-[var(--accent-mint)]' : 'text-[var(--accent-red)]'}`}>
                             {totalReturns >= 0 ? '+' : ''}{formatCurrency(totalReturns)}
                         </p>
                     </div>
-                    <div className="glass-card rounded-2xl p-4 gradient-border">
-                        <p className="text-[var(--text-secondary)] text-xs mb-1">Returns %</p>
-                        <p className={`text-xl font-bold flex items-center gap-1 ${parseFloat(returnsPercentage) >= 0 ? 'text-[var(--accent-mint)]' : 'text-[var(--accent-red)]'}`}>
+                    <div className="glass-card rounded-2xl p-4 gradient-border group">
+                        <p className="text-[var(--text-secondary)] text-xs mb-1 flex justify-between items-center group-hover:hidden">Returns %</p>
+                        <p className="text-[var(--text-secondary)] text-xs mb-1 hidden justify-between items-center group-hover:flex">Portfolio XIRR</p>
+                        
+                        <p className={`text-xl font-bold flex items-center gap-1 group-hover:hidden ${parseFloat(returnsPercentage) >= 0 ? 'text-[var(--accent-mint)]' : 'text-[var(--accent-red)]'}`}>
                             {parseFloat(returnsPercentage) >= 0 ? <TrendingUp size={18} /> : <TrendingDown size={18} />}
                             {parseFloat(returnsPercentage) >= 0 ? '+' : ''}{returnsPercentage}%
+                        </p>
+                        <p className={`text-xl font-bold hidden items-center gap-1 group-hover:flex ${portfolioXirr >= 0 ? 'text-[var(--accent-mint)]' : 'text-[var(--accent-red)]'}`}>
+                            {portfolioXirr >= 0 ? <TrendingUp size={18} /> : <TrendingDown size={18} />}
+                            {portfolioXirr >= 0 ? '+' : ''}{portfolioXirr.toFixed(2)}%
                         </p>
                     </div>
                 </div>
@@ -320,10 +365,11 @@ export default function ClientDetailPage() {
                             ) : (
                                 <>
                                     <div className="grid grid-cols-12 gap-4 p-4 bg-[var(--bg-hover)] border-b border-[var(--border-primary)]">
-                                        <div className="col-span-4 text-[var(--text-secondary)] text-xs font-medium uppercase">Fund</div>
+                                        <div className="col-span-3 text-[var(--text-secondary)] text-xs font-medium uppercase">Fund</div>
                                         <div className="col-span-2 text-[var(--text-secondary)] text-xs font-medium uppercase text-right">Invested</div>
                                         <div className="col-span-2 text-[var(--text-secondary)] text-xs font-medium uppercase text-right">Current</div>
                                         <div className="col-span-2 text-[var(--text-secondary)] text-xs font-medium uppercase text-right">Returns</div>
+                                        <div className="col-span-1 text-[var(--text-secondary)] text-xs font-medium uppercase text-right">XIRR</div>
                                         <div className="col-span-1 text-[var(--text-secondary)] text-xs font-medium uppercase text-center">Units</div>
                                         <div className="col-span-1 text-[var(--text-secondary)] text-xs font-medium uppercase text-center"></div>
                                     </div>
@@ -332,16 +378,19 @@ export default function ClientDetailPage() {
                                             const returns = getHoldingReturns(holding);
                                             return (
                                                 <div key={holding.id} className="grid grid-cols-12 gap-4 p-4 hover:bg-[var(--bg-hover)] transition-all">
-                                                    <div className="col-span-4 flex items-center gap-3">
-                                                        <div className="w-10 h-10 rounded-full bg-[var(--accent-mint)]/10 flex items-center justify-center">
+                                                    <div className="col-span-3 flex items-center gap-3">
+                                                        <div className="w-10 h-10 rounded-full bg-[var(--accent-mint)]/10 flex items-center justify-center flex-shrink-0">
                                                             <PiggyBank size={18} className="text-[var(--accent-mint)]" />
                                                         </div>
-                                                        <div>
+                                                        <div className="min-w-0">
                                                             <p className="text-[var(--text-primary)] text-sm font-medium">
-                                                                {(holding as any).mutual_fund?.name || holding.scheme_code || 'Unknown Fund'}
+                                                                {(holding as unknown as { mutual_fund?: { name?: string } }).mutual_fund?.name || holding.scheme_code || 'Unknown Fund'}
                                                             </p>
-                                                            <p className="text-[var(--text-secondary)] text-xs">
+                                                            <p className="text-[var(--text-secondary)] text-xs flex items-center gap-1">
                                                                 NAV: ₹{holding.current_nav?.toFixed(2) || holding.average_price.toFixed(2)}
+                                                                {returns.isStaleNav && (
+                                                                    <span className="text-[10px] bg-red-500/10 text-red-500 px-1 rounded" title="Using average price as NAV is unavailable">stale</span>
+                                                                )}
                                                             </p>
                                                         </div>
                                                     </div>
@@ -359,6 +408,11 @@ export default function ClientDetailPage() {
                                                         <p className={`text-xs ${returns.returnAmount >= 0 ? 'text-[var(--accent-mint)]' : 'text-[var(--accent-red)]'}`}>
                                                             {returns.returnAmount >= 0 ? '+' : ''}{formatCurrency(returns.returnAmount)}
                                                         </p>
+                                                    </div>
+                                                    <div className="col-span-1 flex items-center justify-end">
+                                                        <span className={`text-sm font-medium ${returns.xirr >= 0 ? 'text-[var(--accent-mint)]' : 'text-[var(--accent-red)]'}`}>
+                                                            {returns.xirr >= 0 ? '+' : ''}{returns.xirr.toFixed(2)}%
+                                                        </span>
                                                     </div>
                                                     <div className="col-span-1 flex items-center justify-center">
                                                         <span className="text-[var(--text-primary)] text-sm">
@@ -394,10 +448,11 @@ export default function ClientDetailPage() {
                                 <>
                                     <div className="grid grid-cols-12 gap-4 p-4 bg-[var(--bg-hover)] border-b border-[var(--border-primary)]">
                                         <div className="col-span-2 text-[var(--text-secondary)] text-xs font-medium uppercase">Date</div>
-                                        <div className="col-span-2 text-[var(--text-secondary)] text-xs font-medium uppercase">Type</div>
+                                        <div className="col-span-1 text-[var(--text-secondary)] text-xs font-medium uppercase">Type</div>
                                         <div className="col-span-3 text-[var(--text-secondary)] text-xs font-medium uppercase">Fund</div>
                                         <div className="col-span-2 text-[var(--text-secondary)] text-xs font-medium uppercase text-right">Amount</div>
-                                        <div className="col-span-2 text-[var(--text-secondary)] text-xs font-medium uppercase text-right">Units</div>
+                                        <div className="col-span-2 text-[var(--text-secondary)] text-xs font-medium uppercase text-right">Allotted NAV</div>
+                                        <div className="col-span-1 text-[var(--text-secondary)] text-xs font-medium uppercase text-right">Units</div>
                                         <div className="col-span-1 text-[var(--text-secondary)] text-xs font-medium uppercase text-center">Status</div>
                                     </div>
                                     <div className="divide-y divide-[var(--border-primary)]">
@@ -406,7 +461,7 @@ export default function ClientDetailPage() {
                                                 <div className="col-span-2 flex items-center">
                                                     <p className="text-[var(--text-primary)] text-sm">{formatDate(tx.date)}</p>
                                                 </div>
-                                                <div className="col-span-2 flex items-center">
+                                                <div className="col-span-1 flex items-center">
                                                     <span className={`px-2 py-1 rounded text-xs font-medium ${
                                                         tx.type === 'sip' ? 'bg-[var(--accent-mint)]/10 text-[var(--accent-mint)]' : 
                                                         tx.type === 'buy' ? 'bg-[var(--accent-blue)]/10 text-[var(--accent-blue)]' :
@@ -423,7 +478,13 @@ export default function ClientDetailPage() {
                                                         {tx.type === 'sell' ? '-' : '+'}{formatCurrency(tx.amount)}
                                                     </p>
                                                 </div>
-                                                <div className="col-span-2 flex items-center justify-end">
+                                                <div className="col-span-2 flex flex-col items-end justify-center group relative">
+                                                    <p className="text-[var(--text-primary)] text-sm">₹{(tx.nav || (tx.units > 0 ? tx.amount/tx.units : 0)).toFixed(2)}</p>
+                                                    <div className="opacity-0 group-hover:opacity-100 absolute -bottom-6 right-0 bg-gray-800 text-xs px-2 py-1 rounded pointer-events-none transition-opacity whitespace-nowrap z-10">
+                                                        Calculated ({formatCurrency(tx.amount)} / {(tx.nav || (tx.units > 0 ? tx.amount/tx.units : 0)).toFixed(2)})
+                                                    </div>
+                                                </div>
+                                                <div className="col-span-1 flex items-center justify-end">
                                                     <p className="text-[var(--text-primary)] text-sm">{tx.units.toFixed(3)}</p>
                                                 </div>
                                                 <div className="col-span-1 flex items-center justify-center">
@@ -445,9 +506,13 @@ export default function ClientDetailPage() {
                         <div className="p-6">
                             <div className="flex items-center justify-between mb-4">
                                 <h3 className="text-[var(--text-primary)] font-semibold">Client Notes</h3>
-                                <button className="px-3 py-1.5 rounded-lg bg-[var(--accent-mint)]/10 text-[var(--accent-mint)] text-sm font-medium flex items-center gap-1 hover:bg-[var(--accent-mint)]/20 transition-colors">
-                                    <Plus size={14} />
-                                    Save Note
+                                <button 
+                                    onClick={handleSaveNote}
+                                    disabled={isSavingNote}
+                                    className="px-3 py-1.5 rounded-lg bg-[var(--accent-mint)]/10 text-[var(--accent-mint)] text-sm font-medium flex items-center gap-1 hover:bg-[var(--accent-mint)]/20 transition-colors disabled:opacity-50"
+                                >
+                                    {isSavingNote ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
+                                    {isSavingNote ? 'Saving...' : 'Save Note'}
                                 </button>
                             </div>
                             <textarea
