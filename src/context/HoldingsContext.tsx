@@ -34,7 +34,7 @@ export function HoldingsProvider({ children }: { children: ReactNode }) {
     const [holdings, setHoldings] = useState<HoldingWithValue[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const { isAuthenticated, isLoading: authLoading } = useAuth();
+    const { user, isAuthenticated, isLoading: authLoading } = useAuth();
     const supabase = getSupabaseClient();
 
     // Fetch holdings with NAV data
@@ -143,6 +143,36 @@ export function HoldingsProvider({ children }: { children: ReactNode }) {
             fetchHoldings();
         }
     }, [authLoading, isAuthenticated, fetchHoldings]);
+
+    // Setup Realtime listener for holdings table
+    useEffect(() => {
+        if (!isAuthenticated || !user) return;
+
+        console.log('[HoldingsContext] Setting up realtime listener for holdings');
+        const channel = supabase
+            .channel('holdings-changes')
+            .on(
+                'postgres_changes',
+                {
+                    event: '*',
+                    schema: 'public',
+                    table: 'holdings'
+                },
+                (payload) => {
+                    console.log('[HoldingsContext] Realtime payload received:', payload);
+                    // Refetch entirely to ensure associated mutual_fund data is fresh
+                    fetchHoldings();
+                }
+            )
+            .subscribe((status) => {
+                console.log('[HoldingsContext] Realtime subscription status:', status);
+            });
+
+        return () => {
+            console.log('[HoldingsContext] Cleaning up realtime listener');
+            supabase.removeChannel(channel);
+        };
+    }, [isAuthenticated, user, fetchHoldings, supabase]);
 
     // Schedule automatic NAV refresh after Indian market close
     // Indian stock market closes at 3:30 PM IST

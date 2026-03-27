@@ -44,7 +44,8 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
                 .from('transactions')
                 .select(`
                     *,
-                    mutual_fund:mutual_funds(*)
+                    mutual_fund:mutual_funds(*),
+                    profile:profiles(*)
                 `)
                 .order('date', { ascending: false });
 

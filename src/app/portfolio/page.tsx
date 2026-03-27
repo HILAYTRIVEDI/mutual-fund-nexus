@@ -4,8 +4,10 @@ import { useState, useMemo } from 'react';
 import { Search, TrendingUp, TrendingDown, PiggyBank, BarChart3, ArrowUpDown, Calculator } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
 import { useSettings } from '@/context/SettingsContext';
-import { useAuth } from '@/context/AuthContext';
-// import { useClientContext } from '@/context/ClientContext'; // Removed as unused
+import { useHoldings } from '@/context/HoldingsContext';
+import { useTransactions } from '@/context/TransactionsContext';
+import { calculateXIRR } from '@/lib/utils/finance';
+import { Loader2 } from 'lucide-react';
 
 interface PortfolioHolding {
     id: string;
@@ -22,13 +24,11 @@ interface PortfolioHolding {
     xirr: number;
     allocation: number;
     color: string;
-    investedDate: string; // Added for tax calculation
+    investedDate: string;
+    isStaleNav: boolean;
 }
 
 const colors = ['#C4A265', '#3B82F6', '#5B7FA4', '#F59E0B', '#EC4899', '#6366F1'];
-
-import { useHoldings } from '@/context/HoldingsContext';
-import { Loader2 } from 'lucide-react';
 
 const getRandomColor = (index: number) => colors[index % colors.length];
 
@@ -46,48 +46,80 @@ type SortDirection = 'asc' | 'desc';
 
 export default function PortfolioPage() {
     const { ltcgTax, stcgTax } = useSettings();
-    const { user } = useAuth();
     const { holdings, isLoading } = useHoldings();
+    const { transactions, isLoading: txLoading } = useTransactions();
     const [searchQuery, setSearchQuery] = useState('');
     const [sortKey, setSortKey] = useState<SortKey>('allocation');
     const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
     const [showPostTax, setShowPostTax] = useState(false);
+    const [showXirr, setShowXirr] = useState(false);
 
     // Transform and filter holdings data
     const holdingsData = useMemo(() => {
         if (!holdings || holdings.length === 0) return [];
 
-        let filteredHoldings = holdings;
+        const filteredHoldings = holdings;
         
 
         const totalValue = filteredHoldings.reduce((sum, h) => sum + h.current_value, 0);
 
         return filteredHoldings.map((h, index) => {
-            const fundName = (h as any).mutual_fund?.name || h.scheme_code || 'Mutual Fund Scheme';
-            const fundHouse = (h as any).mutual_fund?.fund_house || fundName.split(' ')[0] || 'Fund House';
-            const returns = h.current_value - h.invested_amount;
+            const hCasted = h as unknown as { mutual_fund?: { name?: string, fund_house?: string, category?: string } };
+            const fundName = hCasted.mutual_fund?.name || h.scheme_code || 'Mutual Fund Scheme';
+            const fundHouse = hCasted.mutual_fund?.fund_house || fundName.split(' ')[0] || 'Fund House';
+            const currentNav = h.current_nav || h.average_price;
+            const currentValue = h.units * currentNav;
+            const isStaleNav = !h.current_nav;
+            const returns = currentValue - h.invested_amount;
             const returnsPercentage = h.invested_amount > 0 ? (returns / h.invested_amount) * 100 : 0;
-            const allocation = totalValue > 0 ? (h.current_value / totalValue) * 100 : 0;
+            const allocation = totalValue > 0 ? (currentValue / totalValue) * 100 : 0;
+
+            const schemeCode = h.scheme_code;
+            const fundTxs = transactions.filter(t => t.scheme_code === schemeCode);
+            const cashFlows = fundTxs.map(t => ({
+                amount: (t.type === 'buy' || t.type === 'sip') ? -t.amount : t.amount,
+                date: new Date(t.date || t.created_at)
+            }));
+            cashFlows.push({
+                amount: currentValue,
+                date: new Date()
+            });
+            const xirr = calculateXIRR(cashFlows);
 
             return {
                 id: h.id,
                 fundName: fundName,
                 fundHouse: fundHouse,
-                category: (h as any).mutual_fund?.category || 'Equity',
+                category: hCasted.mutual_fund?.category || 'Equity',
                 units: h.units,
                 avgNav: h.average_price,
-                currentNav: h.current_nav,
+                currentNav: currentNav,
+                isStaleNav: isStaleNav,
                 investedValue: h.invested_amount,
-                currentValue: h.current_value,
+                currentValue: currentValue,
                 returns: returns,
                 returnsPercentage: returnsPercentage,
-                xirr: 0, 
+                xirr: xirr, 
                 allocation: parseFloat(allocation.toFixed(2)),
                 color: getRandomColor(index),
                 investedDate: h.created_at || new Date().toISOString(), 
             };
         });
-    }, [holdings, user]);
+    }, [holdings, transactions]);
+
+    const portfolioXirr = useMemo(() => {
+        const currentTotal = holdingsData.reduce((sum, h) => sum + h.currentValue, 0);
+        if (!transactions.length || currentTotal === 0) return 0;
+        const cashFlows = transactions.map(t => ({
+            amount: (t.type === 'buy' || t.type === 'sip') ? -t.amount : t.amount,
+            date: new Date(t.date || t.created_at)
+        }));
+        cashFlows.push({
+            amount: currentTotal,
+            date: new Date()
+        });
+        return calculateXIRR(cashFlows);
+    }, [transactions, holdingsData]);
 
     const handleSort = (key: SortKey) => {
         if (sortKey === key) {
@@ -117,7 +149,7 @@ export default function PortfolioPage() {
         return result;
     }, [searchQuery, sortKey, sortDirection, holdingsData]);
 
-    if (isLoading) {
+    if (isLoading || txLoading) {
         return (
              <div className="min-h-screen bg-[var(--bg-primary)] text-[var(--text-primary)] p-4 md:p-6 flex flex-col md:flex-row gap-4 md:gap-6 transition-colors duration-300">
                 <main className="flex-1 min-w-0 flex items-center justify-center">
@@ -209,9 +241,14 @@ export default function PortfolioPage() {
                         </p>
                     </div>
                     <div className="glass-card rounded-2xl p-3 md:p-4 gradient-border flex-shrink-0 min-w-[140px] lg:min-w-0">
-                        <p className="text-[var(--text-secondary)] text-[10px] md:text-xs mb-1">Overall Returns %</p>
-                        <p className={`text-lg md:text-xl font-bold truncate ${parseFloat(totalReturnsPercentage) >= 0 ? 'text-[var(--accent-mint)]' : 'text-[var(--accent-red)]'}`}>
-                            {parseFloat(totalReturnsPercentage) >= 0 ? '+' : ''}{totalReturnsPercentage}%
+                        <div className="flex items-center justify-between mb-1">
+                            <p className="text-[var(--text-secondary)] text-[10px] md:text-xs">Overall Returns %</p>
+                            <button onClick={() => setShowXirr(!showXirr)} className="text-[10px] text-[var(--accent-mint)] bg-[var(--accent-mint)]/10 px-2 py-0.5 rounded-md hover:bg-[var(--accent-mint)]/20 transition-colors">
+                                {showXirr ? 'Show Absolute %' : 'Show XIRR %'}
+                            </button>
+                        </div>
+                        <p className={`text-lg md:text-xl font-bold truncate ${showXirr ? (portfolioXirr >= 0 ? 'text-[var(--accent-mint)]' : 'text-[var(--accent-red)]') : (parseFloat(totalReturnsPercentage) >= 0 ? 'text-[var(--accent-mint)]' : 'text-[var(--accent-red)]')}`}>
+                            {showXirr ? `${portfolioXirr > 0 ? '+' : ''}${portfolioXirr.toFixed(2)}% (XIRR)` : `${parseFloat(totalReturnsPercentage) >= 0 ? '+' : ''}${totalReturnsPercentage}%`}
                         </p>
                     </div>
                 </div>
@@ -253,10 +290,17 @@ export default function PortfolioPage() {
                         </button>
                         <button
                             onClick={() => handleSort('returnsPercentage')}
-                            className="col-span-2 flex items-center justify-end gap-1 text-[var(--text-secondary)] text-xs font-medium uppercase hover:text-[var(--text-primary)]"
+                            className="col-span-1 flex items-center justify-end gap-1 text-[var(--text-secondary)] text-xs font-medium uppercase hover:text-[var(--text-primary)]"
                         >
                             Returns
                             {sortKey === 'returnsPercentage' && <ArrowUpDown size={12} />}
+                        </button>
+                        <button
+                            onClick={() => handleSort('xirr')}
+                            className="col-span-1 flex items-center justify-end gap-1 text-[var(--text-secondary)] text-xs font-medium uppercase hover:text-[var(--text-primary)]"
+                        >
+                            XIRR
+                            {sortKey === 'xirr' && <ArrowUpDown size={12} />}
                         </button>
                         <button
                             onClick={() => handleSort('allocation')}
@@ -352,6 +396,19 @@ export default function PortfolioPage() {
                                                     </div>
                                                 </div>
                                             </div>
+                                            <div>
+                                                <p className="text-[var(--text-secondary)] mb-1">Units</p>
+                                                <p className="text-[var(--text-primary)] font-medium">{holding.units.toLocaleString()}</p>
+                                            </div>
+                                            <div className="text-right">
+                                                <p className="text-[var(--text-secondary)] mb-1">Live NAV</p>
+                                                <p className="text-[var(--text-primary)] font-medium flex items-center justify-end gap-1">
+                                                    ₹{holding.currentNav.toFixed(2)}
+                                                    {holding.isStaleNav && (
+                                                        <span className="text-[10px] bg-red-500/10 text-red-500 px-1 rounded">stale</span>
+                                                    )}
+                                                </p>
+                                            </div>
                                         </div>
                                     </div>
 
@@ -387,11 +444,16 @@ export default function PortfolioPage() {
                                         {/* Current Value */}
                                         <div className="col-span-2 flex flex-col items-end justify-center">
                                             <p className="text-[var(--text-primary)] text-sm font-medium">{formatCurrency(holding.currentValue)}</p>
-                                            <p className="text-[var(--text-secondary)] text-xs">NAV: ₹{holding.currentNav.toFixed(2)}</p>
+                                            <p className="text-[var(--text-secondary)] text-xs flex items-center gap-1">
+                                                NAV: ₹{holding.currentNav.toFixed(2)}
+                                                {holding.isStaleNav && (
+                                                    <span className="text-[10px] bg-red-500/10 text-red-500 px-1 rounded" title="Using average price as NAV is unavailable">stale</span>
+                                                )}
+                                            </p>
                                         </div>
 
                                         {/* Returns */}
-                                        <div className="col-span-2 flex flex-col items-end justify-center">
+                                        <div className="col-span-1 flex flex-col items-end justify-center">
                                             <div className={`flex items-center gap-1 ${calculateReturns(holding).returnsPercentage >= 0 ? 'text-[var(--accent-mint)]' : 'text-[var(--accent-red)]'}`}>
                                                 {calculateReturns(holding).returnsPercentage >= 0 ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
                                                 <span className="text-sm font-medium">{calculateReturns(holding).returnsPercentage >= 0 ? '+' : ''}{calculateReturns(holding).returnsPercentage.toFixed(2)}%</span>
@@ -404,6 +466,14 @@ export default function PortfolioPage() {
                                                     {(new Date(holding.investedDate) < new Date(new Date().setFullYear(new Date().getFullYear() - 1))) ? 'LTCG' : 'STCG'}
                                                 </span>
                                             )}
+                                        </div>
+
+                                        {/* XIRR */}
+                                        <div className="col-span-1 flex flex-col items-end justify-center">
+                                            <div className={`flex items-center gap-1 ${holding.xirr >= 0 ? 'text-[var(--accent-mint)]' : 'text-[var(--accent-red)]'}`}>
+                                                <span className="text-sm font-medium">{holding.xirr >= 0 ? '+' : ''}{holding.xirr.toFixed(2)}%</span>
+                                            </div>
+                                            <p className="text-[10px] text-[var(--text-secondary)]">XIRR</p>
                                         </div>
 
                                         {/* Allocation */}

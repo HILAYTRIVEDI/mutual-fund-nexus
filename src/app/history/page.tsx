@@ -3,6 +3,7 @@
 import { useState, useMemo } from 'react';
 import { Search, Filter, ChevronDown, X, UserPlus, UserMinus, PiggyBank, TrendingUp, TrendingDown, ArrowRightLeft, Clock, CheckCircle, XCircle } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
+import { useTransactions } from '@/context/TransactionsContext';
 
 type LogType = 'client_added' | 'client_removed' | 'investment_sip' | 'investment_lumpsum' | 'redemption' | 'switch' | 'nav_update' | 'sip_executed' | 'dividend';
 type LogStatus = 'success' | 'pending' | 'failed';
@@ -19,123 +20,6 @@ interface ActivityLog {
     timestamp: string;
     metadata?: Record<string, string>;
 }
-
-const activityLogs: ActivityLog[] = [
-    {
-        id: 'LOG001',
-        type: 'client_added',
-        title: 'New Client Added',
-        description: 'Rajesh Kumar was added to the system',
-        clientName: 'Rajesh Kumar',
-        status: 'success',
-        timestamp: '2024-12-26T01:30:00',
-        metadata: { email: 'rajesh.kumar@email.com', phone: '+91 98765 43210' }
-    },
-    {
-        id: 'LOG002',
-        type: 'investment_sip',
-        title: 'SIP Investment Created',
-        description: 'New SIP started for Rajesh Kumar',
-        clientName: 'Rajesh Kumar',
-        fundName: 'HDFC Top 100 Fund',
-        amount: 50000,
-        status: 'success',
-        timestamp: '2024-12-26T01:25:00',
-        metadata: { sipDate: '5th of every month', duration: '36 months' }
-    },
-    {
-        id: 'LOG003',
-        type: 'sip_executed',
-        title: 'SIP Executed',
-        description: 'Monthly SIP installment processed',
-        clientName: 'Priya Sharma',
-        fundName: 'SBI Bluechip Fund',
-        amount: 25000,
-        status: 'success',
-        timestamp: '2024-12-25T09:30:00',
-        metadata: { nav: '₹78.34', units: '319.12' }
-    },
-    {
-        id: 'LOG004',
-        type: 'investment_lumpsum',
-        title: 'Lumpsum Investment',
-        description: 'One-time investment made',
-        clientName: 'Vikram Singh',
-        fundName: 'Parag Parikh Flexi Cap',
-        amount: 500000,
-        status: 'success',
-        timestamp: '2024-12-24T14:45:00',
-        metadata: { nav: '₹62.45', units: '8006.41' }
-    },
-    {
-        id: 'LOG005',
-        type: 'redemption',
-        title: 'Redemption Processed',
-        description: 'Partial redemption completed',
-        clientName: 'Anita Mehta',
-        fundName: 'Axis Liquid Fund',
-        amount: 200000,
-        status: 'success',
-        timestamp: '2024-12-24T11:20:00',
-        metadata: { units: '1823.45', reason: 'Emergency withdrawal' }
-    },
-    {
-        id: 'LOG006',
-        type: 'switch',
-        title: 'Fund Switch',
-        description: 'Switched from one fund to another',
-        clientName: 'Suresh Iyer',
-        fundName: 'ICICI Pru Bluechip → HDFC Mid-Cap',
-        amount: 300000,
-        status: 'success',
-        timestamp: '2024-12-23T16:00:00',
-        metadata: { fromUnits: '2456.78', toUnits: '1892.34' }
-    },
-    {
-        id: 'LOG007',
-        type: 'client_removed',
-        title: 'Client Removed',
-        description: 'Client account was deleted',
-        clientName: 'Old Client XYZ',
-        status: 'success',
-        timestamp: '2024-12-23T10:15:00',
-        metadata: { reason: 'Account closure requested' }
-    },
-    {
-        id: 'LOG008',
-        type: 'sip_executed',
-        title: 'SIP Execution Failed',
-        description: 'SIP could not be processed - insufficient balance',
-        clientName: 'Neha Gupta',
-        fundName: 'HDFC Mid-Cap Opportunities',
-        amount: 20000,
-        status: 'failed',
-        timestamp: '2024-12-22T09:30:00',
-        metadata: { error: 'Bank mandate rejected' }
-    },
-    {
-        id: 'LOG009',
-        type: 'dividend',
-        title: 'Dividend Reinvested',
-        description: 'Dividend payout reinvested',
-        clientName: 'Amit Patel',
-        fundName: 'ICICI Pru Value Discovery',
-        amount: 15000,
-        status: 'success',
-        timestamp: '2024-12-21T12:00:00',
-        metadata: { units: '234.56', divPerUnit: '₹2.50' }
-    },
-    {
-        id: 'LOG010',
-        type: 'nav_update',
-        title: 'NAV Updated',
-        description: 'Daily NAV update completed',
-        fundName: 'All Funds',
-        status: 'success',
-        timestamp: '2024-12-20T20:00:00',
-        metadata: { fundsUpdated: '156', source: 'AMFI' }
-    },
-];
 
 const logTypeLabels: Record<LogType, string> = {
     client_added: 'Client Added',
@@ -219,11 +103,56 @@ function getRelativeTime(dateStr: string): string {
 }
 
 export default function HistoryPage() {
+    const { transactions, isLoading } = useTransactions();
     const [searchQuery, setSearchQuery] = useState('');
     const [typeFilter, setTypeFilter] = useState<LogType | 'All'>('All');
     const [statusFilter, setStatusFilter] = useState<LogStatus | 'All'>('All');
     const [showFilters, setShowFilters] = useState(false);
     const [expandedLog, setExpandedLog] = useState<string | null>(null);
+
+    const activityLogs: ActivityLog[] = useMemo(() => {
+        return transactions.map(tx => {
+            let type: LogType = 'investment_lumpsum';
+            let title = 'Investment';
+            let description = 'Investment processed';
+            
+            if (tx.type === 'sip') {
+                type = 'investment_sip';
+                title = 'SIP Executed';
+                description = 'Monthly SIP installment processed';
+            } else if (tx.type === 'buy') {
+                type = 'investment_lumpsum';
+                title = 'Lumpsum Investment';
+                description = 'One-time investment made';
+            } else if (tx.type === 'sell') {
+                type = 'redemption';
+                title = 'Redemption Processed';
+                description = 'Partial or full redemption completed';
+            } else if (tx.type === 'switch') {
+                type = 'switch';
+                title = 'Fund Switch';
+                description = 'Switched from one fund to another';
+            }
+
+            const allottedNav = tx.nav || (tx.units > 0 ? tx.amount / tx.units : 0);
+
+            return {
+                id: tx.id,
+                type,
+                title,
+                description,
+                clientName: tx.profile?.full_name || tx.profile?.email || 'Unknown Client',
+                fundName: tx.mutual_fund?.name || tx.scheme_code || 'Unknown Fund',
+                amount: tx.amount,
+                status: tx.status === 'completed' ? 'success' : tx.status as LogStatus,
+                timestamp: tx.date || tx.created_at,
+                metadata: {
+                    allottedNav: `₹${allottedNav.toFixed(2)}`,
+                    units: tx.units.toFixed(4)
+                }
+            };
+        });
+    }, [transactions]);
 
     const filteredLogs = useMemo(() => {
         return activityLogs.filter((log) => {
@@ -239,7 +168,7 @@ export default function HistoryPage() {
 
             return matchesSearch && matchesType && matchesStatus;
         });
-    }, [searchQuery, typeFilter, statusFilter]);
+    }, [activityLogs, searchQuery, typeFilter, statusFilter]);
 
     const hasActiveFilters = typeFilter !== 'All' || statusFilter !== 'All' || searchQuery !== '';
 
@@ -364,7 +293,12 @@ export default function HistoryPage() {
 
                 {/* Activity Timeline */}
                 <div className="glass-card rounded-2xl p-6">
-                    {filteredLogs.length === 0 ? (
+                    {isLoading ? (
+                        <div className="flex flex-col items-center justify-center py-16">
+                            <Clock className="animate-spin text-[#9CA3AF] mb-3" size={32} />
+                            <p className="text-[#9CA3AF]">Loading activities...</p>
+                        </div>
+                    ) : filteredLogs.length === 0 ? (
                         <div className="flex flex-col items-center justify-center py-16">
                             <Clock className="text-[#9CA3AF] mb-3" size={48} />
                             <p className="text-[#9CA3AF]">No activity logs found</p>
