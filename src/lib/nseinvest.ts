@@ -38,9 +38,11 @@ function generateEncryptedPassword(): string {
     const plainText = `${API_SECRET_USER}|${randomNumber}`;
 
     // Step 3: Derive 128-bit key via PBKDF2-HMAC-SHA1 (1000 iterations, 16-byte key)
+    // Salt must be the raw 16 bytes (saltBytes), NOT the UTF-8 encoding of the hex string.
+    // Java: Hex.decodeHex(salt) → 16 bytes; Postman: CryptoJS.enc.Hex.parse(salt) → 16 bytes.
     const key = crypto.pbkdf2Sync(
         Buffer.from(API_KEY_MEMBER, 'utf8'),
-        Buffer.from(saltHex, 'utf8'), // salt passed as UTF-8 hex string (matches Java impl)
+        saltBytes, // 16 raw bytes — matches Java Hex.decodeHex(salt) and Postman CryptoJS.enc.Hex.parse
         1000,
         16,
         'sha1'
@@ -63,8 +65,9 @@ function buildHeaders(): Record<string, string> {
     return {
         Authorization: `Basic ${basicToken}`,
         'Content-Type': 'application/json',
-        Accept: 'application/json',
+        Accept: '*/*',                    // NSE/Akamai requires */* — application/json triggers bot-block
         'Accept-Language': 'en-US',
+        Connection: 'keep-alive',         // Required per NSE integration email
         Referer: 'www.google.com',
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
         memberId: MEMBER_CODE,
@@ -91,57 +94,98 @@ async function nsePost<T>(path: string, body: Record<string, unknown>): Promise<
 // Public API functions
 // ---------------------------------------------------------------------------
 
+/**
+ * Standard NSE report API response wrapper.
+ * All report endpoints return this envelope; actual rows live in `report_data`.
+ */
+interface NSEReportResponse<T> {
+    response_status: string;   // "S" = success, "E" = error
+    report_data_total: string; // total row count as string
+    report_data: T[];
+    error_remark: string;
+}
+
+/**
+ * Allotment statement record — field names mirror the NSE API response exactly
+ * (see NSEMF_API_Details §ALLOTMENT_STATEMENT, pp. 133-136).
+ */
 export interface NSEAllotmentRecord {
-    order_id: string;
-    scheme_code: string;
-    allotted_nav: number;
-    allotted_units: number;
-    allotment_date: string;
-    amount: number;
-    status: string;
+    orderno: string;          // NSE order number
+    schemecode: string;       // AMC scheme code
+    allottednav: number;      // NAV at which units were allotted
+    allottedqty: number;      // units allotted
+    allotmentamt: number;     // allotment amount (₹)
+    orderdate: string;        // order placement date  (DD-MM-YYYY)
+    reportdate: string;       // allotment / report date (DD-MM-YYYY)
+    validflag: string;        // "Y" = allotted, "N" = not yet allotted / rejected
+    clientcode: string;
+    beneficiaryid: string;
+    // Additional fields the API may return (kept as loose strings to avoid breakage)
+    [key: string]: unknown;
+}
+
+/** Convert ISO date (YYYY-MM-DD) to the DD-MM-YYYY format NSE expects. */
+function toNSEDate(isoDate: string): string {
+    const [year, month, day] = isoDate.split('-');
+    return `${day}-${month}-${year}`;
 }
 
 /**
  * Fetch allotment statement for a list of NSE order IDs.
  * Returns authoritative allotted NAV and units from NSE.
+ *
+ * Dates may be supplied as YYYY-MM-DD (DB format) — they are converted
+ * to DD-MM-YYYY before sending, as required by the NSE ALLOTMENT_STATEMENT API.
  */
 export async function getAllotmentStatement(params: {
     order_ids: string[];
-    from_date: string; // YYYY-MM-DD
-    to_date: string;   // YYYY-MM-DD
+    from_date: string; // YYYY-MM-DD or DD-MM-YYYY — auto-normalised
+    to_date: string;   // YYYY-MM-DD or DD-MM-YYYY — auto-normalised
     order_type?: string;
     sub_order_type?: string;
 }): Promise<NSEAllotmentRecord[]> {
-    const data = await nsePost<{ data: NSEAllotmentRecord[] }>(
+    // Normalise: if the date looks like YYYY-MM-DD, convert it to DD-MM-YYYY
+    const normalise = (d: string) => /^\d{4}-\d{2}-\d{2}$/.test(d) ? toNSEDate(d) : d;
+
+    const data = await nsePost<NSEReportResponse<NSEAllotmentRecord>>(
         '/nsemfdesk/api/v2/reports/ALLOTMENT_STATEMENT',
         {
             order_ids: params.order_ids,
-            from_date: params.from_date,
-            to_date: params.to_date,
+            from_date: normalise(params.from_date),
+            to_date: normalise(params.to_date),
             order_type: params.order_type ?? 'P',
             sub_order_type: params.sub_order_type ?? 'NORMAL',
         }
     );
-    return data.data ?? [];
+    return data.report_data ?? [];
 }
 
+/**
+ * Order status record — field names mirror the NSE API response exactly
+ * (see NSEMF_API_Details §ORDER_STATUS, pp. 78-83).
+ * Note: ORDER_STATUS uses YYYY-MM-DD dates (unlike ALLOTMENT_STATEMENT which uses DD-MM-YYYY).
+ */
 export interface NSEOrderStatus {
-    order_id: string;
-    status: string;
-    allotted_nav: number | null;
-    allotted_units: number | null;
-    allotment_date: string | null;
+    orderno: string;
+    schemecode: string;
+    orderstatus: string;      // e.g. "Allotted", "Pending", "Rejected"
+    allottednav: number | null;
+    allottedqty: number | null;
+    allotmentdate: string | null; // YYYY-MM-DD
+    orderdate: string | null;     // YYYY-MM-DD
+    [key: string]: unknown;
 }
 
 /**
  * Fetch order status for one or more NSE order IDs.
+ * Dates in the request must be YYYY-MM-DD (unlike ALLOTMENT_STATEMENT).
  */
 export async function getOrderStatus(orderIds: string[]): Promise<NSEOrderStatus[]> {
-    const data = await nsePost<{ data: NSEOrderStatus[] }>(
+    const data = await nsePost<NSEReportResponse<NSEOrderStatus>>(
         '/nsemfdesk/api/v2/reports/ORDER_STATUS',
         { order_ids: orderIds }
     );
-    return data.data ?? [];
+    return data.report_data ?? [];
 }
 
 export interface NSESchemeNAV {
@@ -154,9 +198,9 @@ export interface NSESchemeNAV {
  * Download scheme master / NAV data for one or more scheme codes.
  */
 export async function getMasterNAV(schemeCodes: string[]): Promise<NSESchemeNAV[]> {
-    const data = await nsePost<{ data: NSESchemeNAV[] }>(
+    const data = await nsePost<NSEReportResponse<NSESchemeNAV>>(
         '/nsemfdesk/api/v2/reports/MASTER_DOWNLOAD',
         { scheme_codes: schemeCodes }
     );
-    return data.data ?? [];
+    return data.report_data ?? [];
 }

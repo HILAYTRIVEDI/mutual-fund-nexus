@@ -92,12 +92,18 @@ export function HoldingsProvider({ children }: { children: ReactNode }) {
                     // Skip custom funds (no MFAPI data)
                     if (code.startsWith('CUSTOM-')) return;
                     try {
-                        const navData = await getSchemeLatestNAV(parseInt(code));
+                        const numericCode = parseInt(code, 10);
+                        if (isNaN(numericCode)) {
+                            console.warn(`[HoldingsContext] Skipping non-numeric scheme code for MFAPI: ${code}`);
+                            return;
+                        }
+                        const navData = await getSchemeLatestNAV(numericCode);
                         if (navData?.data?.[0]?.nav) {
                             navCache[code] = parseFloat(navData.data[0].nav);
                         }
-                    } catch {
-                        // MFAPI unavailable — will fall back to DB-cached NAV
+                    } catch (err) {
+                        console.warn(`[HoldingsContext] MFAPI NAV fetch failed for ${code}:`, err);
+                        // Will fall back to DB-cached NAV
                     }
                 })
             );

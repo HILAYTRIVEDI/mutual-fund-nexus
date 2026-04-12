@@ -75,7 +75,7 @@ export default function PortfolioPage() {
             const allocation = totalValue > 0 ? (currentValue / totalValue) * 100 : 0;
 
             const schemeCode = h.scheme_code;
-            const fundTxs = transactions.filter(t => t.scheme_code === schemeCode);
+            const fundTxs = transactions.filter(t => t.scheme_code === schemeCode && t.user_id === h.user_id);
             const cashFlows = fundTxs.map(t => ({
                 amount: (t.type === 'buy' || t.type === 'sip') ? -t.amount : t.amount,
                 date: new Date(t.date || t.created_at)
@@ -85,6 +85,16 @@ export default function PortfolioPage() {
                 date: new Date()
             });
             const xirr = calculateXIRR(cashFlows);
+
+            // Use earliest completed buy/sip transaction date for LTCG/STCG determination
+            // Falls back to holding creation date if no transactions found
+            const buyTxs = fundTxs.filter(t => t.type === 'buy' || t.type === 'sip');
+            const earliestTxDate = buyTxs.length > 0
+                ? buyTxs.reduce((earliest, t) => {
+                    const txDate = new Date(t.date || t.created_at);
+                    return txDate < earliest ? txDate : earliest;
+                }, new Date(buyTxs[0].date || buyTxs[0].created_at)).toISOString()
+                : (h.created_at || new Date().toISOString());
 
             return {
                 id: h.id,
@@ -99,10 +109,10 @@ export default function PortfolioPage() {
                 currentValue: currentValue,
                 returns: returns,
                 returnsPercentage: returnsPercentage,
-                xirr: xirr, 
+                xirr: xirr,
                 allocation: parseFloat(allocation.toFixed(2)),
                 color: getRandomColor(index),
-                investedDate: h.created_at || new Date().toISOString(), 
+                investedDate: earliestTxDate,
             };
         });
     }, [holdings, transactions]);
