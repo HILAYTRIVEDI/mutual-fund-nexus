@@ -67,9 +67,9 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ synced: 0, message: 'NSE returned no allotment records' });
         }
 
-        // Build lookup: nse_order_id → allotment
+        // Build lookup: nse_order_id → allotment (keyed by NSE field `orderno`)
         const allotmentMap = Object.fromEntries(
-            allotments.map(a => [a.order_id, a])
+            allotments.map(a => [a.orderno, a])
         );
 
         // 4. Patch each transaction in Supabase
@@ -82,15 +82,24 @@ export async function POST(req: NextRequest) {
             const allotment = allotmentMap[tx.nse_order_id as string];
             if (!allotment) continue;
 
-            const isAllotted = allotment.status?.toLowerCase() === 'allotted';
+            // validflag "Y" means units have been allotted
+            const isAllotted = allotment.validflag === 'Y';
+
+            // Convert NSE allotment date from DD-MM-YYYY → YYYY-MM-DD for DB storage
+            const rawDate = allotment.reportdate || allotment.orderdate;
+            let allotmentDateISO: string | null = null;
+            if (rawDate && /^\d{2}-\d{2}-\d{4}$/.test(rawDate as string)) {
+                const [dd, mm, yyyy] = (rawDate as string).split('-');
+                allotmentDateISO = `${yyyy}-${mm}-${dd}`;
+            }
 
             const { error: updateErr } = await supabaseAdmin
                 .from('transactions')
                 .update({
-                    nav: allotment.allotted_nav,
-                    units: allotment.allotted_units,
+                    nav: allotment.allottednav,
+                    units: allotment.allottedqty,
                     // Write authoritative allotment date from NSE (overrides order placement date)
-                    date: allotment.allotment_date,
+                    ...(allotmentDateISO ? { date: allotmentDateISO } : {}),
                     status: isAllotted ? 'completed' : 'pending',
                 })
                 .eq('id', tx.id);
