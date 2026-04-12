@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { Search, Filter, ChevronDown, X, UserPlus, UserMinus, PiggyBank, TrendingUp, TrendingDown, ArrowRightLeft, Clock, CheckCircle, XCircle } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
 import { useTransactions } from '@/context/TransactionsContext';
@@ -103,12 +103,32 @@ function getRelativeTime(dateStr: string): string {
 }
 
 export default function HistoryPage() {
-    const { transactions, isLoading } = useTransactions();
+    const { transactions, isLoading, refreshTransactions } = useTransactions();
     const [searchQuery, setSearchQuery] = useState('');
     const [typeFilter, setTypeFilter] = useState<LogType | 'All'>('All');
     const [statusFilter, setStatusFilter] = useState<LogStatus | 'All'>('All');
     const [showFilters, setShowFilters] = useState(false);
     const [expandedLog, setExpandedLog] = useState<string | null>(null);
+    const hasSynced = useRef(false);
+
+    // Auto-trigger allotment sync on page load if any pending transactions have an NSE order ID
+    useEffect(() => {
+        if (isLoading || hasSynced.current) return;
+        const pendingWithOrderId = transactions.filter(
+            t => t.status === 'pending' && t.nse_order_id
+        );
+        if (pendingWithOrderId.length === 0) return;
+
+        hasSynced.current = true;
+        fetch('/api/nse/sync-allotment', { method: 'POST', body: JSON.stringify({}) })
+            .then(r => r.json())
+            .then(result => {
+                if (result.synced > 0) {
+                    refreshTransactions();
+                }
+            })
+            .catch(() => { /* silent — sync is best-effort */ });
+    }, [isLoading, transactions, refreshTransactions]);
 
     const activityLogs: ActivityLog[] = useMemo(() => {
         return transactions.map(tx => {
@@ -134,7 +154,7 @@ export default function HistoryPage() {
                 description = 'Switched from one fund to another';
             }
 
-            const allottedNav = tx.nav || (tx.units > 0 ? tx.amount / tx.units : 0);
+            const allottedNav = (tx.nav != null && tx.nav > 0) ? tx.nav : (tx.units > 0 ? tx.amount / tx.units : 0);
 
             return {
                 id: tx.id,
@@ -147,8 +167,10 @@ export default function HistoryPage() {
                 status: tx.status === 'completed' ? 'success' : tx.status as LogStatus,
                 timestamp: tx.date || tx.created_at,
                 metadata: {
-                    allottedNav: `₹${allottedNav.toFixed(2)}`,
-                    units: tx.units.toFixed(4)
+                    'Allotted NAV': `₹${allottedNav.toFixed(2)}`,
+                    'Units Allotted': tx.units > 0 ? tx.units.toFixed(4) : '—',
+                    'Transaction Date': tx.date ? formatDate(tx.date) : '—',
+                    'Order ID': tx.nse_order_id || '—',
                 }
             };
         });
@@ -353,7 +375,7 @@ export default function HistoryPage() {
                                                     </div>
                                                     <p className="text-[#9CA3AF] text-sm">{log.description}</p>
                                                     {(log.clientName || log.fundName || log.amount) && (
-                                                        <div className="flex items-center gap-4 mt-2 text-xs">
+                                                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-xs">
                                                             {log.clientName && (
                                                                 <span className="text-[#9CA3AF]">
                                                                     Client: <span className="text-white">{log.clientName}</span>
@@ -367,6 +389,16 @@ export default function HistoryPage() {
                                                             {log.amount && (
                                                                 <span className="text-[#C4A265] font-medium">
                                                                     {formatCurrency(log.amount)}
+                                                                </span>
+                                                            )}
+                                                            {log.metadata?.['Allotted NAV'] && log.metadata['Allotted NAV'] !== '₹0.00' && (
+                                                                <span className="text-[#9CA3AF]">
+                                                                    NAV: <span className="text-white font-medium">{log.metadata['Allotted NAV']}</span>
+                                                                </span>
+                                                            )}
+                                                            {log.metadata?.['Units Allotted'] && log.metadata['Units Allotted'] !== '—' && (
+                                                                <span className="text-[#9CA3AF]">
+                                                                    Units: <span className="text-white font-medium">{log.metadata['Units Allotted']}</span>
                                                                 </span>
                                                             )}
                                                         </div>

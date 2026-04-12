@@ -38,9 +38,11 @@ function generateEncryptedPassword(): string {
     const plainText = `${API_SECRET_USER}|${randomNumber}`;
 
     // Step 3: Derive 128-bit key via PBKDF2-HMAC-SHA1 (1000 iterations, 16-byte key)
+    // Salt must be the raw 16 bytes (saltBytes), NOT the UTF-8 encoding of the hex string.
+    // Java: Hex.decodeHex(salt) → 16 bytes; Postman: CryptoJS.enc.Hex.parse(salt) → 16 bytes.
     const key = crypto.pbkdf2Sync(
         Buffer.from(API_KEY_MEMBER, 'utf8'),
-        Buffer.from(saltHex, 'utf8'), // salt passed as UTF-8 hex string (matches Java impl)
+        saltBytes, // 16 raw bytes — matches Java Hex.decodeHex(salt) and Postman CryptoJS.enc.Hex.parse
         1000,
         16,
         'sha1'
@@ -63,8 +65,9 @@ function buildHeaders(): Record<string, string> {
     return {
         Authorization: `Basic ${basicToken}`,
         'Content-Type': 'application/json',
-        Accept: 'application/json',
+        Accept: '*/*',                    // NSE/Akamai requires */* — application/json triggers bot-block
         'Accept-Language': 'en-US',
+        Connection: 'keep-alive',         // Required per NSE integration email
         Referer: 'www.google.com',
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
         memberId: MEMBER_CODE,
@@ -101,23 +104,35 @@ export interface NSEAllotmentRecord {
     status: string;
 }
 
+/** Convert ISO date (YYYY-MM-DD) to the DD-MM-YYYY format NSE expects. */
+function toNSEDate(isoDate: string): string {
+    const [year, month, day] = isoDate.split('-');
+    return `${day}-${month}-${year}`;
+}
+
 /**
  * Fetch allotment statement for a list of NSE order IDs.
  * Returns authoritative allotted NAV and units from NSE.
+ *
+ * Dates may be supplied as YYYY-MM-DD (DB format) — they are converted
+ * to DD-MM-YYYY before sending, as required by the NSE ALLOTMENT_STATEMENT API.
  */
 export async function getAllotmentStatement(params: {
     order_ids: string[];
-    from_date: string; // YYYY-MM-DD
-    to_date: string;   // YYYY-MM-DD
+    from_date: string; // YYYY-MM-DD or DD-MM-YYYY — auto-normalised
+    to_date: string;   // YYYY-MM-DD or DD-MM-YYYY — auto-normalised
     order_type?: string;
     sub_order_type?: string;
 }): Promise<NSEAllotmentRecord[]> {
+    // Normalise: if the date looks like YYYY-MM-DD, convert it
+    const normalise = (d: string) => /^\d{4}-\d{2}-\d{2}$/.test(d) ? toNSEDate(d) : d;
+
     const data = await nsePost<{ data: NSEAllotmentRecord[] }>(
         '/nsemfdesk/api/v2/reports/ALLOTMENT_STATEMENT',
         {
             order_ids: params.order_ids,
-            from_date: params.from_date,
-            to_date: params.to_date,
+            from_date: normalise(params.from_date),
+            to_date: normalise(params.to_date),
             order_type: params.order_type ?? 'P',
             sub_order_type: params.sub_order_type ?? 'NORMAL',
         }
