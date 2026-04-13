@@ -96,7 +96,7 @@ export default function PortfolioCard() {
                                 </div>
                                 <div className="min-w-0 flex-1">
                                     <p className="text-[var(--text-primary)] font-medium text-sm truncate">
-                                        {holding.scheme_code || 'Fund'}
+                                        {holding.mutual_fund?.name || holding.scheme_code || 'Fund'}
                                     </p>
                                     <p className="text-[var(--text-secondary)] text-xs truncate">
                                         {holding.units.toFixed(2)} units

@@ -63,7 +63,9 @@ CREATE TABLE public.mutual_funds (
   category text,
   type text,
   current_nav numeric,
-  last_updated timestamptz
+  last_updated timestamptz,
+  nse_code text,        -- NSE internal scheme code (for MASTER_DOWNLOAD NAV lookup)
+  isin_value text       -- ISIN growth option (for matching against NSE scheme master)
 );
 
 -- =====================================================

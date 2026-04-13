@@ -128,7 +128,7 @@ export default function ActivitySection() {
                                 <div>
                                     <p className="text-[var(--text-primary)] text-xs md:text-sm font-medium">{label}</p>
                                     <p className="text-[var(--text-secondary)] text-[10px] md:text-xs">
-                                        {tx.scheme_code || 'Fund'}
+                                        {tx.mutual_fund?.name || tx.scheme_code || 'Fund'}
                                     </p>
                                 </div>
                             </div>

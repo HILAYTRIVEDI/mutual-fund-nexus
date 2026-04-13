@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Search, X, User, PiggyBank, Clock, FileText, Loader2 } from 'lucide-react';
 import { searchSchemes, getSchemeLatestNAV, type MutualFundScheme } from '@/lib/mfapi';
 import { useAuth } from '@/context/AuthContext';
+import { useClientContext } from '@/context/ClientContext';
 
 type SearchResultType = 'client' | 'fund' | 'transaction' | 'page';
 
@@ -18,18 +19,11 @@ interface SearchResult {
     clientOnly?: boolean;
 }
 
-// Static search data (clients & pages - require database for real data)
-const staticSearchData: SearchResult[] = [
-    // Clients (Demo Data)
-    { id: 'c1', type: 'client', title: 'Rajesh Kumar', subtitle: 'CLT001 • Demo', href: '/clients/CLT001' },
-    { id: 'c2', type: 'client', title: 'Priya Sharma', subtitle: 'CLT002 • Demo', href: '/clients/CLT002' },
-    { id: 'c3', type: 'client', title: 'Amit Patel', subtitle: 'CLT003 • Demo', href: '/clients/CLT003' },
-    { id: 'c4', type: 'client', title: 'Sneha Reddy', subtitle: 'CLT004 • Demo', href: '/clients/CLT004' },
-    { id: 'c5', type: 'client', title: 'Vikram Singh', subtitle: 'CLT005 • Demo', href: '/clients/CLT005' },
-    // Pages
+// Static page links
+const pageSearchData: SearchResult[] = [
     { id: 'p1', type: 'page', title: 'Dashboard', subtitle: 'Portfolio overview and analytics', href: '/' },
-    { id: 'p2', type: 'page', title: 'Clients', subtitle: 'View and manage all clients', href: '/clients' },
-    { id: 'p3', type: 'page', title: 'Manage Clients', subtitle: 'Add or remove clients', href: '/manage' },
+    { id: 'p2', type: 'page', title: 'Clients', subtitle: 'View and manage all clients', href: '/clients', adminOnly: true },
+    { id: 'p3', type: 'page', title: 'Manage Clients', subtitle: 'Add or remove clients', href: '/manage', adminOnly: true },
     { id: 'p4', type: 'page', title: 'Portfolio', subtitle: 'All holdings and comparison', href: '/portfolio' },
     { id: 'p5', type: 'page', title: 'Mutual Funds', subtitle: 'Browse fund catalog', href: '/mutual-funds' },
     { id: 'p6', type: 'page', title: 'Fund Comparison', subtitle: 'Compare funds side by side', href: '/compare' },
@@ -53,6 +47,7 @@ const typeLabels: Record<SearchResultType, string> = {
 
 export default function GlobalSearch() {
     const { user } = useAuth();
+    const { clients } = useClientContext();
     const [isOpen, setIsOpen] = useState(false);
     const [query, setQuery] = useState('');
     const [selectedIndex, setSelectedIndex] = useState(0);
@@ -61,16 +56,30 @@ export default function GlobalSearch() {
     const inputRef = useRef<HTMLInputElement>(null);
     const router = useRouter();
 
-    // Search static data + live funds from API
-    const staticResults = query.trim()
-        ? staticSearchData.filter(
-            (item) => {
-                if (item.adminOnly && user?.role !== 'admin') return false;
-                if (item.clientOnly && user?.role !== 'client') return false;
-                return item.title.toLowerCase().includes(query.toLowerCase()) ||
-                    item.subtitle.toLowerCase().includes(query.toLowerCase());
-            }
-        )
+    // Build client results from real data (admin only)
+    const clientResults: SearchResult[] = user?.role === 'admin'
+        ? clients.map(c => ({
+            id: c.id,
+            type: 'client' as SearchResultType,
+            title: c.name || c.full_name || c.email,
+            subtitle: `${c.pan ? c.pan + ' • ' : ''}${c.email}`,
+            href: `/clients/${c.id}`,
+        }))
+        : [];
+
+    // Search static pages + real clients
+    const lq = query.trim().toLowerCase();
+    const staticResults = lq
+        ? [
+            ...clientResults.filter(c =>
+                c.title.toLowerCase().includes(lq) || c.subtitle.toLowerCase().includes(lq)
+            ),
+            ...pageSearchData.filter(p => {
+                if (p.adminOnly && user?.role !== 'admin') return false;
+                if (p.clientOnly && user?.role !== 'client') return false;
+                return p.title.toLowerCase().includes(lq) || p.subtitle.toLowerCase().includes(lq);
+            }),
+          ]
         : [];
 
     // Combine static and API results
