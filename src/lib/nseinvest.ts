@@ -62,7 +62,7 @@ function buildHeaders(): Record<string, string> {
     const encryptedPassword = generateEncryptedPassword();
     const basicToken = Buffer.from(`${LOGIN_USER_ID}:${encryptedPassword}`, 'utf8').toString('base64');
 
-    return {
+    const headers: Record<string, string> = {
         Authorization: `Basic ${basicToken}`,
         'Content-Type': 'application/json',
         Accept: '*/*',                    // NSE/Akamai requires */* — application/json triggers bot-block
@@ -72,6 +72,14 @@ function buildHeaders(): Record<string, string> {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
         memberId: MEMBER_CODE,
     };
+
+    // If routing through the static-IP proxy, attach the shared secret
+    // Set NSE_PROXY_SECRET in .env when NSE_BASE_URL points to your proxy server
+    if (process.env.NSE_PROXY_SECRET) {
+        headers['X-Proxy-Key'] = process.env.NSE_PROXY_SECRET;
+    }
+
+    return headers;
 }
 
 async function nsePost<T>(path: string, body: Record<string, unknown>): Promise<T> {
@@ -195,12 +203,41 @@ export interface NSESchemeNAV {
 }
 
 /**
- * Download scheme master / NAV data for one or more scheme codes.
+ * Full scheme master record returned by MASTER_DOWNLOAD.
+ * Field names mirror the NSE API response — isin is the key used to match
+ * against our mutual_funds.isin_value column.
+ */
+export interface NSESchemeMaster {
+    scheme_code: string;   // NSE's internal scheme code — store in mutual_funds.nse_code
+    scheme_name: string;
+    isin: string | null;   // ISIN — used to match against our mutual_funds.isin_value
+    nav: number | null;
+    nav_date: string | null;
+    amc_code: string | null;
+    scheme_type: string | null;
+    [key: string]: unknown;
+}
+
+/**
+ * Download scheme master for specific NSE scheme codes.
  */
 export async function getMasterNAV(schemeCodes: string[]): Promise<NSESchemeNAV[]> {
     const data = await nsePost<NSEReportResponse<NSESchemeNAV>>(
         '/nsemfdesk/api/v2/reports/MASTER_DOWNLOAD',
         { scheme_codes: schemeCodes }
+    );
+    return data.report_data ?? [];
+}
+
+/**
+ * Download the full NSE scheme master — all schemes, no filter.
+ * Used to build an ISIN → NSE scheme code mapping for backfilling mutual_funds.nse_code.
+ * Passing an empty scheme_codes array causes NSE to return the complete master.
+ */
+export async function getFullSchemeMaster(): Promise<NSESchemeMaster[]> {
+    const data = await nsePost<NSEReportResponse<NSESchemeMaster>>(
+        '/nsemfdesk/api/v2/reports/MASTER_DOWNLOAD',
+        { scheme_codes: [] }
     );
     return data.report_data ?? [];
 }

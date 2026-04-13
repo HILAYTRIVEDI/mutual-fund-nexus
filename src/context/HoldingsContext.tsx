@@ -4,7 +4,7 @@ import React, { createContext, useContext, useState, ReactNode, useEffect, useCa
 import { getSupabaseClient } from '@/lib/supabase';
 import { useAuth } from './AuthContext';
 import type { Holding, HoldingInsert, MutualFund } from '@/lib/types/database';
-import { getSchemeLatestNAV } from '@/lib/mfapi';
+// NAV is now fetched server-side via /api/nse/nav (NSE MASTER_DOWNLOAD → DB fallback)
 
 // Extended holding with current value calculation
 export interface HoldingWithValue extends Holding {
@@ -80,38 +80,37 @@ export function HoldingsProvider({ children }: { children: ReactNode }) {
                 return;
             }
 
-            // Batch NAV fetch: collect unique scheme codes and fetch each only once
+            // Batch NAV fetch: single request to /api/nse/nav with all unique scheme codes
             const uniqueSchemeCodes = [...new Set(
                 data.map((h: any) => h.scheme_code).filter(Boolean) as string[]
             )];
 
-            // Fetch NAVs in parallel — one request per unique scheme code
             const navCache: Record<string, number> = {};
-            await Promise.all(
-                uniqueSchemeCodes.map(async (code) => {
-                    // Skip custom funds (no MFAPI data)
-                    if (code.startsWith('CUSTOM-')) return;
-                    try {
-                        const numericCode = parseInt(code, 10);
-                        if (isNaN(numericCode)) {
-                            console.warn(`[HoldingsContext] Skipping non-numeric scheme code for MFAPI: ${code}`);
-                            return;
+            if (uniqueSchemeCodes.length > 0) {
+                try {
+                    const res = await fetch(
+                        `/api/nse/nav?codes=${uniqueSchemeCodes.map(encodeURIComponent).join(',')}`
+                    );
+                    if (res.ok) {
+                        const navData: Record<string, { nav: number | null; source: string }> = await res.json();
+                        for (const [code, record] of Object.entries(navData)) {
+                            if (record.nav != null) {
+                                navCache[code] = record.nav;
+                            }
                         }
-                        const navData = await getSchemeLatestNAV(numericCode);
-                        if (navData?.data?.[0]?.nav) {
-                            navCache[code] = parseFloat(navData.data[0].nav);
-                        }
-                    } catch (err) {
-                        console.warn(`[HoldingsContext] MFAPI NAV fetch failed for ${code}:`, err);
-                        // Will fall back to DB-cached NAV
+                        console.log('[HoldingsContext] NAV fetched via NSE route:', navData);
+                    } else {
+                        console.warn('[HoldingsContext] /api/nse/nav returned', res.status, '— will use DB cached NAV');
                     }
-                })
-            );
+                } catch (err) {
+                    console.warn('[HoldingsContext] /api/nse/nav fetch failed, falling back to DB NAV:', err);
+                }
+            }
 
             // Map holdings with cached NAV values
             const holdingsWithValues: HoldingWithValue[] = data.map((holding: any) => {
                 const code = holding.scheme_code;
-                // Priority: live MFAPI cache → DB-joined mutual_fund record → 0
+                // Priority: NSE nav route → DB-joined mutual_fund record → 0
                 const currentNav = (code && navCache[code])
                     ? navCache[code]
                     : (holding.mutual_fund?.current_nav || 0);
