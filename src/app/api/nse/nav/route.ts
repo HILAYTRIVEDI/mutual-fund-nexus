@@ -55,10 +55,10 @@ export async function GET(req: NextRequest) {
             return NextResponse.json({ error: 'No valid codes provided' }, { status: 400 });
         }
 
-        // 1. Fetch fund rows — get fallback current_nav (nse_code requires a separate migration)
+        // 1. Fetch fund rows — nse_code enables NSE MASTER_DOWNLOAD (primary); falls back to MFAPI
         const { data: fundRows, error: dbErr } = await supabaseAdmin
             .from('mutual_funds')
-            .select('code, current_nav, last_updated')
+            .select('code, nse_code, current_nav, last_updated')
             .in('code', requestedCodes);
 
         if (dbErr) {

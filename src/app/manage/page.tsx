@@ -207,6 +207,7 @@ function ManageClientsContent() {
                 let effectiveSchemeCode: string;
                 let effectiveSchemeName: string;
                 let currentNav = 10;
+                let isinValue: string | null = null;
                 
                 if (formData.isCustomFund) {
                     // Custom fund: generate unique code
@@ -216,18 +217,19 @@ function ManageClientsContent() {
                 } else {
                     effectiveSchemeCode = formData.schemeCode.toString();
                     effectiveSchemeName = formData.schemeName;
-                    // Fetch latest NAV from API
+                    // Fetch latest NAV from MFAPI — also captures ISIN for NSE sync
                     try {
                         const navData = await getSchemeLatestNAV(formData.schemeCode);
                         if (navData?.data?.[0]) {
                             currentNav = parseFloat(navData.data[0].nav);
                         }
+                        isinValue = navData?.meta?.isin_growth ?? null;
                     } catch (e) {
                         console.warn('Could not fetch latest NAV, using default', e);
                     }
                 }
 
-                // Upsert mutual fund
+                // Upsert mutual fund — include isin_value so sync-scheme-codes can backfill nse_code
                 await (supabase.from('mutual_funds') as any).upsert({
                     code: effectiveSchemeCode,
                     name: effectiveSchemeName,
@@ -235,7 +237,8 @@ function ManageClientsContent() {
                     type: null,
                     fund_house: formData.isCustomFund ? 'Custom' : null,
                     current_nav: currentNav,
-                    last_updated: new Date().toISOString()
+                    last_updated: new Date().toISOString(),
+                    ...(isinValue ? { isin_value: isinValue } : {}),
                 });
 
                 const lumpsumAmount = parseFloat(formData.amount) || 0;
