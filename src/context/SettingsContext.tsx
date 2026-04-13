@@ -1,6 +1,26 @@
 'use client';
 
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
+
+const STORAGE_KEY = 'mf_nexus_tax_settings';
+const DEFAULTS = { ltcgTax: 12.5, stcgTax: 20 };
+
+function loadFromStorage(): { ltcgTax: number; stcgTax: number } {
+    if (typeof window === 'undefined') return DEFAULTS;
+    try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return DEFAULTS;
+        const parsed = JSON.parse(raw);
+        const ltcg = parseFloat(parsed.ltcgTax);
+        const stcg = parseFloat(parsed.stcgTax);
+        if (!isNaN(ltcg) && !isNaN(stcg) && ltcg >= 0 && stcg >= 0) {
+            return { ltcgTax: ltcg, stcgTax: stcg };
+        }
+    } catch {
+        // ignore malformed data
+    }
+    return DEFAULTS;
+}
 
 interface SettingsContextType {
     ltcgTax: number;
@@ -11,15 +31,24 @@ interface SettingsContextType {
 const SettingsContext = createContext<SettingsContextType | undefined>(undefined);
 
 export function SettingsProvider({ children }: { children: ReactNode }) {
-    // Default tax rates (Indian Mutual Fund standards as placeholders)
-    // LTCG: 12.5% (typically for equity > 1 year)
-    // STCG: 20% (typically for equity < 1 year)
-    const [ltcgTax, setLtcgTax] = useState<number>(12.5);
-    const [stcgTax, setStcgTax] = useState<number>(20);
+    const [ltcgTax, setLtcgTax] = useState<number>(DEFAULTS.ltcgTax);
+    const [stcgTax, setStcgTax] = useState<number>(DEFAULTS.stcgTax);
+
+    // Hydrate from localStorage after mount (avoids SSR mismatch)
+    useEffect(() => {
+        const saved = loadFromStorage();
+        setLtcgTax(saved.ltcgTax);
+        setStcgTax(saved.stcgTax);
+    }, []);
 
     const updateSettings = (settings: { ltcgTax: number; stcgTax: number }) => {
         setLtcgTax(settings.ltcgTax);
         setStcgTax(settings.stcgTax);
+        try {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+        } catch {
+            // ignore quota errors
+        }
     };
 
     return (

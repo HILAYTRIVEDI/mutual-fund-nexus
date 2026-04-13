@@ -1,51 +1,80 @@
 'use client';
 
 import { useMemo } from 'react';
-import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import { useHoldings } from '@/context/HoldingsContext';
 import { Loader2, PieChart as PieChartIcon } from 'lucide-react';
 
-// Color palette for categories
-const categoryColors: Record<string, string> = {
-    'Equity': '#C4A265',
-    'Debt': '#5B7FA4',
-    'Hybrid': '#D4B87A',
-    'ELSS': '#10B981',
-    'Index': '#7A9DBF',
-    'Sectoral': '#8B7355',
-    'Liquid': '#A0C4E8',
-    'Other': '#64748B',
-};
+// Distinct color palette for individual funds
+const FUND_COLORS = [
+    '#C4A265', // gold
+    '#5B7FA4', // slate blue
+    '#10B981', // emerald
+    '#F59E0B', // amber
+    '#8B5CF6', // violet
+    '#EF4444', // red
+    '#06B6D4', // cyan
+    '#F97316', // orange
+    '#84CC16', // lime
+    '#EC4899', // pink
+    '#14B8A6', // teal
+    '#A78BFA', // purple
+];
 
-// Normalize category names
-function normalizeCategory(category: string | null | undefined): string {
-    if (!category) return 'Other';
-    
-    const lower = category.toLowerCase();
-    
-    if (lower.includes('equity') || lower.includes('small cap') || lower.includes('mid cap') || lower.includes('large cap') || lower.includes('flexi cap') || lower.includes('multi cap')) {
-        return 'Equity';
-    }
-    if (lower.includes('debt') || lower.includes('gilt') || lower.includes('bond') || lower.includes('income') || lower.includes('credit')) {
-        return 'Debt';
-    }
-    if (lower.includes('hybrid') || lower.includes('balanced') || lower.includes('aggressive') || lower.includes('conservative')) {
-        return 'Hybrid';
-    }
-    if (lower.includes('elss') || lower.includes('tax')) {
-        return 'ELSS';
-    }
-    if (lower.includes('index') || lower.includes('etf') || lower.includes('nifty') || lower.includes('sensex')) {
-        return 'Index';
-    }
-    if (lower.includes('sector') || lower.includes('thematic') || lower.includes('infrastructure') || lower.includes('pharma') || lower.includes('banking') || lower.includes('technology')) {
-        return 'Sectoral';
-    }
-    if (lower.includes('liquid') || lower.includes('money market') || lower.includes('overnight')) {
-        return 'Liquid';
-    }
-    
-    return 'Other';
+function shortFundName(name: string): string {
+    return name
+        .replace(/ - (Regular|Direct) (Growth|IDCW|Dividend)( Plan)?$/i, '')
+        .replace(/ (Growth Plan|Regular Plan|Direct Plan)$/i, '')
+        .replace(/\s*-\s*$/, '') // strip trailing " -"
+        .trim();
+}
+
+interface TooltipPayloadItem {
+    name: string;
+    value: number;
+    payload: DistributionData;
+}
+
+function CustomTooltip({ active, payload }: { active?: boolean; payload?: TooltipPayloadItem[] }) {
+    if (!active || !payload?.length) return null;
+    const item = payload[0].payload;
+    const formatted = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(item.amount ?? 0);
+    return (
+        <div
+            role="tooltip"
+            aria-live="polite"
+            style={{
+                background: 'var(--bg-secondary)',
+                border: '1px solid var(--border-primary)',
+                borderRadius: '10px',
+                padding: '10px 14px',
+                boxShadow: '0 4px 16px rgba(0,0,0,0.18)',
+                maxWidth: '220px',
+                pointerEvents: 'none',
+            }}
+        >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                <span
+                    aria-hidden="true"
+                    style={{
+                        display: 'inline-block',
+                        width: '10px',
+                        height: '10px',
+                        borderRadius: '50%',
+                        background: item.color,
+                        flexShrink: 0,
+                    }}
+                />
+                <span style={{ color: 'var(--text-primary)', fontSize: '12px', fontWeight: 600, lineHeight: 1.3 }}>
+                    {item.name}
+                </span>
+            </div>
+            <div style={{ paddingLeft: '18px', color: 'var(--text-secondary)', fontSize: '11px', lineHeight: 1.6 }}>
+                <div><strong style={{ color: 'var(--text-primary)' }}>{item.value}%</strong> of portfolio</div>
+                {item.amount ? <div>{formatted}</div> : null}
+            </div>
+        </div>
+    );
 }
 
 // ... types
@@ -70,23 +99,37 @@ export default function DistributionCard({ customData }: DistributionCardProps =
         if (customData) return customData;
         if (holdings.length === 0 || totalCurrentValue === 0) return [];
 
-        // Aggregate holdings by normalized category
-        const categoryTotals: Record<string, number> = {};
-        
-        holdings.forEach((holding) => {
-            const category = normalizeCategory(holding.mutual_fund?.category || holding.mutual_fund?.type);
-            categoryTotals[category] = (categoryTotals[category] || 0) + holding.current_value;
+        // Show top N funds individually; group the rest as "Others"
+        const MAX_SLICES = 8;
+
+        const sorted = [...holdings]
+            .filter(h => h.current_value > 0)
+            .sort((a, b) => b.current_value - a.current_value);
+
+        const top = sorted.slice(0, MAX_SLICES);
+        const rest = sorted.slice(MAX_SLICES);
+
+        const result: DistributionData[] = top.map((h, i) => {
+            const name = shortFundName(h.mutual_fund?.name || h.scheme_code || `Fund ${i + 1}`);
+            const pct = Math.round((h.current_value / totalCurrentValue) * 1000) / 10; // 1 decimal
+            return {
+                name,
+                value: pct,
+                color: FUND_COLORS[i % FUND_COLORS.length],
+                amount: h.current_value,
+            };
         });
 
-        // Convert to chart data format with percentages
-        const result: DistributionData[] = Object.entries(categoryTotals)
-            .map(([name, amount]) => ({
-                name: `${name} Funds`,
-                value: Math.round((amount / totalCurrentValue) * 100),
-                color: categoryColors[name] || categoryColors['Other'],
-                amount,
-            }))
-            .sort((a, b) => b.value - a.value); // Sort by percentage descending
+        if (rest.length > 0) {
+            const othersValue = rest.reduce((s, h) => s + h.current_value, 0);
+            const pct = Math.round((othersValue / totalCurrentValue) * 1000) / 10;
+            result.push({
+                name: `Others (${rest.length})`,
+                value: pct,
+                color: '#475569',
+                amount: othersValue,
+            });
+        }
 
         return result;
     }, [holdings, totalCurrentValue]);
@@ -150,7 +193,7 @@ export default function DistributionCard({ customData }: DistributionCardProps =
                             cy="50%"
                             innerRadius={60}
                             outerRadius={85}
-                            paddingAngle={3}
+                            paddingAngle={2}
                             dataKey="value"
                             startAngle={90}
                             endAngle={-270}
@@ -160,31 +203,29 @@ export default function DistributionCard({ customData }: DistributionCardProps =
                                 <Cell
                                     key={`cell-${index}`}
                                     fill={entry.color}
-                                    style={{
-                                        filter: 'drop-shadow(0 0 8px rgba(16, 185, 129, 0.3))',
-                                    }}
                                 />
                             ))}
                         </Pie>
+                        <Tooltip content={<CustomTooltip />} />
                     </PieChart>
                 </ResponsiveContainer>
 
                 {/* Center text */}
-                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center justify-center pointer-events-none w-[90px] text-center">
-                    <p className="text-[var(--text-secondary)] text-[10px] truncate w-full" title={focusItem.name}>{focusItem.name.replace(' Funds', '')}</p>
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center justify-center pointer-events-none w-[100px] text-center">
+                    <p className="text-[var(--text-secondary)] text-[9px] leading-tight line-clamp-2 w-full" title={focusItem.name}>{focusItem.name}</p>
                     <p className="text-2xl font-bold text-[var(--text-primary)] mt-0.5">{focusItem.value}%</p>
                 </div>
             </div>
 
             {/* Legend */}
-            <div className="space-y-3 mt-4 relative z-10">
+            <div className="space-y-2 mt-4 relative z-10 max-h-[180px] overflow-y-auto pr-1">
                 {chartData.map((entry) => (
-                    <div key={entry.name} className="flex items-center justify-between gap-4 cursor-pointer hover:opacity-80 transition-opacity duration-200">
-                        <div className="flex items-center gap-3 flex-1 min-w-0">
-                            <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: entry.color }} />
-                            <span className="text-[var(--text-secondary)] text-sm truncate" title={entry.name}>{entry.name}</span>
+                    <div key={entry.name} className="flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-2 flex-1 min-w-0">
+                            <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: entry.color }} />
+                            <span className="text-[var(--text-secondary)] text-xs truncate" title={entry.name}>{entry.name}</span>
                         </div>
-                        <span className="text-[var(--text-primary)] font-medium shrink-0">{entry.value}%</span>
+                        <span className="text-[var(--text-primary)] text-xs font-medium shrink-0">{entry.value}%</span>
                     </div>
                 ))}
             </div>

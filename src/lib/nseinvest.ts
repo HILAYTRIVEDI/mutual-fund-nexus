@@ -13,6 +13,7 @@
  */
 
 import crypto from 'crypto';
+import { HttpsProxyAgent } from 'https-proxy-agent';
 
 const NSE_BASE_URL = process.env.NSE_BASE_URL ?? 'https://nseinvestuat.nseindia.com';
 const LOGIN_USER_ID = process.env.NSE_LOGIN_USER_ID ?? 'ADMIN';
@@ -82,13 +83,20 @@ function buildHeaders(): Record<string, string> {
     return headers;
 }
 
+// Proxy agent — created once, reused across calls (undefined when NSE_PROXY_URL is not set)
+const proxyAgent = process.env.NSE_PROXY_URL
+    ? new HttpsProxyAgent(process.env.NSE_PROXY_URL)
+    : undefined;
+
 async function nsePost<T>(path: string, body: Record<string, unknown>): Promise<T> {
     const url = `${NSE_BASE_URL}${path}`;
     const response = await fetch(url, {
         method: 'POST',
         headers: buildHeaders(),
         body: JSON.stringify(body),
-    });
+        // Route through static-IP proxy when configured (required for NSE IP whitelist)
+        ...(proxyAgent ? { agent: proxyAgent } : {}),
+    } as RequestInit);
 
     if (!response.ok) {
         const text = await response.text().catch(() => response.statusText);
