@@ -1,0 +1,30 @@
+name: Daily NAV Refresh
+
+on:
+  schedule:
+    - cron: '0 10 * * 1-5'  # 3:30 PM IST (UTC+5:30), Monday–Friday
+  workflow_dispatch:          # Manual trigger from GitHub Actions UI
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Trigger daily refresh
+        run: |
+          response=$(curl -s -o /tmp/response.json -w "%{http_code}" \
+            -X POST "${{ secrets.APP_URL }}/api/cron/daily-refresh" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            -H "Content-Type: application/json")
+
+          echo "HTTP status: $response"
+          echo "Response body:"
+          cat /tmp/response.json | python3 -m json.tool || cat /tmp/response.json
+
+          if [ "$response" != "200" ]; then
+            echo "❌ Refresh failed with status $response"
+            exit 1
+          fi
+
+          echo "✅ Daily refresh completed successfully"
