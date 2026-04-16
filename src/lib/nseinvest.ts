@@ -69,9 +69,9 @@ function buildHeaders(): Record<string, string> {
         Accept: '',                       // NSE requires blank Accept header per integration guide
         'Accept-Encoding': 'gzip, deflate, br',
         'Accept-Language': 'en-US',
-        Connection: 'keep-alive',         // Required per NSE integration email
-        Referer: 'www.google.com',
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        Connection: 'keep-alive',
+        Referer: NSE_BASE_URL,            // Must be NSE URL — Akamai validates this
+        'User-Agent': 'PostmanRuntime/7.43.0',  // NSE doc: use Postman UA to pass Akamai
         memberId: MEMBER_CODE,
     };
 
