@@ -1,10 +1,10 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { Calculator, TrendingUp, PiggyBank, Wallet, IndianRupee, Percent, Calendar } from 'lucide-react';
+import { Calculator, TrendingUp, PiggyBank, Wallet, IndianRupee, Percent, Calendar, ArrowUpCircle } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
 
-type CalculatorType = 'sip' | 'lumpsum';
+type CalculatorType = 'sip' | 'lumpsum' | 'step-up-sip';
 
 function formatCurrency(amount: number): string {
     if (amount >= 10000000) {
@@ -27,6 +27,12 @@ export default function CalculatorsPage() {
     const [lumpsumAmount, setLumpsumAmount] = useState(100000);
     const [lumpsumTenure, setLumpsumTenure] = useState(10);
     const [lumpsumRate, setLumpsumRate] = useState(12);
+
+    // Step-up SIP Calculator State
+    const [stepUpAmount, setStepUpAmount] = useState(10000);
+    const [stepUpRate, setStepUpRate] = useState(12);
+    const [stepUpTenure, setStepUpTenure] = useState(10);
+    const [stepUpIncrement, setStepUpIncrement] = useState(10); // annual increment %
 
     // SIP Calculation
     const sipResult = useMemo(() => {
@@ -81,7 +87,39 @@ export default function CalculatorsPage() {
         };
     }, [lumpsumAmount, lumpsumTenure, lumpsumRate]);
 
-    const currentResult = activeCalculator === 'sip' ? sipResult : lumpsumResult;
+    // Step-up SIP Calculation (iterative, year-by-year increment)
+    const stepUpResult = useMemo(() => {
+        const monthlyRate = stepUpRate / 100 / 12;
+        let balance = 0;
+        let totalInvested = 0;
+
+        for (let year = 0; year < stepUpTenure; year++) {
+            const monthlyAmount = stepUpAmount * Math.pow(1 + stepUpIncrement / 100, year);
+            for (let month = 0; month < 12; month++) {
+                balance = balance * (1 + monthlyRate) + monthlyAmount;
+                totalInvested += monthlyAmount;
+            }
+        }
+
+        const futureValue = Math.round(balance);
+        const invested = Math.round(totalInvested);
+        const estimatedReturns = futureValue - invested;
+        const absoluteReturn = ((futureValue - invested) / invested) * 100;
+        const cagr = (Math.pow(futureValue / invested, 1 / stepUpTenure) - 1) * 100;
+        const lastYearSIP = stepUpAmount * Math.pow(1 + stepUpIncrement / 100, stepUpTenure - 1);
+
+        return {
+            futureValue,
+            totalInvested: invested,
+            estimatedReturns: Math.round(estimatedReturns),
+            returnsPercentage: ((estimatedReturns / invested) * 100).toFixed(1),
+            absoluteReturn: absoluteReturn.toFixed(2),
+            cagr: cagr.toFixed(2),
+            lastYearSIP: Math.round(lastYearSIP),
+        };
+    }, [stepUpAmount, stepUpRate, stepUpTenure, stepUpIncrement]);
+
+    const currentResult = activeCalculator === 'sip' ? sipResult : activeCalculator === 'lumpsum' ? lumpsumResult : stepUpResult;
 
     return (
         <div className="min-h-screen bg-[var(--bg-primary)] text-[var(--text-primary)] p-4 md:p-6 flex flex-col md:flex-row gap-4 md:gap-6 transition-colors duration-300">
@@ -102,7 +140,7 @@ export default function CalculatorsPage() {
                 </header>
 
                 {/* Calculator Type Toggle */}
-                <div className="flex gap-2 mb-6 p-1 bg-[var(--bg-hover)]/50 rounded-xl w-fit border border-[var(--border-primary)]">
+                <div className="flex flex-wrap gap-2 mb-6 p-1 bg-[var(--bg-hover)]/50 rounded-xl w-fit border border-[var(--border-primary)]">
                     <button
                         onClick={() => setActiveCalculator('sip')}
                         className={`px-4 md:px-6 py-2.5 rounded-lg text-sm font-medium transition-all duration-300 flex items-center gap-2 ${
@@ -125,6 +163,17 @@ export default function CalculatorsPage() {
                         <Wallet size={16} />
                         Lumpsum Calculator
                     </button>
+                    <button
+                        onClick={() => setActiveCalculator('step-up-sip')}
+                        className={`px-4 md:px-6 py-2.5 rounded-lg text-sm font-medium transition-all duration-300 flex items-center gap-2 ${
+                            activeCalculator === 'step-up-sip'
+                                ? 'bg-gradient-to-r from-[#F59E0B] to-[#EF4444] text-white shadow-md'
+                                : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+                        }`}
+                    >
+                        <ArrowUpCircle size={16} />
+                        Step-up SIP
+                    </button>
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -136,10 +185,15 @@ export default function CalculatorsPage() {
                                     <PiggyBank size={20} className="text-[var(--accent-mint)]" />
                                     SIP Calculator
                                 </>
-                            ) : (
+                            ) : activeCalculator === 'lumpsum' ? (
                                 <>
                                     <Wallet size={20} className="text-[var(--accent-purple)]" />
                                     Lumpsum Calculator
+                                </>
+                            ) : (
+                                <>
+                                    <ArrowUpCircle size={20} className="text-[#F59E0B]" />
+                                    Step-up SIP Calculator
                                 </>
                             )}
                         </h2>
@@ -150,16 +204,18 @@ export default function CalculatorsPage() {
                                 <div className="flex justify-between items-center mb-3">
                                     <label className="text-[var(--text-secondary)] text-sm flex items-center gap-2">
                                         <IndianRupee size={14} />
-                                        {activeCalculator === 'sip' ? 'Monthly Investment' : 'Investment Amount'}
+                                        {activeCalculator === 'lumpsum' ? 'Investment Amount' : 'Monthly Investment'}
                                     </label>
                                     <div className="flex items-center gap-1 bg-[var(--bg-hover)] px-3 py-1.5 rounded-lg border border-[var(--border-primary)]">
                                         <span className="text-[var(--text-secondary)] text-sm">₹</span>
                                         <input
                                             type="number"
-                                            value={activeCalculator === 'sip' ? sipAmount : lumpsumAmount}
+                                            value={activeCalculator === 'sip' ? sipAmount : activeCalculator === 'lumpsum' ? lumpsumAmount : stepUpAmount}
                                             onChange={(e) => {
                                                 const val = parseInt(e.target.value) || 0;
-                                                activeCalculator === 'sip' ? setSipAmount(val) : setLumpsumAmount(val);
+                                                if (activeCalculator === 'sip') setSipAmount(val);
+                                                else if (activeCalculator === 'lumpsum') setLumpsumAmount(val);
+                                                else setStepUpAmount(val);
                                             }}
                                             className="bg-transparent w-24 text-right text-[var(--text-primary)] font-medium focus:outline-none text-sm"
                                         />
@@ -167,21 +223,63 @@ export default function CalculatorsPage() {
                                 </div>
                                 <input
                                     type="range"
-                                    min={activeCalculator === 'sip' ? 500 : 10000}
-                                    max={activeCalculator === 'sip' ? 100000 : 10000000}
-                                    step={activeCalculator === 'sip' ? 500 : 10000}
-                                    value={activeCalculator === 'sip' ? sipAmount : lumpsumAmount}
+                                    min={activeCalculator === 'lumpsum' ? 10000 : 500}
+                                    max={activeCalculator === 'lumpsum' ? 10000000 : 100000}
+                                    step={activeCalculator === 'lumpsum' ? 10000 : 500}
+                                    value={activeCalculator === 'sip' ? sipAmount : activeCalculator === 'lumpsum' ? lumpsumAmount : stepUpAmount}
                                     onChange={(e) => {
                                         const val = parseInt(e.target.value);
-                                        activeCalculator === 'sip' ? setSipAmount(val) : setLumpsumAmount(val);
+                                        if (activeCalculator === 'sip') setSipAmount(val);
+                                        else if (activeCalculator === 'lumpsum') setLumpsumAmount(val);
+                                        else setStepUpAmount(val);
                                     }}
                                     className="w-full h-2 bg-[var(--bg-hover)] rounded-lg appearance-none cursor-pointer accent-[var(--accent-mint)]"
                                 />
                                 <div className="flex justify-between text-[10px] text-[var(--text-muted)] mt-1">
-                                    <span>{activeCalculator === 'sip' ? '₹500' : '₹10K'}</span>
-                                    <span>{activeCalculator === 'sip' ? '₹1L' : '₹1Cr'}</span>
+                                    <span>{activeCalculator === 'lumpsum' ? '₹10K' : '₹500'}</span>
+                                    <span>{activeCalculator === 'lumpsum' ? '₹1Cr' : '₹1L'}</span>
                                 </div>
                             </div>
+
+                            {/* Annual Step-up Rate — only for step-up SIP */}
+                            {activeCalculator === 'step-up-sip' && (
+                                <div>
+                                    <div className="flex justify-between items-center mb-3">
+                                        <label className="text-[var(--text-secondary)] text-sm flex items-center gap-2">
+                                            <ArrowUpCircle size={14} />
+                                            Annual Step-up Rate
+                                        </label>
+                                        <div className="flex items-center gap-1 bg-[var(--bg-hover)] px-3 py-1.5 rounded-lg border border-[var(--border-primary)]">
+                                            <input
+                                                type="number"
+                                                value={stepUpIncrement}
+                                                onChange={(e) => setStepUpIncrement(parseFloat(e.target.value) || 0)}
+                                                className="bg-transparent w-12 text-right text-[var(--text-primary)] font-medium focus:outline-none text-sm"
+                                            />
+                                            <span className="text-[var(--text-secondary)] text-sm">%</span>
+                                        </div>
+                                    </div>
+                                    <input
+                                        type="range"
+                                        min={0}
+                                        max={50}
+                                        step={1}
+                                        value={stepUpIncrement}
+                                        onChange={(e) => setStepUpIncrement(parseInt(e.target.value))}
+                                        className="w-full h-2 bg-[var(--bg-hover)] rounded-lg appearance-none cursor-pointer"
+                                        style={{ accentColor: '#F59E0B' }}
+                                    />
+                                    <div className="flex justify-between text-[10px] text-[var(--text-muted)] mt-1">
+                                        <span>0%</span>
+                                        <span>50%</span>
+                                    </div>
+                                    {stepUpIncrement > 0 && (
+                                        <p className="text-[10px] text-[#F59E0B] mt-1">
+                                            Your SIP grows from {formatCurrency(stepUpAmount)}/mo to {formatCurrency(stepUpResult.lastYearSIP)}/mo by year {stepUpTenure}
+                                        </p>
+                                    )}
+                                </div>
+                            )}
 
                             {/* Expected Return Rate */}
                             <div>
@@ -193,10 +291,12 @@ export default function CalculatorsPage() {
                                     <div className="flex items-center gap-1 bg-[var(--bg-hover)] px-3 py-1.5 rounded-lg border border-[var(--border-primary)]">
                                         <input
                                             type="number"
-                                            value={activeCalculator === 'sip' ? sipRate : lumpsumRate}
+                                            value={activeCalculator === 'sip' ? sipRate : activeCalculator === 'lumpsum' ? lumpsumRate : stepUpRate}
                                             onChange={(e) => {
                                                 const val = parseFloat(e.target.value) || 0;
-                                                activeCalculator === 'sip' ? setSipRate(val) : setLumpsumRate(val);
+                                                if (activeCalculator === 'sip') setSipRate(val);
+                                                else if (activeCalculator === 'lumpsum') setLumpsumRate(val);
+                                                else setStepUpRate(val);
                                             }}
                                             className="bg-transparent w-12 text-right text-[var(--text-primary)] font-medium focus:outline-none text-sm"
                                         />
@@ -208,10 +308,12 @@ export default function CalculatorsPage() {
                                     min={1}
                                     max={30}
                                     step={0.5}
-                                    value={activeCalculator === 'sip' ? sipRate : lumpsumRate}
+                                    value={activeCalculator === 'sip' ? sipRate : activeCalculator === 'lumpsum' ? lumpsumRate : stepUpRate}
                                     onChange={(e) => {
                                         const val = parseFloat(e.target.value);
-                                        activeCalculator === 'sip' ? setSipRate(val) : setLumpsumRate(val);
+                                        if (activeCalculator === 'sip') setSipRate(val);
+                                        else if (activeCalculator === 'lumpsum') setLumpsumRate(val);
+                                        else setStepUpRate(val);
                                     }}
                                     className="w-full h-2 bg-[var(--bg-hover)] rounded-lg appearance-none cursor-pointer accent-[var(--accent-mint)]"
                                 />
@@ -231,10 +333,12 @@ export default function CalculatorsPage() {
                                     <div className="flex items-center gap-1 bg-[var(--bg-hover)] px-3 py-1.5 rounded-lg border border-[var(--border-primary)]">
                                         <input
                                             type="number"
-                                            value={activeCalculator === 'sip' ? sipTenure : lumpsumTenure}
+                                            value={activeCalculator === 'sip' ? sipTenure : activeCalculator === 'lumpsum' ? lumpsumTenure : stepUpTenure}
                                             onChange={(e) => {
                                                 const val = parseInt(e.target.value) || 1;
-                                                activeCalculator === 'sip' ? setSipTenure(val) : setLumpsumTenure(val);
+                                                if (activeCalculator === 'sip') setSipTenure(val);
+                                                else if (activeCalculator === 'lumpsum') setLumpsumTenure(val);
+                                                else setStepUpTenure(val);
                                             }}
                                             className="bg-transparent w-8 text-right text-[var(--text-primary)] font-medium focus:outline-none text-sm"
                                         />
@@ -246,10 +350,12 @@ export default function CalculatorsPage() {
                                     min={1}
                                     max={30}
                                     step={1}
-                                    value={activeCalculator === 'sip' ? sipTenure : lumpsumTenure}
+                                    value={activeCalculator === 'sip' ? sipTenure : activeCalculator === 'lumpsum' ? lumpsumTenure : stepUpTenure}
                                     onChange={(e) => {
                                         const val = parseInt(e.target.value);
-                                        activeCalculator === 'sip' ? setSipTenure(val) : setLumpsumTenure(val);
+                                        if (activeCalculator === 'sip') setSipTenure(val);
+                                        else if (activeCalculator === 'lumpsum') setLumpsumTenure(val);
+                                        else setStepUpTenure(val);
                                     }}
                                     className="w-full h-2 bg-[var(--bg-hover)] rounded-lg appearance-none cursor-pointer accent-[var(--accent-mint)]"
                                 />
@@ -265,13 +371,19 @@ export default function CalculatorsPage() {
                     <div className="glass-card rounded-2xl p-5 md:p-6 relative overflow-hidden">
                         {/* Gradient Overlay */}
                         <div className={`absolute inset-0 bg-gradient-to-br ${
-                            activeCalculator === 'sip' 
-                                ? 'from-[var(--accent-mint)]/10 via-transparent to-[var(--accent-blue)]/5' 
-                                : 'from-[var(--accent-purple)]/10 via-transparent to-[var(--accent-mint)]/5'
+                            activeCalculator === 'sip'
+                                ? 'from-[var(--accent-mint)]/10 via-transparent to-[var(--accent-blue)]/5'
+                                : activeCalculator === 'lumpsum'
+                                ? 'from-[var(--accent-purple)]/10 via-transparent to-[var(--accent-mint)]/5'
+                                : 'from-[#F59E0B]/10 via-transparent to-[#EF4444]/5'
                         } pointer-events-none`} />
                         
                         <h2 className="text-lg font-semibold mb-6 flex items-center gap-2 relative z-10">
-                            <TrendingUp size={20} className={activeCalculator === 'sip' ? 'text-[var(--accent-mint)]' : 'text-[var(--accent-purple)]'} />
+                            <TrendingUp size={20} className={
+                                activeCalculator === 'sip' ? 'text-[var(--accent-mint)]'
+                                : activeCalculator === 'lumpsum' ? 'text-[var(--accent-purple)]'
+                                : 'text-[#F59E0B]'
+                            } />
                             Estimated Returns
                         </h2>
 
@@ -279,12 +391,14 @@ export default function CalculatorsPage() {
                         <div className="text-center mb-8 relative z-10">
                             <p className="text-[var(--text-secondary)] text-sm mb-2">Future Value</p>
                             <p className={`text-4xl md:text-5xl font-bold ${
-                                activeCalculator === 'sip' ? 'text-[var(--accent-mint)]' : 'text-[var(--accent-purple)]'
+                                activeCalculator === 'sip' ? 'text-[var(--accent-mint)]'
+                                : activeCalculator === 'lumpsum' ? 'text-[var(--accent-purple)]'
+                                : 'text-[#F59E0B]'
                             }`}>
                                 {formatCurrency(currentResult.futureValue)}
                             </p>
                             <p className="text-[var(--text-secondary)] text-xs mt-2">
-                                After {activeCalculator === 'sip' ? sipTenure : lumpsumTenure} years
+                                After {activeCalculator === 'sip' ? sipTenure : activeCalculator === 'lumpsum' ? lumpsumTenure : stepUpTenure} years
                             </p>
                         </div>
 
@@ -295,16 +409,18 @@ export default function CalculatorsPage() {
                                 <p className="text-[var(--text-primary)] font-bold text-base">
                                     {formatCurrency(currentResult.totalInvested)}
                                 </p>
-                                {activeCalculator === 'sip' && (
+                                {activeCalculator !== 'lumpsum' && (
                                     <p className="text-[9px] text-[var(--text-muted)] mt-0.5">
-                                        {sipTenure * 12} monthly investments
+                                        {(activeCalculator === 'sip' ? sipTenure : stepUpTenure) * 12} monthly investments
                                     </p>
                                 )}
                             </div>
                             <div className="p-3 rounded-xl bg-[var(--bg-hover)]/50 border border-[var(--border-primary)]">
                                 <p className="text-[var(--text-secondary)] text-[10px] mb-1">Est. Returns</p>
                                 <p className={`font-bold text-base ${
-                                    activeCalculator === 'sip' ? 'text-[var(--accent-mint)]' : 'text-[var(--accent-purple)]'
+                                    activeCalculator === 'sip' ? 'text-[var(--accent-mint)]'
+                                    : activeCalculator === 'lumpsum' ? 'text-[var(--accent-purple)]'
+                                    : 'text-[#F59E0B]'
                                 }`}>
                                     +{formatCurrency(currentResult.estimatedReturns)}
                                 </p>
@@ -312,7 +428,9 @@ export default function CalculatorsPage() {
                             <div className="p-3 rounded-xl bg-[var(--bg-hover)]/50 border border-[var(--border-primary)]">
                                 <p className="text-[var(--text-secondary)] text-[10px] mb-1">Absolute Return</p>
                                 <p className={`font-bold text-base ${
-                                    activeCalculator === 'sip' ? 'text-[var(--accent-mint)]' : 'text-[var(--accent-purple)]'
+                                    activeCalculator === 'sip' ? 'text-[var(--accent-mint)]'
+                                    : activeCalculator === 'lumpsum' ? 'text-[var(--accent-purple)]'
+                                    : 'text-[#F59E0B]'
                                 }`}>
                                     +{currentResult.absoluteReturn}%
                                 </p>
@@ -321,7 +439,9 @@ export default function CalculatorsPage() {
                             <div className="p-3 rounded-xl bg-[var(--bg-hover)]/50 border border-[var(--border-primary)]">
                                 <p className="text-[var(--text-secondary)] text-[10px] mb-1">CAGR</p>
                                 <p className={`font-bold text-base ${
-                                    activeCalculator === 'sip' ? 'text-[var(--accent-mint)]' : 'text-[var(--accent-purple)]'
+                                    activeCalculator === 'sip' ? 'text-[var(--accent-mint)]'
+                                    : activeCalculator === 'lumpsum' ? 'text-[var(--accent-purple)]'
+                                    : 'text-[#F59E0B]'
                                 }`}>
                                     {currentResult.cagr}%
                                 </p>
@@ -338,12 +458,14 @@ export default function CalculatorsPage() {
                                         width: `${(currentResult.totalInvested / currentResult.futureValue) * 100}%` 
                                     }}
                                 />
-                                <div 
+                                <div
                                     className={`${
-                                        activeCalculator === 'sip' ? 'bg-[var(--accent-mint)]' : 'bg-[var(--accent-purple)]'
+                                        activeCalculator === 'sip' ? 'bg-[var(--accent-mint)]'
+                                        : activeCalculator === 'lumpsum' ? 'bg-[var(--accent-purple)]'
+                                        : 'bg-[#F59E0B]'
                                     } transition-all duration-500`}
-                                    style={{ 
-                                        width: `${(currentResult.estimatedReturns / currentResult.futureValue) * 100}%` 
+                                    style={{
+                                        width: `${(currentResult.estimatedReturns / currentResult.futureValue) * 100}%`
                                     }}
                                 />
                             </div>
@@ -354,7 +476,9 @@ export default function CalculatorsPage() {
                                 </div>
                                 <div className="flex items-center gap-1.5">
                                     <div className={`w-2.5 h-2.5 rounded-full ${
-                                        activeCalculator === 'sip' ? 'bg-[var(--accent-mint)]' : 'bg-[var(--accent-purple)]'
+                                        activeCalculator === 'sip' ? 'bg-[var(--accent-mint)]'
+                                        : activeCalculator === 'lumpsum' ? 'bg-[var(--accent-purple)]'
+                                        : 'bg-[#F59E0B]'
                                     }`} />
                                     <span className="text-[var(--text-secondary)]">Returns</span>
                                 </div>
@@ -369,14 +493,14 @@ export default function CalculatorsPage() {
                 </div>
 
                 {/* Info Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
                     <div className="glass-card rounded-2xl p-5">
                         <h3 className="font-semibold text-sm mb-3 flex items-center gap-2">
                             <PiggyBank size={16} className="text-[var(--accent-mint)]" />
                             What is SIP?
                         </h3>
                         <p className="text-[var(--text-secondary)] text-xs leading-relaxed">
-                            A Systematic Investment Plan (SIP) allows you to invest a fixed amount regularly in mutual funds. 
+                            A Systematic Investment Plan (SIP) allows you to invest a fixed amount regularly in mutual funds.
                             It helps in rupee cost averaging and building wealth over time through the power of compounding.
                         </p>
                     </div>
@@ -386,8 +510,18 @@ export default function CalculatorsPage() {
                             What is Lumpsum?
                         </h3>
                         <p className="text-[var(--text-secondary)] text-xs leading-relaxed">
-                            A lumpsum investment is a one-time investment where you invest a large amount at once. 
+                            A lumpsum investment is a one-time investment where you invest a large amount at once.
                             It's suitable when you have surplus funds and want to benefit from market timing and long-term growth.
+                        </p>
+                    </div>
+                    <div className="glass-card rounded-2xl p-5">
+                        <h3 className="font-semibold text-sm mb-3 flex items-center gap-2">
+                            <ArrowUpCircle size={16} className="text-[#F59E0B]" />
+                            What is Step-up SIP?
+                        </h3>
+                        <p className="text-[var(--text-secondary)] text-xs leading-relaxed">
+                            A Step-up SIP (also called Top-up SIP) lets you increase your monthly investment by a fixed percentage each year.
+                            As your income grows, your SIP grows too — maximising the power of compounding over time.
                         </p>
                     </div>
                 </div>
