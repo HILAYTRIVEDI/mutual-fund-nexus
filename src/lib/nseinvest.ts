@@ -65,7 +65,8 @@ function buildHeaders(): Record<string, string> {
     const headers: Record<string, string> = {
         Authorization: `Basic ${basicToken}`,
         'Content-Type': 'application/json',
-        Accept: '*/*',                    // NSE/Akamai requires */* — application/json triggers bot-block
+        Accept: '',                       // NSE requires blank Accept header per integration guide
+        'Accept-Encoding': 'gzip, deflate, br',
         'Accept-Language': 'en-US',
         Connection: 'keep-alive',         // Required per NSE integration email
         Referer: 'www.google.com',

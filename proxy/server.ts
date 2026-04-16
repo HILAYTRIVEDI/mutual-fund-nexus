@@ -23,6 +23,7 @@
 
 import express from 'express';
 import type { Request, Response, NextFunction } from 'express';
+// TLS 1.3 enforced via NODE_OPTIONS=--tls-min-v1.3 in .env (applies to all outbound fetch calls)
 
 const app = express();
 const PORT = parseInt(process.env.PORT || '3001', 10);
