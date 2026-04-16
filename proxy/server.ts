@@ -21,7 +21,8 @@
  *   pm2 start npm --name nse-proxy -- start
  */
 
-import express, { Request, Response, NextFunction } from 'express';
+import express from 'express';
+import type { Request, Response, NextFunction } from 'express';
 
 const app = express();
 const PORT = parseInt(process.env.PORT || '3001', 10);
@@ -36,7 +37,12 @@ if (!PROXY_SECRET) {
 // Parse body as raw buffer so we forward it byte-for-byte to NSE
 app.use(express.raw({ type: '*/*', limit: '10mb' }));
 
-// Auth middleware — reject any request missing the correct shared secret
+// Health check — no auth, for uptime monitors
+app.get('/health', (_req: Request, res: Response) => {
+    res.json({ status: 'ok', target: NSE_TARGET, ts: new Date().toISOString() });
+});
+
+// Auth middleware — all non-health routes require X-Proxy-Key
 app.use((req: Request, res: Response, next: NextFunction) => {
     const key = req.headers['x-proxy-key'];
     if (!key || key !== PROXY_SECRET) {
@@ -44,11 +50,6 @@ app.use((req: Request, res: Response, next: NextFunction) => {
         return;
     }
     next();
-});
-
-// Health check (no auth required — useful for uptime monitors)
-app.get('/health', (_req: Request, res: Response) => {
-    res.json({ status: 'ok', target: NSE_TARGET, ts: new Date().toISOString() });
 });
 
 // Forward everything else to NSE
