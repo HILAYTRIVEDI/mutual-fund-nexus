@@ -69,6 +69,7 @@ export interface Transaction {
   date: string;
   created_at: string;
   nse_order_id: string | null;  // NSE Invest platform order ID for allotment sync
+  sip_id: string | null;  // Links SIP-generated transactions back to the SIP for idempotency
   // Joined data
   mutual_fund?: MutualFund;
   profile?: Profile;
@@ -125,7 +126,7 @@ export interface Database {
       };
       transactions: {
         Row: Transaction;
-        Insert: Omit<Transaction, 'id' | 'created_at' | 'mutual_fund' | 'profile' | 'nse_order_id'> & { nse_order_id?: string | null };
+        Insert: Omit<Transaction, 'id' | 'created_at' | 'mutual_fund' | 'profile' | 'nse_order_id' | 'sip_id'> & { nse_order_id?: string | null; sip_id?: string | null };
         Update: Partial<Omit<Transaction, 'id' | 'created_at'>>;
       };
       sips: {

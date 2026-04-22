@@ -13,6 +13,12 @@ import { getServerSupabaseClient } from '@/lib/supabase-server';
  * - dryRun: If true, don't actually send emails (default: false)
  */
 export async function POST(request: NextRequest) {
+  // Verify CRON_SECRET
+  const authHeader = request.headers.get('Authorization');
+  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   try {
     const { searchParams } = new URL(request.url);
     const daysAhead = parseInt(searchParams.get('daysAhead') || '3', 10);
@@ -34,7 +40,7 @@ export async function POST(request: NextRequest) {
       .from('sips')
       .select(`
         *,
-        client:clients(id, name, email, advisor_id),
+        client:profiles(id, full_name, email, advisor_id),
         mutual_fund:mutual_funds(name, code)
       `)
       .eq('status', 'active')
@@ -77,7 +83,7 @@ export async function POST(request: NextRequest) {
       if (!client?.email) {
         results.push({
           sipId: sip.id,
-          clientName: client?.name || 'Unknown',
+          clientName: client?.full_name || 'Unknown',
           success: false,
           error: 'No email address',
         });
@@ -89,7 +95,7 @@ export async function POST(request: NextRequest) {
       if (advisor && advisor.email_sip_reminders === false) {
         results.push({
           sipId: sip.id,
-          clientName: client.name,
+          clientName: client.full_name,
           success: false,
           error: 'Email notifications disabled',
         });
@@ -102,7 +108,7 @@ export async function POST(request: NextRequest) {
 
       // Prepare email data
       const emailData = {
-        clientName: client.name,
+        clientName: client.full_name,
         clientEmail: client.email,
         schemeName: mutualFund?.name || 'Unknown Fund',
         amount: sip.amount,
@@ -118,7 +124,7 @@ export async function POST(request: NextRequest) {
       if (dryRun) {
         results.push({
           sipId: sip.id,
-          clientName: client.name,
+          clientName: client.full_name,
           success: true,
           error: 'Dry run - email not sent',
         });
@@ -130,7 +136,7 @@ export async function POST(request: NextRequest) {
       
       results.push({
         sipId: sip.id,
-        clientName: client.name,
+        clientName: client.full_name,
         success: emailResult.success,
         error: emailResult.error,
       });
@@ -141,7 +147,7 @@ export async function POST(request: NextRequest) {
           user_id: client.advisor_id,
           type: 'info',
           title: 'SIP Reminder Sent',
-          message: `Reminder email sent to ${client.name} for ${mutualFund?.name || 'SIP'} (₹${sip.amount.toLocaleString()})`,
+          message: `Reminder email sent to ${client.full_name} for ${mutualFund?.name || 'SIP'} (₹${sip.amount.toLocaleString()})`,
           read: false,
         } as any);
       }

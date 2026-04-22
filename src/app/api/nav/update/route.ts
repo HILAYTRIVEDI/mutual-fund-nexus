@@ -12,7 +12,7 @@
  *   - Or manually via the advisor dashboard
  */
 
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { getSchemeLatestNAV } from '@/lib/mfapi';
 
@@ -21,7 +21,13 @@ const supabaseAdmin = createClient(
     process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-export async function POST() {
+export async function POST(request: Request) {
+    // Verify CRON_SECRET
+    const authHeader = request.headers.get('Authorization');
+    if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     try {
         // 1. Fetch all scheme codes from mutual_funds
         const { data: funds, error: fetchErr } = await supabaseAdmin

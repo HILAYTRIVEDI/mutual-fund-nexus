@@ -91,6 +91,33 @@ async function processSIPs(request: NextRequest) {
         const schemeCode = sip.scheme_code;
         const sipAmount = sip.amount;
 
+        // ── Idempotency check ──────────────────────────────────
+        // If a completed transaction already exists for this SIP on or after
+        // the current next_execution_date, another run already processed it.
+        const { data: existingTx } = await supabase
+          .from('transactions')
+          .select('id')
+          .eq('sip_id', sip.id)
+          .gte('date', sip.next_execution_date)
+          .eq('status', 'completed')
+          .limit(1);
+
+        if (existingTx && existingTx.length > 0) {
+          console.log(`[ProcessSIPs] SIP ${sip.id} already processed for ${sip.next_execution_date}, skipping`);
+          results.push({
+            sipId: sip.id,
+            schemeCode,
+            userId: sip.user_id,
+            amount: sipAmount,
+            units: 0,
+            nav: 0,
+            steppedUp: false,
+            success: true,
+            error: 'Already processed (idempotency skip)',
+          });
+          continue;
+        }
+
         // 2. Get current NAV — robust fallback chain:
         //    a) Live MFAPI fetch (for non-custom funds)
         //    b) Joined mutual_fund record from the SIP query
@@ -159,7 +186,61 @@ async function processSIPs(request: NextRequest) {
           continue;
         }
 
-        // 4. Insert SIP transaction
+        // ── Claim: advance next_execution_date FIRST ──────────
+        // This prevents concurrent runs from double-processing.
+        const nextDate = new Date(sip.next_execution_date);
+        if (sip.frequency === 'weekly') {
+          nextDate.setDate(nextDate.getDate() + 7);
+        } else if (sip.frequency === 'quarterly') {
+          nextDate.setMonth(nextDate.getMonth() + 3);
+        } else {
+          // Default: monthly
+          nextDate.setMonth(nextDate.getMonth() + 1);
+        }
+
+        // Handle step-up logic
+        let steppedUp = false;
+        let updatedAmount = sipAmount;
+        const stepUpAmount = sip.step_up_amount || 0;
+        const stepUpInterval = sip.step_up_interval;
+
+        if (stepUpAmount > 0 && stepUpInterval) {
+          const startDate = new Date(sip.start_date);
+          const monthsElapsed = monthsDiff(startDate, nextDate);
+          const stepMonths =
+            stepUpInterval === 'Quarterly'
+              ? 3
+              : stepUpInterval === 'Half-Yearly'
+              ? 6
+              : 12; // Yearly
+
+          const previousMilestone = Math.floor(
+            monthsDiff(startDate, new Date(sip.next_execution_date)) /
+              stepMonths
+          );
+          const nextMilestone = Math.floor(monthsElapsed / stepMonths);
+
+          if (nextMilestone > previousMilestone) {
+            updatedAmount = sipAmount + stepUpAmount;
+            steppedUp = true;
+          }
+        }
+
+        // Atomically claim the SIP by advancing its date
+        const { error: claimError } = await (supabase.from('sips') as any)
+          .update({
+            next_execution_date: nextDate.toISOString().split('T')[0],
+            amount: updatedAmount,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', sip.id)
+          .eq('next_execution_date', sip.next_execution_date); // Optimistic lock
+
+        if (claimError) {
+          throw new Error(`Failed to claim SIP: ${claimError.message}`);
+        }
+
+        // 4. Insert SIP transaction (with sip_id for audit/idempotency)
         const { error: txError } = await supabase
           .from('transactions')
           .insert({
@@ -171,6 +252,7 @@ async function processSIPs(request: NextRequest) {
             nav: currentNav,
             status: 'completed',
             date: new Date().toISOString(),
+            sip_id: sip.id,
           } as any);
 
         if (txError) {
@@ -189,7 +271,6 @@ async function processSIPs(request: NextRequest) {
           const oldUnits = (existingHolding as any).units || 0;
           const oldAvg = (existingHolding as any).average_price || 0;
           const totalUnits = oldUnits + newUnits;
-          // Weighted average: (old_invested + new_invested) / total_units
           const newAvgPrice =
             totalUnits > 0
               ? (oldUnits * oldAvg + sipAmount) / totalUnits
@@ -203,7 +284,6 @@ async function processSIPs(request: NextRequest) {
             })
             .eq('id', (existingHolding as any).id);
         } else {
-          // No existing holding — create one
           await (supabase.from('holdings') as any).insert({
             user_id: sip.user_id,
             scheme_code: schemeCode,
@@ -219,56 +299,6 @@ async function processSIPs(request: NextRequest) {
             last_updated: new Date().toISOString(),
           })
           .eq('code', schemeCode);
-
-        // 7. Calculate next execution date
-        const nextDate = new Date(sip.next_execution_date);
-        if (sip.frequency === 'weekly') {
-          nextDate.setDate(nextDate.getDate() + 7);
-        } else if (sip.frequency === 'quarterly') {
-          nextDate.setMonth(nextDate.getMonth() + 3);
-        } else {
-          // Default: monthly
-          nextDate.setMonth(nextDate.getMonth() + 1);
-        }
-
-        // 8. Handle step-up logic
-        let steppedUp = false;
-        let updatedAmount = sipAmount;
-        const stepUpAmount = sip.step_up_amount || 0;
-        const stepUpInterval = sip.step_up_interval;
-
-        if (stepUpAmount > 0 && stepUpInterval) {
-          const startDate = new Date(sip.start_date);
-          const monthsElapsed = monthsDiff(startDate, nextDate);
-          const stepMonths =
-            stepUpInterval === 'Quarterly'
-              ? 3
-              : stepUpInterval === 'Half-Yearly'
-              ? 6
-              : 12; // Yearly
-
-          // Check if next date crosses a step-up boundary
-          // e.g., if 12 months have passed since start for Yearly
-          const previousMilestone = Math.floor(
-            monthsDiff(startDate, new Date(sip.next_execution_date)) /
-              stepMonths
-          );
-          const nextMilestone = Math.floor(monthsElapsed / stepMonths);
-
-          if (nextMilestone > previousMilestone) {
-            updatedAmount = sipAmount + stepUpAmount;
-            steppedUp = true;
-          }
-        }
-
-        // 9. Update SIP record
-        await (supabase.from('sips') as any)
-          .update({
-            next_execution_date: nextDate.toISOString().split('T')[0],
-            amount: updatedAmount,
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', sip.id);
 
         results.push({
           sipId: sip.id,

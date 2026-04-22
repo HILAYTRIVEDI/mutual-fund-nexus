@@ -10,6 +10,7 @@ import { getSupabaseClient } from '@/lib/supabase';
 import { useHoldings } from '@/context/HoldingsContext';
 import { useSIPs } from '@/context/SIPContext';
 import { useTransactions } from '@/context/TransactionsContext';
+import { useAuth } from '@/context/AuthContext';
 
 function formatCurrency(amount: number): string {
     if (amount >= 10000000) {
@@ -999,6 +1000,23 @@ function ManageClientsContent() {
 }
  
 export default function ManageClientsPage() {
+    const { user, isLoading } = useAuth();
+    const router = useRouter();
+
+    useEffect(() => {
+        if (!isLoading && user?.role !== 'admin') {
+            router.replace('/client-dashboard');
+        }
+    }, [isLoading, user, router]);
+
+    if (isLoading || user?.role !== 'admin') {
+        return (
+            <div className="min-h-screen bg-[var(--bg-primary)] flex items-center justify-center">
+                <Loader2 size={32} className="animate-spin text-[var(--accent-mint)]" />
+            </div>
+        );
+    }
+
     return (
         <Suspense fallback={
             <div className="min-h-screen bg-[var(--bg-primary)] p-6 flex items-center justify-center">

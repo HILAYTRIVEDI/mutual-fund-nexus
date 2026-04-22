@@ -27,6 +27,12 @@ const supabaseAdmin = createClient(
 );
 
 export async function POST(req: NextRequest) {
+    // Verify CRON_SECRET
+    const authHeader = req.headers.get('Authorization');
+    if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     try {
         const body = await req.json().catch(() => ({}));
         const force: boolean = body.force === true;

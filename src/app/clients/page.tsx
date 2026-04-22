@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useMemo, Suspense } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useState, useMemo, useEffect, Suspense } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Search, Filter, TrendingUp, TrendingDown, Users, ChevronDown, X, Calendar, Download, Loader2 } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
@@ -9,6 +9,7 @@ import { useClientContext } from '@/context/ClientContext';
 import { useHoldings } from '@/context/HoldingsContext';
 import { useSIPs } from '@/context/SIPContext';
 import { useTransactions } from '@/context/TransactionsContext';
+import { useAuth } from '@/context/AuthContext';
 import { formatNAV } from '@/lib/mfapi';
 
 function formatDate(dateStr?: string): string {
@@ -573,6 +574,23 @@ function ClientsPageContent() {
 }
 
 export default function ClientsPage() {
+    const { user, isLoading } = useAuth();
+    const router = useRouter();
+
+    useEffect(() => {
+        if (!isLoading && user?.role !== 'admin') {
+            router.replace('/client-dashboard');
+        }
+    }, [isLoading, user, router]);
+
+    if (isLoading || user?.role !== 'admin') {
+        return (
+            <div className="min-h-screen bg-[var(--bg-primary)] flex items-center justify-center">
+                <Loader2 className="animate-spin text-[var(--accent-mint)]" size={32} />
+            </div>
+        );
+    }
+
     return (
         <Suspense fallback={
             <div className="min-h-screen bg-[var(--bg-primary)] flex items-center justify-center">

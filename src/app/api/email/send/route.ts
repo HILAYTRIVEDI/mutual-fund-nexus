@@ -1,5 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sendTestEmail, sendSIPReminderEmail, sendSIPExecutedEmail } from '@/lib/mail';
+import { createClient } from '@supabase/supabase-js';
+
+/**
+ * Verify the caller is either:
+ * - A cron/admin script with CRON_SECRET Bearer token
+ * - An authenticated admin user via Supabase session
+ */
+async function isAuthorized(request: NextRequest): Promise<boolean> {
+  const authHeader = request.headers.get('Authorization');
+  if (authHeader === `Bearer ${process.env.CRON_SECRET}`) return true;
+
+  // Check for Supabase user session
+  if (authHeader?.startsWith('Bearer ')) {
+    const token = authHeader.replace('Bearer ', '');
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    );
+    const { data: { user } } = await supabase.auth.getUser(token);
+    if (user) return true;
+  }
+  return false;
+}
 
 /**
  * API Route: POST /api/email/send
@@ -12,6 +35,11 @@ import { sendTestEmail, sendSIPReminderEmail, sendSIPExecutedEmail } from '@/lib
  * - data: Optional data for SIP emails
  */
 export async function POST(request: NextRequest) {
+  // Verify caller is authorized (CRON_SECRET or authenticated user)
+  if (!(await isAuthorized(request))) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   try {
     const body = await request.json();
     const { to, type, data } = body;

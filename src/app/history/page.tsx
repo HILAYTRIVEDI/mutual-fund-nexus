@@ -1,9 +1,12 @@
 'use client';
 
 import { useState, useMemo, useEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import { Search, Filter, ChevronDown, X, UserPlus, UserMinus, PiggyBank, TrendingUp, TrendingDown, ArrowRightLeft, Clock, CheckCircle, XCircle } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
 import { useTransactions } from '@/context/TransactionsContext';
+import { useAuth } from '@/context/AuthContext';
+import { getSupabaseClient } from '@/lib/supabase';
 
 type LogType = 'client_added' | 'client_removed' | 'investment_sip' | 'investment_lumpsum' | 'redemption' | 'switch' | 'nav_update' | 'sip_executed' | 'dividend';
 type LogStatus = 'success' | 'pending' | 'failed';
@@ -103,6 +106,8 @@ function getRelativeTime(dateStr: string): string {
 }
 
 export default function HistoryPage() {
+    const { user, isLoading: authLoading } = useAuth();
+    const router = useRouter();
     const { transactions, isLoading, refreshTransactions } = useTransactions();
     const [searchQuery, setSearchQuery] = useState('');
     const [typeFilter, setTypeFilter] = useState<LogType | 'All'>('All');
@@ -110,6 +115,12 @@ export default function HistoryPage() {
     const [showFilters, setShowFilters] = useState(false);
     const [expandedLog, setExpandedLog] = useState<string | null>(null);
     const hasSynced = useRef(false);
+
+    useEffect(() => {
+        if (!authLoading && user?.role !== 'admin') {
+            router.replace('/client-dashboard');
+        }
+    }, [authLoading, user, router]);
 
     // Auto-trigger allotment sync on page load if any pending transactions have an NSE order ID
     useEffect(() => {
@@ -120,7 +131,13 @@ export default function HistoryPage() {
         if (pendingWithOrderId.length === 0) return;
 
         hasSynced.current = true;
-        fetch('/api/nse/sync-allotment', { method: 'POST', body: JSON.stringify({}) })
+        const supabase = getSupabaseClient();
+        supabase.auth.getSession().then(({ data: { session } }) => {
+            const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+            if (session?.access_token) {
+                headers['Authorization'] = `Bearer ${session.access_token}`;
+            }
+            fetch('/api/nse/sync-allotment', { method: 'POST', headers, body: JSON.stringify({}) })
             .then(r => r.json())
             .then(result => {
                 if (result.synced > 0) {
@@ -128,6 +145,7 @@ export default function HistoryPage() {
                 }
             })
             .catch(() => { /* silent — sync is best-effort */ });
+        });
     }, [isLoading, transactions, refreshTransactions]);
 
     const activityLogs: ActivityLog[] = useMemo(() => {

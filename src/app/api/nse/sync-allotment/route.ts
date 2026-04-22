@@ -24,7 +24,33 @@ const supabaseAdmin = createClient(
     process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
+/**
+ * Verify the caller is either:
+ * - A cron/admin script with CRON_SECRET Bearer token
+ * - An authenticated user via Supabase session
+ */
+async function isAuthorized(req: NextRequest): Promise<boolean> {
+  const authHeader = req.headers.get('Authorization');
+  if (authHeader === `Bearer ${process.env.CRON_SECRET}`) return true;
+
+  if (authHeader?.startsWith('Bearer ')) {
+    const token = authHeader.replace('Bearer ', '');
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    );
+    const { data: { user } } = await supabase.auth.getUser(token);
+    if (user) return true;
+  }
+  return false;
+}
+
 export async function POST(req: NextRequest) {
+    // Verify caller is authorized (CRON_SECRET or authenticated user)
+    if (!(await isAuthorized(req))) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     try {
         const body = await req.json().catch(() => ({}));
         const filterIds: string[] | undefined = body.transaction_ids;

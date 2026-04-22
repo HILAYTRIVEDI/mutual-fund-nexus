@@ -10,6 +10,7 @@ import { useClientContext } from '@/context/ClientContext';
 import { useHoldings } from '@/context/HoldingsContext';
 import { useSIPs } from '@/context/SIPContext';
 import { useTransactions } from '@/context/TransactionsContext';
+import { useAuth } from '@/context/AuthContext';
 import { calculateXIRR } from '@/lib/utils/finance';
 
 function formatCurrency(amount: number): string {
@@ -23,9 +24,16 @@ function formatDate(dateStr: string): string {
 }
 
 export default function ClientDetailPage() {
+    const { user, isLoading: authLoading } = useAuth();
     const params = useParams();
     const router = useRouter();
     const clientId = params.id as string;
+
+    useEffect(() => {
+        if (!authLoading && user?.role !== 'admin') {
+            router.replace('/client-dashboard');
+        }
+    }, [authLoading, user, router]);
 
     const { ltcgTax, stcgTax } = useSettings();
     const { clients, deleteClient, updateClient, isLoading: clientsLoading } = useClientContext();
