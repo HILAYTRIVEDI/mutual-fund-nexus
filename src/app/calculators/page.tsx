@@ -96,7 +96,7 @@ export default function CalculatorsPage() {
         for (let year = 0; year < stepUpTenure; year++) {
             const monthlyAmount = stepUpAmount * Math.pow(1 + stepUpIncrement / 100, year);
             for (let month = 0; month < 12; month++) {
-                balance = balance * (1 + monthlyRate) + monthlyAmount;
+                balance = (balance + monthlyAmount) * (1 + monthlyRate);
                 totalInvested += monthlyAmount;
             }
         }
