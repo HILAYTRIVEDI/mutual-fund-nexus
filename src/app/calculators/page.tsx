@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { Calculator, TrendingUp, PiggyBank, Wallet, IndianRupee, Percent, Calendar, ArrowUpCircle } from 'lucide-react';
+import { Calculator, TrendingUp, PiggyBank, Wallet, IndianRupee, Percent, Calendar, ArrowUpCircle, AlertTriangle } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
 
 type CalculatorType = 'sip' | 'lumpsum' | 'step-up-sip';
@@ -524,6 +524,14 @@ export default function CalculatorsPage() {
                             As your income grows, your SIP grows too — maximising the power of compounding over time.
                         </p>
                     </div>
+                </div>
+
+                {/* Disclaimer */}
+                <div className="mt-6 p-4 rounded-xl bg-[var(--accent-gold)]/5 border border-[var(--accent-gold)]/15 flex items-start gap-3">
+                    <AlertTriangle size={18} className="text-[var(--accent-gold)] shrink-0 mt-0.5" />
+                    <p className="text-[var(--text-secondary)] text-xs leading-relaxed">
+                        <span className="font-semibold text-[var(--accent-gold)]">Disclaimer:</span> Please note that these calculators are for illustrations only and do not represent actual returns. Stock Market does not have a fixed rate of return and it is not possible to predict the rate of return.
+                    </p>
                 </div>
             </main>
 

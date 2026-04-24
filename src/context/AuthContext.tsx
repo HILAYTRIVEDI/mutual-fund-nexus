@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback, useRef } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { getSupabaseClient } from '@/lib/supabase';
 import type { User as SupabaseUser, AuthError } from '@supabase/supabase-js';
@@ -89,6 +89,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const [user, setUser] = useState<User | null>(null);
     const [profile, setProfile] = useState<Profile | null>(null);
     const [isLoading, setIsLoading] = useState(true);
+    const loginInProgressRef = useRef(false);
     const router = useRouter();
     const pathname = usePathname();
     const supabase = getSupabaseClient();
@@ -232,6 +233,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 console.log('[AuthContext] Auth event:', event, session?.user?.email);
 
                 if (event === 'SIGNED_IN' && session?.user) {
+                    // Skip if login() is handling this — avoid double loadUserSession race
+                    if (loginInProgressRef.current) {
+                        console.log('[AuthContext] Skipping SIGNED_IN — login in progress');
+                        return;
+                    }
                     loadUserSession(session.user).finally(() => {
                         if (mounted) setIsLoading(false);
                     });
@@ -289,12 +295,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const login = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
         console.log('[AuthContext] Login attempt for:', email);
         try {
+            // Prevent onAuthStateChange from racing with us
+            loginInProgressRef.current = true;
             setIsLoading(true);
+            // Clear any stale cache from a previous session (e.g. admin was logged in)
+            clearCache();
+
             const { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
             if (error) {
                 console.error('[AuthContext] Login error:', error.message);
                 setIsLoading(false);
+                loginInProgressRef.current = false;
                 return { success: false, error: error.message };
             }
 
@@ -306,10 +318,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             }
 
             setIsLoading(false);
+            loginInProgressRef.current = false;
             return { success: true };
         } catch (err) {
             console.error('[AuthContext] Login exception:', err);
             setIsLoading(false);
+            loginInProgressRef.current = false;
             return { success: false, error: 'Login failed' };
         }
     };
