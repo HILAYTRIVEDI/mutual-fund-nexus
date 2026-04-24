@@ -303,6 +303,7 @@ function ManageClientsContent() {
                         scheme_code: effectiveSchemeCode,
                         units: totalUnits,
                         average_price: currentNav,
+                        current_nav: currentNav,
                     });
 
                     // Record Lumpsum Transaction

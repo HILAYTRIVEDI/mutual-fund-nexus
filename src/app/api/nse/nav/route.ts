@@ -134,6 +134,21 @@ export async function GET(req: NextRequest) {
             })
         );
 
+        // Persist fresh NAV values back to mutual_funds so fallbacks stay current
+        const liveUpdates = Object.entries(result)
+            .filter(([, record]) => record.source !== 'db' && record.nav != null)
+            .map(([code, record]) => ({
+                code,
+                current_nav: record.nav as number,
+                last_updated: new Date().toISOString(),
+            }));
+
+        if (liveUpdates.length > 0) {
+            await supabaseAdmin
+                .from('mutual_funds')
+                .upsert(liveUpdates, { onConflict: 'code' });
+        }
+
         return NextResponse.json(result, {
             headers: {
                 // Cache for 5 minutes — NAV updates once daily after market close

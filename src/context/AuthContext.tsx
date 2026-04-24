@@ -29,7 +29,6 @@ interface AuthContextType {
     profile: Profile | null;
     isLoading: boolean;
     login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
-    signUp: (email: string, password: string, fullName: string) => Promise<{ success: boolean; error?: string }>;
     logout: () => Promise<void>;
     isAuthenticated: boolean;
 }
@@ -170,25 +169,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         console.log('[AuthContext] Basic user set, fetching profile...');
         
         try {
-            let userProfile = await fetchProfile(sessionUser.id);
+            const userProfile = await fetchProfile(sessionUser.id);
             console.log('[AuthContext] Profile fetched:', userProfile?.role);
-            
-            // If no profile exists, try to create one (non-blocking)
-            if (!userProfile) {
-                console.log('[AuthContext] No profile found, attempting to create...');
-                const { error: insertError } = await (supabase.from('profiles') as any).insert({
-                    id: sessionUser.id,
-                    email: sessionUser.email || '',
-                    full_name: sessionUser.user_metadata?.full_name || sessionUser.email?.split('@')[0] || 'User',
-                    role: 'admin',
-                });
-                
-                console.log('[AuthContext] Profile insert result:', insertError?.message || 'success');
-                
-                if (!insertError || insertError.code === '23505') {
-                    userProfile = await fetchProfile(sessionUser.id);
-                }
-            }
             
             // Update user with profile data if available
             if (userProfile) {
@@ -328,34 +310,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
     };
 
-    // Sign up function
-    const signUp = async (email: string, password: string, fullName: string): Promise<{ success: boolean; error?: string }> => {
-        console.log('[AuthContext] SignUp attempt for:', email);
-        try {
-            setIsLoading(true);
-            const { error } = await supabase.auth.signUp({
-                email,
-                password,
-                options: {
-                    data: { full_name: fullName },
-                },
-            });
-
-            if (error) {
-                console.error('[AuthContext] SignUp error:', error.message);
-                setIsLoading(false);
-                return { success: false, error: error.message };
-            }
-
-            setIsLoading(false);
-            return { success: true };
-        } catch (err) {
-            console.error('[AuthContext] SignUp exception:', err);
-            setIsLoading(false);
-            return { success: false, error: 'Sign up failed' };
-        }
-    };
-
     // Logout function
     const logout = async (): Promise<void> => {
         console.log('[AuthContext] Logging out...');
@@ -375,7 +329,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 profile,
                 isLoading,
                 login,
-                signUp,
                 logout,
                 isAuthenticated: !!user,
             }}

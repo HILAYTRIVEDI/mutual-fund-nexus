@@ -188,8 +188,7 @@ export function ClientProvider({ children }: { children: ReactNode }) {
 
     const deleteClient = async (id: string): Promise<{ success: boolean; error?: string }> => {
         try {
-            // Forcefully delete all related data to prevent orphan data / foreign key constraint errors
-            // This is safer in case ON DELETE CASCADE is missing or improperly configured in the DB.
+            // Delete all related data first to avoid FK constraint errors
             const [holdingsRes, sipsRes, txRes] = await Promise.all([
                 supabase.from('holdings').delete().eq('user_id', id),
                 supabase.from('sips').delete().eq('user_id', id),
@@ -200,7 +199,7 @@ export function ClientProvider({ children }: { children: ReactNode }) {
             if (sipsRes.error) console.warn('SIPs drop error:', sipsRes.error);
             if (txRes.error) console.warn('Tx drop error:', txRes.error);
 
-            // Now delete the profile
+            // Delete the profile row
             const { error: deleteError } = await (supabase
                 .from('profiles') as any)
                 .delete()
@@ -209,6 +208,19 @@ export function ClientProvider({ children }: { children: ReactNode }) {
 
             if (deleteError) {
                 throw deleteError;
+            }
+
+            // Delete the auth user via server-side API (requires service role key)
+            const res = await fetch('/api/clients/delete', {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ clientId: id, advisorId: user?.id }),
+            });
+
+            if (!res.ok) {
+                const body = await res.json().catch(() => ({}));
+                // Log but don't block — profile is already gone
+                console.warn('[ClientContext] Auth user delete failed:', body.error);
             }
 
             setClients(prev => prev.filter(c => c.id !== id));
