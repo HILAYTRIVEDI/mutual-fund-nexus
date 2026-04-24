@@ -107,15 +107,9 @@ export default function LandingPage() {
           <ThemeToggle />
           <Link
             href="/login"
-            className="px-5 py-2.5 text-sm font-medium text-[var(--text-primary)] border border-[var(--border-primary)] rounded-xl hover:border-[var(--border-hover)] hover:bg-[var(--bg-hover)] transition-all duration-200"
-          >
-            Sign In
-          </Link>
-          <Link
-            href="/login"
             className="px-5 py-2.5 text-sm font-medium text-white bg-gradient-to-r from-[var(--accent-gold)] to-[var(--accent-blue)] rounded-xl hover:opacity-90 transition-opacity duration-200 shadow-md shadow-[var(--accent-gold)]/20"
           >
-            Get Started
+            Sign In
           </Link>
         </div>
       </nav>
@@ -211,13 +205,13 @@ export default function LandingPage() {
             <div className="relative z-10">
               <h2 className="text-2xl md:text-3xl font-bold mb-4">Ready to Get Started?</h2>
               <p className="text-[var(--text-secondary)] text-base md:text-lg mb-8 max-w-lg mx-auto">
-                Join RuaCapital and take control of your mutual fund portfolio with professional-grade tools.
+                Manage your mutual fund portfolio with professional-grade tools.
               </p>
               <Link
                 href="/login"
                 className="group inline-flex items-center gap-2 px-8 py-3.5 text-base font-semibold text-white bg-gradient-to-r from-[var(--accent-gold)] to-[var(--accent-blue)] rounded-xl hover:opacity-90 transition-all duration-200 shadow-lg shadow-[var(--accent-gold)]/25"
               >
-                Create Your Account
+                Sign In to Your Account
                 <ChevronRight size={18} className="transition-transform duration-200 group-hover:translate-x-1" />
               </Link>
             </div>

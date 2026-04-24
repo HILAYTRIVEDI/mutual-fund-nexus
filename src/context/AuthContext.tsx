@@ -157,11 +157,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
         
         // Set basic user IMMEDIATELY so app doesn't hang
+        // Use user_metadata.role to determine correct default (set during client creation)
+        const metadataRole = sessionUser.user_metadata?.role;
         const basicUser: User = {
             id: sessionUser.id,
             name: sessionUser.user_metadata?.full_name || sessionUser.email?.split('@')[0] || 'User',
             email: sessionUser.email || '',
-            role: 'admin', // Default, will update if profile says client
+            role: metadataRole === 'client' ? 'client' : 'admin',
         };
         setUser(basicUser);
         console.log('[AuthContext] Basic user set, fetching profile...');
@@ -210,11 +212,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             // Cache basic user if no profile
             setCachedData(CACHE_KEY_USER, basicUser);
             
-            console.log('[AuthContext] Session loaded without profile, defaulting to admin');
-            return 'admin';
+            console.log('[AuthContext] Session loaded without profile, defaulting to:', basicUser.role);
+            return basicUser.role;
         } catch (error) {
             console.error('[AuthContext] Error loading user session:', error);
-            return 'admin';
+            return basicUser.role;
         }
     }, [supabase, fetchProfile]);
 

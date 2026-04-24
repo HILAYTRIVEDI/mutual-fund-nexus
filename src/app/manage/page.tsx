@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Search, Plus, Trash2, X, UserPlus, PiggyBank, Loader2, Check, Edit2, Key, Copy, ShieldCheck, Eye, EyeOff, TrendingUp } from 'lucide-react';
+import { Search, Plus, Trash2, X, UserPlus, PiggyBank, Loader2, Check, Edit2, Key, Copy, ShieldCheck, Eye, EyeOff, TrendingUp, ArrowRightLeft } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
 import { searchSchemes, type MutualFundScheme, getSchemeLatestNAV } from '@/lib/mfapi';
 import { useClientContext, type Client } from '@/context/ClientContext';
@@ -46,6 +46,11 @@ function ManageClientsContent() {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
 
+    // Password change modal
+    const [showPasswordModal, setShowPasswordModal] = useState<{ clientId: string; clientName: string; email: string } | null>(null);
+    const [passwordForm, setPasswordForm] = useState({ newPassword: '', confirmPassword: '', showNew: false, showConfirm: false });
+    const [isChangingPassword, setIsChangingPassword] = useState(false);
+
     // Form state
     const [formData, setFormData] = useState({
         name: '',
@@ -54,7 +59,7 @@ function ManageClientsContent() {
         panCard: '',
         aadharCard: '',
         password: '', // Admin-defined password for client
-        investmentType: 'SIP' as 'SIP' | 'Lumpsum',
+        investmentType: 'SIP' as 'SIP' | 'Lumpsum' | 'Transfer',
         amount: '',
         sipAmount: '',
         startDate: '',
@@ -85,6 +90,18 @@ function ManageClientsContent() {
             document.body.style.overflow = '';
         };
     }, [showAddModal]);
+
+    // When switching to Transfer mode, auto-set start date to tomorrow so SIP won't fire immediately
+    useEffect(() => {
+        if (formData.investmentType === 'Transfer') {
+            const tomorrow = new Date();
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            const yyyy = tomorrow.getFullYear();
+            const mm = String(tomorrow.getMonth() + 1).padStart(2, '0');
+            const dd = String(tomorrow.getDate()).padStart(2, '0');
+            setFormData(prev => ({ ...prev, startDate: `${yyyy}-${mm}-${dd}` }));
+        }
+    }, [formData.investmentType]);
 
     // Click outside handler for fund dropdown
     useEffect(() => {
@@ -155,8 +172,17 @@ function ManageClientsContent() {
         if (hasFundSelected) {
             const hasLumpsum = formData.amount && parseFloat(formData.amount) > 0;
             const hasSIP = formData.sipAmount && parseFloat(formData.sipAmount) > 0;
-            
-            if (!hasLumpsum && !hasSIP) {
+
+            if (formData.investmentType === 'Transfer') {
+                if (!hasLumpsum) {
+                    alert('Please enter the Current Portfolio Value to transfer');
+                    return;
+                }
+                if (!hasSIP) {
+                    alert('Please enter the Monthly SIP amount to continue');
+                    return;
+                }
+            } else if (!hasLumpsum && !hasSIP) {
                 alert('Please enter at least a Lumpsum Amount or SIP Amount');
                 return;
             }
@@ -389,6 +415,38 @@ function ManageClientsContent() {
         }
     }, [searchParams, clients, showAddModal, router]);
 
+    const handleOpenPasswordModal = (client: Client) => {
+        setPasswordForm({ newPassword: '', confirmPassword: '', showNew: false, showConfirm: false });
+        setShowPasswordModal({ clientId: client.id, clientName: client.name, email: client.email || '' });
+    };
+
+    const handleChangePassword = async () => {
+        if (!showPasswordModal) return;
+        if (passwordForm.newPassword.length < 6) {
+            alert('Password must be at least 6 characters');
+            return;
+        }
+        if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+            alert('Passwords do not match');
+            return;
+        }
+        setIsChangingPassword(true);
+        try {
+            const res = await fetch('/api/clients/update-password', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId: showPasswordModal.clientId, newPassword: passwordForm.newPassword }),
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || 'Failed to update password');
+            setShowPasswordModal(null);
+        } catch (err) {
+            alert(err instanceof Error ? err.message : 'Failed to update password');
+        } finally {
+            setIsChangingPassword(false);
+        }
+    };
+
     const handleDeleteClient = async (clientId: string) => {
         if (confirm('Are you sure you want to remove this client?')) {
             const result = await deleteClient(clientId);
@@ -507,12 +565,21 @@ function ManageClientsContent() {
                                                 <button
                                                     onClick={() => handleEditClient(client)}
                                                     className="p-2 rounded-lg bg-[#C4A265]/10 text-[#C4A265] hover:bg-[#C4A265]/20 transition-colors flex-shrink-0"
+                                                    title="Edit client"
                                                 >
                                                     <Edit2 size={14} />
                                                 </button>
                                                 <button
+                                                    onClick={() => handleOpenPasswordModal(client)}
+                                                    className="p-2 rounded-lg bg-[#5B7FA4]/10 text-[#5B7FA4] hover:bg-[#5B7FA4]/20 transition-colors flex-shrink-0"
+                                                    title="Change password"
+                                                >
+                                                    <Key size={14} />
+                                                </button>
+                                                <button
                                                     onClick={() => handleDeleteClient(client.id)}
                                                     className="p-2 rounded-lg bg-[#EF4444]/10 text-[#EF4444] hover:bg-[#EF4444]/20 transition-colors flex-shrink-0"
+                                                    title="Delete client"
                                                 >
                                                     <Trash2 size={14} />
                                                 </button>
@@ -565,12 +632,21 @@ function ManageClientsContent() {
                                             <button
                                                 onClick={() => handleEditClient(client)}
                                                 className="p-2 rounded-lg bg-[#C4A265]/10 text-[#C4A265] hover:bg-[#C4A265]/20 transition-colors"
+                                                title="Edit client"
                                             >
                                                 <Edit2 size={16} />
                                             </button>
                                             <button
+                                                onClick={() => handleOpenPasswordModal(client)}
+                                                className="p-2 rounded-lg bg-[#5B7FA4]/10 text-[#5B7FA4] hover:bg-[#5B7FA4]/20 transition-colors"
+                                                title="Change password"
+                                            >
+                                                <Key size={16} />
+                                            </button>
+                                            <button
                                                 onClick={() => handleDeleteClient(client.id)}
                                                 className="p-2 rounded-lg bg-[#EF4444]/10 text-[#EF4444] hover:bg-[#EF4444]/20 transition-colors"
+                                                title="Delete client"
                                             >
                                                 <Trash2 size={16} />
                                             </button>
@@ -585,6 +661,100 @@ function ManageClientsContent() {
 
             {/* Sidebar */}
             <Sidebar />
+
+            {/* Change Password Modal */}
+            {showPasswordModal && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
+                    <div className="w-full max-w-sm glass-card rounded-2xl p-6 relative animate-in fade-in zoom-in-95 duration-200">
+                        <button
+                            onClick={() => setShowPasswordModal(null)}
+                            className="absolute top-4 right-4 text-[#9CA3AF] hover:text-white"
+                        >
+                            <X size={20} />
+                        </button>
+
+                        <div className="text-center mb-6">
+                            <div className="w-12 h-12 bg-[#5B7FA4]/20 rounded-xl flex items-center justify-center mx-auto mb-3">
+                                <Key size={24} className="text-[#5B7FA4]" />
+                            </div>
+                            <h3 className="text-lg font-bold text-white">Change Password</h3>
+                            <p className="text-[#9CA3AF] text-xs mt-1">{showPasswordModal.clientName}</p>
+                            <p className="text-[#9CA3AF] text-[11px]">{showPasswordModal.email}</p>
+                        </div>
+
+                        <div className="space-y-4">
+                            <div>
+                                <label className="text-[#9CA3AF] text-xs mb-2 block">New Password *</label>
+                                <div className="relative">
+                                    <input
+                                        type={passwordForm.showNew ? 'text' : 'password'}
+                                        placeholder="Minimum 6 characters"
+                                        value={passwordForm.newPassword}
+                                        onChange={(e) => setPasswordForm(prev => ({ ...prev, newPassword: e.target.value }))}
+                                        className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white placeholder-[#9CA3AF] focus:outline-none focus:border-[#5B7FA4]/50 text-sm pr-12"
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => setPasswordForm(prev => ({ ...prev, showNew: !prev.showNew }))}
+                                        className="absolute right-4 top-1/2 -translate-y-1/2 text-[#9CA3AF] hover:text-white transition-colors"
+                                    >
+                                        {passwordForm.showNew ? <EyeOff size={16} /> : <Eye size={16} />}
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="text-[#9CA3AF] text-xs mb-2 block">Confirm Password *</label>
+                                <div className="relative">
+                                    <input
+                                        type={passwordForm.showConfirm ? 'text' : 'password'}
+                                        placeholder="Re-enter password"
+                                        value={passwordForm.confirmPassword}
+                                        onChange={(e) => setPasswordForm(prev => ({ ...prev, confirmPassword: e.target.value }))}
+                                        className={`w-full px-4 py-2.5 bg-white/5 border rounded-xl text-white placeholder-[#9CA3AF] focus:outline-none text-sm pr-12 transition-colors ${
+                                            passwordForm.confirmPassword && passwordForm.newPassword !== passwordForm.confirmPassword
+                                                ? 'border-[#EF4444]/50 focus:border-[#EF4444]/70'
+                                                : passwordForm.confirmPassword && passwordForm.newPassword === passwordForm.confirmPassword
+                                                ? 'border-[#10B981]/50 focus:border-[#10B981]/70'
+                                                : 'border-white/10 focus:border-[#5B7FA4]/50'
+                                        }`}
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => setPasswordForm(prev => ({ ...prev, showConfirm: !prev.showConfirm }))}
+                                        className="absolute right-4 top-1/2 -translate-y-1/2 text-[#9CA3AF] hover:text-white transition-colors"
+                                    >
+                                        {passwordForm.showConfirm ? <EyeOff size={16} /> : <Eye size={16} />}
+                                    </button>
+                                </div>
+                                {passwordForm.confirmPassword && passwordForm.newPassword !== passwordForm.confirmPassword && (
+                                    <p className="text-[10px] text-[#EF4444] mt-1">Passwords do not match</p>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="flex gap-3 mt-6">
+                            <button
+                                onClick={() => setShowPasswordModal(null)}
+                                className="flex-1 py-2.5 rounded-xl bg-white/5 border border-white/10 text-[#9CA3AF] font-medium hover:bg-white/10 transition-colors text-sm"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleChangePassword}
+                                disabled={isChangingPassword || passwordForm.newPassword.length < 6 || passwordForm.newPassword !== passwordForm.confirmPassword}
+                                className="flex-1 py-2.5 rounded-xl bg-[#5B7FA4] text-white font-medium hover:bg-[#5B7FA4]/90 transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                            >
+                                {isChangingPassword ? (
+                                    <><Loader2 size={16} className="animate-spin" /> Updating...</>
+                                ) : (
+                                    <><Key size={16} /> Update Password</>
+                                )}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Credentials Modal */}
             {showCredentialsModal && (
@@ -868,7 +1038,7 @@ function ManageClientsContent() {
                             {/* Investment Type */}
                             <div>
                                 <label className="text-[#9CA3AF] text-xs mb-2 block">Investment Type *</label>
-                                <div className="grid grid-cols-2 gap-3">
+                                <div className="grid grid-cols-3 gap-3">
                                     <button
                                         onClick={() => setFormData(prev => ({ ...prev, investmentType: 'SIP' }))}
                                         className={`p-3 md:p-4 rounded-xl border transition-all ${formData.investmentType === 'SIP'
@@ -889,6 +1059,16 @@ function ManageClientsContent() {
                                         <p className="font-medium text-sm">Lumpsum</p>
                                         <p className="text-[10px] opacity-70">One-time Investment</p>
                                     </button>
+                                    <button
+                                        onClick={() => setFormData(prev => ({ ...prev, investmentType: 'Transfer' }))}
+                                        className={`p-3 md:p-4 rounded-xl border transition-all ${formData.investmentType === 'Transfer'
+                                            ? 'bg-[#10B981]/20 border-[#10B981]/50 text-[#10B981]'
+                                            : 'bg-white/5 border-white/10 text-[#9CA3AF] hover:bg-white/10'
+                                            }`}
+                                    >
+                                        <p className="font-medium text-sm">Transfer</p>
+                                        <p className="text-[10px] opacity-70">Existing SIP</p>
+                                    </button>
                                 </div>
                             </div>
 
@@ -896,19 +1076,25 @@ function ManageClientsContent() {
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div>
                                     <label className="text-[#9CA3AF] text-xs mb-2 block">
-                                        {formData.investmentType === 'SIP' ? 'Initial Lumpsum (Optional)' : 'Investment Amount *'}
+                                        {formData.investmentType === 'Transfer'
+                                            ? 'Current Portfolio Value (₹) *'
+                                            : formData.investmentType === 'SIP'
+                                            ? 'Initial Lumpsum (Optional)'
+                                            : 'Investment Amount *'}
                                     </label>
                                     <input
                                         type="number"
-                                        placeholder="₹ Amount"
+                                        placeholder={formData.investmentType === 'Transfer' ? '₹ e.g. 2109' : '₹ Amount'}
                                         value={formData.amount}
                                         onChange={(e) => setFormData(prev => ({ ...prev, amount: e.target.value }))}
                                         className="w-full px-4 py-2.5 md:py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-[#9CA3AF] focus:outline-none focus:border-[#C4A265]/50 text-sm"
                                     />
                                 </div>
-                                {formData.investmentType === 'SIP' && (
+                                {(formData.investmentType === 'SIP' || formData.investmentType === 'Transfer') && (
                                     <div>
-                                        <label className="text-[#9CA3AF] text-xs mb-2 block">Monthly SIP Amount</label>
+                                        <label className="text-[#9CA3AF] text-xs mb-2 block">
+                                            {formData.investmentType === 'Transfer' ? 'Monthly SIP to Continue (₹) *' : 'Monthly SIP Amount'}
+                                        </label>
                                         <input
                                             type="number"
                                             placeholder="₹ Monthly"
@@ -920,8 +1106,24 @@ function ManageClientsContent() {
                                 )}
                             </div>
 
+                            {/* Transfer summary card */}
+                            {formData.investmentType === 'Transfer' && parseFloat(formData.amount) > 0 && parseFloat(formData.sipAmount) > 0 && (
+                                <div className="p-3 rounded-xl bg-[#10B981]/5 border border-[#10B981]/20">
+                                    <p className="text-[10px] text-[#10B981] mb-1.5 font-medium uppercase tracking-wider flex items-center gap-1">
+                                        <ArrowRightLeft size={11} />
+                                        Transfer Summary
+                                    </p>
+                                    <p className="text-[#D1FAE5] text-xs leading-relaxed">
+                                        <span className="font-semibold">₹{parseFloat(formData.amount).toLocaleString('en-IN')}</span> will be recorded as the starting value at today&apos;s NAV.{' '}
+                                        <span className="font-semibold">₹{parseFloat(formData.sipAmount).toLocaleString('en-IN')}/month</span> SIP will begin from{' '}
+                                        {formData.startDate ? new Date(formData.startDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : 'next month'}.
+                                    </p>
+                                    <p className="text-[9px] text-[#6EE7B7] mt-1.5">Prior gains from the old platform are absorbed into the starting value.</p>
+                                </div>
+                            )}
+
                             {/* Step-up SIP */}
-                            {formData.investmentType === 'SIP' && (
+                            {(formData.investmentType === 'SIP' || formData.investmentType === 'Transfer') && (
                                 <div className="p-3 rounded-xl bg-[var(--accent-purple)]/5 border border-[var(--accent-purple)]/20">
                                     <p className="text-[10px] text-[var(--accent-purple)] mb-2 font-medium uppercase tracking-wider flex items-center gap-1">
                                         <TrendingUp size={12} />
@@ -959,13 +1161,18 @@ function ManageClientsContent() {
 
                             {/* Start Date */}
                             <div>
-                                <label className="text-[#9CA3AF] text-xs mb-2 block">Start Date *</label>
+                                <label className="text-[#9CA3AF] text-xs mb-2 block">
+                                    {formData.investmentType === 'Transfer' ? 'First SIP Date on Your Platform *' : 'Start Date *'}
+                                </label>
                                 <input
                                     type="date"
                                     value={formData.startDate}
                                     onChange={(e) => setFormData(prev => ({ ...prev, startDate: e.target.value }))}
                                     className="w-full px-4 py-2.5 md:py-3 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:border-[#C4A265]/50 text-sm"
                                 />
+                                {formData.investmentType === 'Transfer' && (
+                                    <p className="text-[10px] text-[#9CA3AF] mt-1">Keep this as a future date so the first SIP installment runs next month, not immediately.</p>
+                                )}
                             </div>
                         </div>
 
