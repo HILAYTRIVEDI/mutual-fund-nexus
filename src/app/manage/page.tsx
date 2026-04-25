@@ -976,66 +976,9 @@ function ManageClientsContent() {
 
                             {/* Mutual Fund Search */}
                             <div className="relative" ref={fundDropdownRef}>
-                                <label className="text-[#9CA3AF] text-xs mb-2 flex items-center justify-between">
-                                    <span>Select Mutual Fund *</span>
-                                    <button
-                                        type="button"
-                                        onClick={() => {
-                                            setFormData(prev => ({
-                                                ...prev,
-                                                isCustomFund: !prev.isCustomFund,
-                                                schemeCode: 0,
-                                                schemeName: '',
-                                                selectedIsin: '',
-                                                selectedNseCode: '',
-                                                selectedFundCode: '',
-                                                customFundName: '',
-                                                customFundNAV: '',
-                                            }));
-                                            setFundSearch('');
-                                            setFundResults([]);
-                                        }}
-                                        className="text-[#C4A265] hover:text-[#D4B87A] transition-colors text-[11px] font-medium flex items-center gap-1"
-                                    >
-                                        <Plus size={12} />
-                                        {formData.isCustomFund ? 'Search API Instead' : 'Add Custom Fund'}
-                                    </button>
-                                </label>
+                                <label className="text-[#9CA3AF] text-xs mb-2 block">Select Mutual Fund *</label>
 
-                                {formData.isCustomFund ? (
-                                    /* Custom Fund Inputs */
-                                    <div className="space-y-3">
-                                        <div className="p-3 rounded-xl bg-[#C4A265]/5 border border-[#C4A265]/20">
-                                            <p className="text-[10px] text-[#C4A265] mb-2 font-medium uppercase tracking-wider">Custom Fund Details</p>
-                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                                <div>
-                                                    <label className="text-[#9CA3AF] text-[10px] mb-1 block">Fund Name *</label>
-                                                    <input
-                                                        type="text"
-                                                        placeholder="e.g. ABC Equity Fund"
-                                                        value={formData.customFundName}
-                                                        onChange={(e) => setFormData(prev => ({ ...prev, customFundName: e.target.value }))}
-                                                        className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder-[#9CA3AF] focus:outline-none focus:border-[#C4A265]/50 text-sm"
-                                                    />
-                                                </div>
-                                                <div>
-                                                    <label className="text-[#9CA3AF] text-[10px] mb-1 block">Current NAV *</label>
-                                                    <input
-                                                        type="number"
-                                                        step="0.01"
-                                                        placeholder="e.g. 45.50"
-                                                        value={formData.customFundNAV}
-                                                        onChange={(e) => setFormData(prev => ({ ...prev, customFundNAV: e.target.value }))}
-                                                        className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder-[#9CA3AF] focus:outline-none focus:border-[#C4A265]/50 text-sm"
-                                                    />
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                ) : (
-                                    /* API Fund Search */
-                                    <>
-                                        <div className="relative">
+                                <div className="relative">
                                             <PiggyBank className="absolute left-4 top-1/2 -translate-y-1/2 text-[#9CA3AF]" size={18} />
                                             <input
                                                 type="text"
@@ -1089,8 +1032,6 @@ function ManageClientsContent() {
                                                 })}
                                             </div>
                                         )}
-                                    </>
-                                )}
                             </div>
 
                             {/* Investment Type */}
