@@ -20,7 +20,7 @@ const BROWSER_HEADERS: Record<string, string> = {
         'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
     Accept: 'application/json, text/plain, */*',
     'Accept-Language': 'en-US,en;q=0.9',
-    'Accept-Encoding': 'gzip, deflate, br',
+    'Accept-Encoding': 'gzip, deflate',
     Referer: `${NSE_BASE}/market-data/live-market-indices`,
     Connection: 'keep-alive',
 };
@@ -31,30 +31,64 @@ const VIX_INDEX = 'INDIA VIX';
 // In-memory session cache — avoids hitting NSE homepage on every request
 let cachedCookies: string | null = null;
 let cookieExpiry = 0;
+let inflightCookies: Promise<string> | null = null;
 
-async function getSessionCookies(): Promise<string> {
-    const now = Date.now();
-    if (cachedCookies && now < cookieExpiry) {
-        return cachedCookies;
-    }
-
-    const res = await fetch(`${NSE_BASE}/`, {
+async function fetchSessionCookies(): Promise<string> {
+    // Warm up on the same page as the Referer — NSE binds API access
+    // to cookies set by that path.
+    const res = await fetch(`${NSE_BASE}/market-data/live-market-indices`, {
         headers: BROWSER_HEADERS,
         redirect: 'follow',
         signal: AbortSignal.timeout(10000),
     });
 
-    // Extract set-cookie headers
     const setCookieHeaders = res.headers.getSetCookie?.() ?? [];
     const cookies = setCookieHeaders
         .map((c) => c.split(';')[0])
         .join('; ');
 
     cachedCookies = cookies;
-    // Cache cookies for 4 minutes (NSE session usually lasts ~5 min)
-    cookieExpiry = now + 4 * 60 * 1000;
-
+    cookieExpiry = Date.now() + 4 * 60 * 1000;
     return cookies;
+}
+
+async function getSessionCookies(forceRefresh = false): Promise<string> {
+    const now = Date.now();
+    if (!forceRefresh && cachedCookies && now < cookieExpiry) {
+        return cachedCookies;
+    }
+
+    // Serialize concurrent warm-ups so 5 parallel requests share one fetch.
+    if (!inflightCookies) {
+        inflightCookies = fetchSessionCookies().finally(() => {
+            inflightCookies = null;
+        });
+    }
+    return inflightCookies;
+}
+
+async function fetchNseJson(apiUrl: string): Promise<Response> {
+    const cookies = await getSessionCookies();
+    let res = await fetch(apiUrl, {
+        headers: { ...BROWSER_HEADERS, Cookie: cookies },
+        signal: AbortSignal.timeout(10000),
+    }).catch((err) => err as Error);
+
+    const failed =
+        res instanceof Error || !res.ok;
+
+    if (failed) {
+        cachedCookies = null;
+        cookieExpiry = 0;
+        const fresh = await getSessionCookies(true);
+        res = await fetch(apiUrl, {
+            headers: { ...BROWSER_HEADERS, Cookie: fresh },
+            signal: AbortSignal.timeout(10000),
+        });
+    }
+
+    if (res instanceof Error) throw res;
+    return res;
 }
 
 export async function GET(req: NextRequest) {
@@ -62,32 +96,17 @@ export async function GET(req: NextRequest) {
         const { searchParams } = new URL(req.url);
         const indexName = searchParams.get('index') || 'NIFTY 50';
 
-        // Get session cookies
-        const cookies = await getSessionCookies();
-
-        const headers = {
-            ...BROWSER_HEADERS,
-            Cookie: cookies,
-        };
-
         let apiUrl: string;
 
         if (indexName.toUpperCase() === VIX_INDEX) {
-            // India VIX has a separate endpoint
             apiUrl = `${NSE_BASE}/api/allIndices`;
         } else {
             apiUrl = `${NSE_BASE}/api/equity-stockIndices?index=${encodeURIComponent(indexName)}`;
         }
 
-        const dataRes = await fetch(apiUrl, {
-            headers,
-            signal: AbortSignal.timeout(10000),
-        });
+        const dataRes = await fetchNseJson(apiUrl);
 
         if (!dataRes.ok) {
-            // Session may have expired — clear cache and report error
-            cachedCookies = null;
-            cookieExpiry = 0;
             return NextResponse.json(
                 { error: `NSE returned ${dataRes.status}` },
                 { status: dataRes.status }
