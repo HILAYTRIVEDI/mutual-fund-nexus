@@ -55,7 +55,9 @@ export async function getAllSchemes(
 }
 
 /**
- * Search mutual fund schemes by name
+ * Search mutual fund schemes by name (MFAPI only).
+ * For UI dropdowns prefer searchSchemesMerged() — it also covers NSE-listed
+ * schemes that may be missing from MFAPI's results.
  */
 export async function searchSchemes(query: string): Promise<MutualFundScheme[]> {
     if (!query.trim()) {
@@ -68,6 +70,42 @@ export async function searchSchemes(query: string): Promise<MutualFundScheme[]> 
         throw new Error('Failed to search schemes');
     }
     return response.json();
+}
+
+/**
+ * Merged scheme picker entry — superset of MutualFundScheme.
+ * - schemeCode > 0 ⇒ AMFI/MFAPI primary key
+ * - schemeCode === 0 ⇒ NSE-only; use nseCode as primary instead
+ */
+export interface MergedFundScheme {
+    schemeCode: number;
+    schemeName: string;
+    isin?: string;
+    nseCode?: string;
+    source: 'mfapi' | 'nse' | 'both';
+}
+
+/**
+ * Search across MFAPI + cached NSE scheme master, deduped by ISIN.
+ * Use this for fund pickers so users can select NSE-listed funds that
+ * don't yet exist in MFAPI's index.
+ */
+export async function searchSchemesMerged(query: string): Promise<MergedFundScheme[]> {
+    if (!query.trim() || query.length < 2) return [];
+    const res = await fetch(`/api/mf/search?q=${encodeURIComponent(query)}`);
+    if (!res.ok) throw new Error('Failed to search schemes');
+    return res.json();
+}
+
+/**
+ * Resolve the canonical mutual_funds.code from a MergedFundScheme.
+ * AMFI takes priority (numeric, also lives in MFAPI for daily NAV refresh);
+ * falls back to NSE scheme code for NSE-only schemes.
+ */
+export function resolveSchemeCode(fund: MergedFundScheme): string {
+    if (fund.schemeCode > 0) return String(fund.schemeCode);
+    if (fund.nseCode) return fund.nseCode;
+    throw new Error('MergedFundScheme has no schemeCode or nseCode');
 }
 
 /**

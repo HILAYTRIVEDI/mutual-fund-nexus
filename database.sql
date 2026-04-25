@@ -17,6 +17,7 @@ DROP TABLE IF EXISTS public.transactions CASCADE;
 DROP TABLE IF EXISTS public.sips CASCADE;
 DROP TABLE IF EXISTS public.holdings CASCADE;
 DROP TABLE IF EXISTS public.clients CASCADE;
+DROP TABLE IF EXISTS public.nse_scheme_master CASCADE;
 DROP TABLE IF EXISTS public.mutual_funds CASCADE;
 DROP TABLE IF EXISTS public.profiles CASCADE;
 
@@ -67,6 +68,39 @@ CREATE TABLE public.mutual_funds (
   nse_code text,        -- NSE internal scheme code (for MASTER_DOWNLOAD NAV lookup)
   isin_value text       -- ISIN growth option (for matching against NSE scheme master)
 );
+
+-- =====================================================
+-- 2b. NSE SCHEME MASTER (Cache of full NSE scheme universe)
+--
+-- Populated weekly by /api/cron/sync-scheme-codes from
+-- NSE MASTER_DOWNLOAD. Used by /api/mf/search to surface
+-- NSE-listed schemes that may be missing from MFAPI's
+-- search results, deduped against MFAPI by ISIN.
+-- =====================================================
+CREATE TABLE public.nse_scheme_master (
+  scheme_code text NOT NULL PRIMARY KEY,
+  scheme_name text NOT NULL,
+  isin text,
+  amc_code text,
+  scheme_type text,
+  current_nav numeric,
+  nav_date text,
+  last_synced timestamptz DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_nse_scheme_master_isin
+  ON public.nse_scheme_master (isin);
+CREATE INDEX IF NOT EXISTS idx_nse_scheme_master_name_trgm
+  ON public.nse_scheme_master USING gin (scheme_name gin_trgm_ops);
+
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+
+ALTER TABLE public.nse_scheme_master ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Anyone can read nse_scheme_master"
+  ON public.nse_scheme_master FOR SELECT
+  TO authenticated
+  USING (true);
 
 -- =====================================================
 -- 3. HOLDINGS - Linked to profiles.id directly

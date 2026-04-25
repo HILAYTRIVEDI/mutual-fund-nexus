@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Search, Plus, Trash2, X, UserPlus, PiggyBank, Loader2, Check, Edit2, Key, Copy, ShieldCheck, Eye, EyeOff, TrendingUp, ArrowRightLeft } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
-import { searchSchemes, type MutualFundScheme, getSchemeLatestNAV } from '@/lib/mfapi';
+import { searchSchemesMerged, type MergedFundScheme, getSchemeLatestNAV, resolveSchemeCode } from '@/lib/mfapi';
 import { useClientContext, type Client } from '@/context/ClientContext';
 import { getSupabaseClient } from '@/lib/supabase';
 import { useHoldings } from '@/context/HoldingsContext';
@@ -66,6 +66,8 @@ function ManageClientsContent() {
         schemeCode: 0,
         schemeName: '',
         selectedIsin: '',
+        selectedNseCode: '',
+        selectedFundCode: '', // canonical mutual_funds.code (AMFI > NSE)
         stepUpAmount: '',
         stepUpInterval: 'Yearly' as 'Yearly' | 'Half-Yearly' | 'Quarterly',
         isCustomFund: false,
@@ -73,7 +75,7 @@ function ManageClientsContent() {
         customFundNAV: '',
     });
 
-    type EnrichedFundScheme = MutualFundScheme & { isin?: string };
+    type EnrichedFundScheme = MergedFundScheme;
 
     // Fund search state
     const [fundSearch, setFundSearch] = useState('');
@@ -117,7 +119,7 @@ function ManageClientsContent() {
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
-    // Search funds from API
+    // Search funds via merged endpoint (MFAPI ∪ NSE scheme master)
     const handleFundSearch = useCallback(async () => {
         if (!fundSearch.trim() || fundSearch.length < 2) {
             setFundResults([]);
@@ -125,25 +127,8 @@ function ManageClientsContent() {
         }
         setFundSearching(true);
         try {
-            const results = await searchSchemes(fundSearch);
-            const top10 = results.slice(0, 10);
-
-            // Batch-lookup ISINs from AMFI scheme master (free, no API key)
-            try {
-                const isinRes = await fetch('/api/amfi/isin-lookup', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ schemeCodes: top10.map(f => f.schemeCode) }),
-                });
-                if (isinRes.ok) {
-                    const isinMap: Record<number, string> = await isinRes.json();
-                    setFundResults(top10.map(f => ({ ...f, isin: isinMap[f.schemeCode] })));
-                } else {
-                    setFundResults(top10);
-                }
-            } catch {
-                setFundResults(top10);
-            }
+            const results = await searchSchemesMerged(fundSearch);
+            setFundResults(results.slice(0, 10));
         } catch (error) {
             console.error('Failed to search funds:', error);
         } finally {
@@ -166,6 +151,8 @@ function ManageClientsContent() {
             schemeCode: fund.schemeCode,
             schemeName: fund.schemeName,
             selectedIsin: fund.isin ?? '',
+            selectedNseCode: fund.nseCode ?? '',
+            selectedFundCode: resolveSchemeCode(fund),
         }));
         setFundSearch(fund.schemeName);
         setShowFundDropdown(false);
@@ -189,7 +176,9 @@ function ManageClientsContent() {
         }
 
         // If a fund is selected, at least one investment type should have an amount
-        const hasFundSelected = formData.isCustomFund ? formData.customFundName.trim() !== '' : formData.schemeCode > 0;
+        const hasFundSelected = formData.isCustomFund
+            ? formData.customFundName.trim() !== ''
+            : (formData.schemeCode > 0 || !!formData.selectedNseCode);
         if (hasFundSelected) {
             const hasLumpsum = formData.amount && parseFloat(formData.amount) > 0;
             const hasSIP = formData.sipAmount && parseFloat(formData.sipAmount) > 0;
@@ -246,42 +235,54 @@ function ManageClientsContent() {
             }
 
             // If fund was selected, create holdings and transactions (for BOTH new and existing clients)
-            const hasScheme = formData.isCustomFund ? formData.customFundName.trim() !== '' : formData.schemeCode > 0;
+            const hasScheme = formData.isCustomFund
+                ? formData.customFundName.trim() !== ''
+                : (formData.schemeCode > 0 || !!formData.selectedNseCode);
             if (targetClientId && hasScheme) {
                 console.log('Processing investment for client:', targetClientId);
-                
+
                 const supabase = getSupabaseClient();
-                
+
                 let effectiveSchemeCode: string;
                 let effectiveSchemeName: string;
                 let currentNav = 10;
                 let isinValue: string | null = null;
-                
+                let nseCodeValue: string | null = null;
+
                 if (formData.isCustomFund) {
                     // Custom fund: generate unique code
                     effectiveSchemeCode = `CUSTOM-${Date.now()}`;
                     effectiveSchemeName = formData.customFundName.trim();
                     currentNav = parseFloat(formData.customFundNAV) || 10;
                 } else {
-                    effectiveSchemeCode = formData.schemeCode.toString();
+                    // AMFI present ⇒ use AMFI as primary code (works with MFAPI for daily NAV).
+                    // NSE-only ⇒ use NSE scheme code as primary; daily-refresh will resolve NAV via NSE.
+                    effectiveSchemeCode = formData.selectedFundCode
+                        || (formData.schemeCode > 0 ? formData.schemeCode.toString() : formData.selectedNseCode);
                     effectiveSchemeName = formData.schemeName;
-                    // Use ISIN already fetched from AMFI during search; fallback to MFAPI meta
                     isinValue = formData.selectedIsin || null;
-                    try {
-                        const navData = await getSchemeLatestNAV(formData.schemeCode);
-                        if (navData?.data?.[0]) {
-                            currentNav = parseFloat(navData.data[0].nav);
+                    nseCodeValue = formData.selectedNseCode || null;
+
+                    // Fetch latest NAV from MFAPI when an AMFI code is available
+                    if (formData.schemeCode > 0) {
+                        try {
+                            const navData = await getSchemeLatestNAV(formData.schemeCode);
+                            if (navData?.data?.[0]) {
+                                currentNav = parseFloat(navData.data[0].nav);
+                            }
+                            if (!isinValue) {
+                                isinValue = navData?.meta?.isin_growth ?? null;
+                            }
+                        } catch (e) {
+                            console.warn('Could not fetch latest NAV, using default', e);
                         }
-                        // MFAPI isin_growth overrides if AMFI lookup missed it
-                        if (!isinValue) {
-                            isinValue = navData?.meta?.isin_growth ?? null;
-                        }
-                    } catch (e) {
-                        console.warn('Could not fetch latest NAV, using default', e);
                     }
+                    // For NSE-only schemes, currentNav stays at 10 here; the next /api/cron/daily-refresh
+                    // will pull the real NAV from NSE MASTER_DOWNLOAD using nse_code.
                 }
 
-                // Upsert mutual fund — include isin_value so sync-scheme-codes can backfill nse_code
+                // Upsert mutual fund — include isin_value AND nse_code so daily-refresh
+                // can route NAV updates through NSE/MFAPI without further intervention.
                 await (supabase.from('mutual_funds') as any).upsert({
                     code: effectiveSchemeCode,
                     name: effectiveSchemeName,
@@ -291,6 +292,7 @@ function ManageClientsContent() {
                     current_nav: currentNav,
                     last_updated: new Date().toISOString(),
                     ...(isinValue ? { isin_value: isinValue } : {}),
+                    ...(nseCodeValue ? { nse_code: nseCodeValue } : {}),
                 });
 
                 const lumpsumAmount = parseFloat(formData.amount) || 0;
@@ -419,6 +421,8 @@ function ManageClientsContent() {
             schemeCode: 0,
             schemeName: '',
             selectedIsin: '',
+            selectedNseCode: '',
+            selectedFundCode: '',
             stepUpAmount: '',
             stepUpInterval: 'Yearly',
             isCustomFund: false,
@@ -500,6 +504,8 @@ function ManageClientsContent() {
             schemeCode: 0,
             schemeName: '',
             selectedIsin: '',
+            selectedNseCode: '',
+            selectedFundCode: '',
             stepUpAmount: '',
             stepUpInterval: 'Yearly',
             isCustomFund: false,
@@ -981,6 +987,8 @@ function ManageClientsContent() {
                                                 schemeCode: 0,
                                                 schemeName: '',
                                                 selectedIsin: '',
+                                                selectedNseCode: '',
+                                                selectedFundCode: '',
                                                 customFundName: '',
                                                 customFundNAV: '',
                                             }));
@@ -1048,18 +1056,37 @@ function ManageClientsContent() {
                                         {/* Fund Results Dropdown */}
                                         {showFundDropdown && fundResults.length > 0 && (
                                             <div className="absolute z-10 w-full mt-2 bg-[#151A21] border border-white/10 rounded-xl shadow-xl max-h-48 overflow-y-auto">
-                                                {fundResults.map((fund) => (
-                                                    <button
-                                                        key={fund.schemeCode}
-                                                        onClick={() => handleSelectFund(fund)}
-                                                        className="w-full text-left px-4 py-3 hover:bg-white/5 transition-colors border-b border-white/5 last:border-0"
-                                                    >
-                                                        <p className="text-white text-sm truncate">{fund.schemeName}</p>
-                                                        <p className="text-[#9CA3AF] text-xs">
-                                                            {fund.isin ? `ISIN: ${fund.isin}` : `Code: ${fund.schemeCode}`}
-                                                        </p>
-                                                    </button>
-                                                ))}
+                                                {fundResults.map((fund) => {
+                                                    const key = fund.schemeCode > 0
+                                                        ? `mfapi-${fund.schemeCode}`
+                                                        : `nse-${fund.nseCode}`;
+                                                    const sourceBadge = fund.source === 'both'
+                                                        ? { label: 'AMFI + NSE', cls: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30' }
+                                                        : fund.source === 'nse'
+                                                            ? { label: 'NSE only', cls: 'bg-amber-500/15 text-amber-300 border-amber-500/30' }
+                                                            : { label: 'AMFI', cls: 'bg-sky-500/15 text-sky-300 border-sky-500/30' };
+                                                    return (
+                                                        <button
+                                                            key={key}
+                                                            onClick={() => handleSelectFund(fund)}
+                                                            className="w-full text-left px-4 py-3 hover:bg-white/5 transition-colors border-b border-white/5 last:border-0"
+                                                        >
+                                                            <div className="flex items-start justify-between gap-2">
+                                                                <p className="text-white text-sm truncate flex-1">{fund.schemeName}</p>
+                                                                <span className={`shrink-0 text-[10px] px-2 py-0.5 rounded-full border ${sourceBadge.cls}`}>
+                                                                    {sourceBadge.label}
+                                                                </span>
+                                                            </div>
+                                                            <p className="text-[#9CA3AF] text-xs">
+                                                                {fund.isin
+                                                                    ? `ISIN: ${fund.isin}`
+                                                                    : fund.nseCode
+                                                                        ? `NSE: ${fund.nseCode}`
+                                                                        : `Code: ${fund.schemeCode}`}
+                                                            </p>
+                                                        </button>
+                                                    );
+                                                })}
                                             </div>
                                         )}
                                     </>

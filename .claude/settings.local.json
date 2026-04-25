@@ -2,7 +2,8 @@
   "permissions": {
     "allow": [
       "Bash(npx tsc:*)",
-      "Bash(xargs grep:*)"
+      "Bash(xargs grep:*)",
+      "Bash(curl -s \"http://localhost:3000/api/mf/search?q=Nippon+Vision\" -m 30)"
     ]
   }
 }
