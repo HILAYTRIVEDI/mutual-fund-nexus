@@ -60,11 +60,12 @@ app.all('*', async (req: Request, res: Response) => {
     // Build forwarded headers — strip proxy-specific ones
     const forwardHeaders: Record<string, string> = {};
     for (const [key, value] of Object.entries(req.headers)) {
-        if (['host', 'x-proxy-key', 'connection'].includes(key.toLowerCase())) continue;
+        if (['host', 'x-proxy-key', 'connection', 'x-vercel-id', 'x-invocation-id', 'sec-fetch-mode', 'sec-fetch-dest', 'sec-fetch-site', 'sec-fetch-user'].includes(key.toLowerCase())) continue;
         if (typeof value === 'string') forwardHeaders[key] = value;
         else if (Array.isArray(value)) forwardHeaders[key] = value.join(', ');
     }
     forwardHeaders['host'] = new URL(NSE_TARGET).host;
+    forwardHeaders['connection'] = 'keep-alive'; // NSE/Akamai requires this explicitly
 
     try {
         const nseRes = await fetch(targetUrl, {
