@@ -61,6 +61,7 @@ function ManageClientsContent() {
         password: '', // Admin-defined password for client
         investmentType: 'SIP' as 'SIP' | 'Lumpsum' | 'Transfer',
         amount: '',
+        totalInvested: '',
         sipAmount: '',
         startDate: '',
         schemeCode: 0,
@@ -186,6 +187,10 @@ function ManageClientsContent() {
             if (formData.investmentType === 'Transfer') {
                 if (!hasLumpsum) {
                     alert('Please enter the Current Portfolio Value to transfer');
+                    return;
+                }
+                if (!formData.totalInvested || parseFloat(formData.totalInvested) <= 0) {
+                    alert('Please enter the Total Invested Value till today');
                     return;
                 }
                 if (!hasSIP) {
@@ -324,25 +329,39 @@ function ManageClientsContent() {
                 if (totalInitialAmount > 0) {
                     console.log('Creating initial holding...', { lumpsumAmount, sipFirstAmount, total: totalInitialAmount });
                     const totalUnits = currentNav > 0 ? totalInitialAmount / currentNav : 0;
-                    
+
+                    // For Transfer mode, anchor cost basis to user-supplied totalInvested so
+                    // P&L = currentValue − totalInvested. Holding.invested_amount is generated
+                    // as units × average_price, so we back-solve average_price from totalInvested.
+                    const transferTotalInvested = formData.investmentType === 'Transfer'
+                        ? parseFloat(formData.totalInvested) || 0
+                        : 0;
+                    const lumpsumUnits = currentNav > 0 ? lumpsumAmount / currentNav : 0;
+                    const lumpsumAvgPrice = formData.investmentType === 'Transfer' && lumpsumUnits > 0
+                        ? transferTotalInvested / lumpsumUnits
+                        : currentNav;
+                    const holdingAvgPrice = formData.investmentType === 'Transfer' && totalUnits > 0
+                        ? (transferTotalInvested + sipFirstAmount) / totalUnits
+                        : currentNav;
+
                     await addHolding({
                         user_id: targetClientId,
                         scheme_code: effectiveSchemeCode,
                         units: totalUnits,
-                        average_price: currentNav,
+                        average_price: holdingAvgPrice,
                         current_nav: currentNav,
                     });
 
                     // Record Lumpsum Transaction
                     if (lumpsumAmount > 0) {
-                        const units = currentNav > 0 ? lumpsumAmount / currentNav : 0;
+                        const txAmount = formData.investmentType === 'Transfer' ? transferTotalInvested : lumpsumAmount;
                         await addTransaction({
                             user_id: targetClientId,
                             scheme_code: effectiveSchemeCode,
                             type: 'buy',
-                            amount: lumpsumAmount,
-                            units: units,
-                            nav: currentNav,
+                            amount: txAmount,
+                            units: lumpsumUnits,
+                            nav: lumpsumAvgPrice,
                             status: 'completed',
                             date: new Date().toISOString()
                         });
@@ -416,6 +435,7 @@ function ManageClientsContent() {
             password: '', // Password not editable for existing clients
             investmentType: 'SIP', // Default - holdings are stored separately
             amount: '0',
+            totalInvested: '',
             sipAmount: '',
             startDate: '',
             schemeCode: 0,
@@ -499,6 +519,7 @@ function ManageClientsContent() {
             password: '',
             investmentType: 'SIP',
             amount: '',
+            totalInvested: '',
             sipAmount: '',
             startDate: '',
             schemeCode: 0,
@@ -1103,21 +1124,46 @@ function ManageClientsContent() {
                                         />
                                     </div>
                                 )}
+                                {formData.investmentType === 'Transfer' && (
+                                    <div className="sm:col-span-2">
+                                        <label className="text-[#9CA3AF] text-xs mb-2 block">Total Invested Value Till Today (₹) *</label>
+                                        <input
+                                            type="number"
+                                            placeholder="₹ e.g. 1800"
+                                            value={formData.totalInvested}
+                                            onChange={(e) => setFormData(prev => ({ ...prev, totalInvested: e.target.value }))}
+                                            className="w-full px-4 py-2.5 md:py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-[#9CA3AF] focus:outline-none focus:border-[#C4A265]/50 text-sm"
+                                        />
+                                        <p className="text-[10px] text-[#9CA3AF] mt-1">Sum of all contributions made on the previous platform. Used as the cost basis for P&amp;L.</p>
+                                    </div>
+                                )}
                             </div>
 
                             {/* Transfer summary card */}
-                            {formData.investmentType === 'Transfer' && parseFloat(formData.amount) > 0 && parseFloat(formData.sipAmount) > 0 && (
+                            {formData.investmentType === 'Transfer' && parseFloat(formData.amount) > 0 && parseFloat(formData.sipAmount) > 0 && parseFloat(formData.totalInvested) > 0 && (
                                 <div className="p-3 rounded-xl bg-[#10B981]/5 border border-[#10B981]/20">
                                     <p className="text-[10px] text-[#10B981] mb-1.5 font-medium uppercase tracking-wider flex items-center gap-1">
                                         <ArrowRightLeft size={11} />
                                         Transfer Summary
                                     </p>
                                     <p className="text-[#D1FAE5] text-xs leading-relaxed">
-                                        <span className="font-semibold">₹{parseFloat(formData.amount).toLocaleString('en-IN')}</span> will be recorded as the starting value at today&apos;s NAV.{' '}
+                                        <span className="font-semibold">₹{parseFloat(formData.amount).toLocaleString('en-IN')}</span> current value with cost basis{' '}
+                                        <span className="font-semibold">₹{parseFloat(formData.totalInvested).toLocaleString('en-IN')}</span> invested.{' '}
                                         <span className="font-semibold">₹{parseFloat(formData.sipAmount).toLocaleString('en-IN')}/month</span> SIP will begin from{' '}
                                         {formData.startDate ? new Date(formData.startDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : 'next month'}.
                                     </p>
-                                    <p className="text-[9px] text-[#6EE7B7] mt-1.5">Prior gains from the old platform are absorbed into the starting value.</p>
+                                    {(() => {
+                                        const cur = parseFloat(formData.amount);
+                                        const inv = parseFloat(formData.totalInvested);
+                                        const pnl = cur - inv;
+                                        const pct = inv > 0 ? (pnl / inv) * 100 : 0;
+                                        const positive = pnl >= 0;
+                                        return (
+                                            <p className={`text-[10px] mt-1.5 font-medium ${positive ? 'text-[#6EE7B7]' : 'text-[#FCA5A5]'}`}>
+                                                Opening P&amp;L: {positive ? '+' : ''}₹{pnl.toLocaleString('en-IN', { maximumFractionDigits: 2 })} ({positive ? '+' : ''}{pct.toFixed(2)}%)
+                                            </p>
+                                        );
+                                    })()}
                                 </div>
                             )}
 
