@@ -16,6 +16,8 @@ import crypto from 'crypto';
 import { HttpsProxyAgent } from 'https-proxy-agent';
 
 const NSE_BASE_URL = process.env.NSE_BASE_URL ?? 'https://nseinvestuat.nseindia.com';
+// Referer must always be the real NSE domain — Akamai validates it and rejects proxy IPs
+const NSE_REFERER_URL = process.env.NSE_REFERER_URL ?? 'https://nseinvestuat.nseindia.com';
 const LOGIN_USER_ID = process.env.NSE_LOGIN_USER_ID ?? 'ADMIN';
 // api_key_member — PBKDF2 passphrase
 const API_KEY_MEMBER = process.env.NSE_MEMBER_API_KEY ?? '';
@@ -70,7 +72,7 @@ function buildHeaders(): Record<string, string> {
         'Accept-Encoding': 'gzip, deflate, br',
         'Accept-Language': 'en-US',
         Connection: 'keep-alive',
-        Referer: NSE_BASE_URL,            // Must be NSE URL — Akamai validates this
+        Referer: NSE_REFERER_URL,         // Must be real NSE domain — Akamai rejects proxy IPs
         'User-Agent': 'PostmanRuntime/7.43.0',  // NSE doc: use Postman UA to pass Akamai
         memberId: MEMBER_CODE,
     };
