@@ -1,120 +1,123 @@
 'use client';
 
-import { PiggyBank, TrendingUp, TrendingDown } from 'lucide-react';
+import { PiggyBank, TrendingUp, TrendingDown, Loader2 } from 'lucide-react';
+import { useHoldings, HoldingWithValue } from '@/context/HoldingsContext';
+import { useMemo } from 'react';
 
-const topFunds = [
-    {
-        id: 1,
-        name: 'HDFC Mid-Cap Opportunities',
-        category: 'Mid Cap',
-        change: 2.45,
-        isPositive: true,
-        aum: '₹45,234 Cr',
-        returns1Y: '+28.5%',
-        nav: '₹156.78',
-        color: '#C4A265',
-    },
-    {
-        id: 2,
-        name: 'SBI Small Cap Fund',
-        category: 'Small Cap',
-        change: 1.82,
-        isPositive: true,
-        aum: '₹22,456 Cr',
-        returns1Y: '+35.2%',
-        nav: '₹142.34',
-        color: '#3B82F6',
-    },
-    {
-        id: 3,
-        name: 'Axis Bluechip Fund',
-        category: 'Large Cap',
-        change: -0.45,
-        isPositive: false,
-        aum: '₹38,765 Cr',
-        returns1Y: '+18.6%',
-        nav: '₹52.18',
-        color: '#5B7FA4',
-    },
-    {
-        id: 4,
-        name: 'ICICI Pru Technology',
-        category: 'Sectoral',
-        change: 3.21,
-        isPositive: true,
-        aum: '₹12,543 Cr',
-        returns1Y: '+42.8%',
-        nav: '₹178.90',
-        color: '#F59E0B',
-    },
-];
+const COLORS = ['#C4A265', '#3B82F6', '#5B7FA4', '#F59E0B', '#EC4899', '#10B981'];
+
+function formatCurrency(amount: number): string {
+    if (amount >= 10000000) {
+        return `₹${(amount / 10000000).toFixed(2)} Cr`;
+    } else if (amount >= 100000) {
+        return `₹${(amount / 100000).toFixed(2)} L`;
+    }
+    return `₹${amount.toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
+}
 
 export default function MarketSnapshot() {
+    const { holdings, isLoading } = useHoldings();
+
+    // Derive top performing funds from actual holdings, sorted by gain %
+    const topFunds = useMemo(() => {
+        if (!holdings || holdings.length === 0) return [];
+
+        return [...holdings]
+            .filter((h) => h.invested_amount > 0)
+            .sort((a, b) => b.gain_loss_percentage - a.gain_loss_percentage)
+            .slice(0, 5)
+            .map((h: HoldingWithValue, i) => ({
+                id: h.id,
+                name: (h as any).mutual_fund?.name ?? `Fund ${h.scheme_code}`,
+                category: (h as any).mutual_fund?.category ?? '—',
+                change: h.gain_loss_percentage,
+                isPositive: h.gain_loss >= 0,
+                currentValue: formatCurrency(h.current_value),
+                returns: `${h.gain_loss_percentage >= 0 ? '+' : ''}${h.gain_loss_percentage.toFixed(1)}%`,
+                nav: `₹${h.current_nav.toFixed(2)}`,
+                color: COLORS[i % COLORS.length],
+            }));
+    }, [holdings]);
+
     return (
         <div className="glass-card rounded-2xl p-6 gradient-border relative overflow-hidden transition-colors duration-300">
             {/* Gradient overlay */}
             <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent-gold)]/5 via-transparent to-[var(--accent-slate)]/5 pointer-events-none" />
 
             <div className="flex items-center justify-between mb-4 relative z-10">
-                <h3 className="text-[var(--text-primary)] font-semibold">Top Performing Funds</h3>
+                <h3 className="text-[var(--text-primary)] font-semibold">Top Performing Holdings</h3>
                 <button className="text-[var(--accent-mint)] text-sm font-medium hover:underline transition-colors">
                     View All
                 </button>
             </div>
 
-            {/* Table Header */}
-            <div className="grid grid-cols-12 gap-4 px-4 py-2 text-[var(--text-secondary)] text-xs font-medium relative z-10">
-                <div className="col-span-4">Fund Name</div>
-                <div className="col-span-2 text-right">Today</div>
-                <div className="col-span-2 text-right">AUM</div>
-                <div className="col-span-2 text-right">1Y Returns</div>
-                <div className="col-span-2 text-right">NAV</div>
-            </div>
-
-            {/* Table Body */}
-            <div className="space-y-2 relative z-10">
-                {topFunds.map((fund) => (
-                    <div
-                        key={fund.id}
-                        className="grid grid-cols-12 gap-4 p-4 rounded-xl hover:bg-gradient-to-r hover:from-[var(--bg-hover)] hover:to-transparent transition-all duration-300 cursor-pointer group border border-transparent hover:border-[var(--border-primary)]"
-                    >
-                        <div className="col-span-4 flex items-center gap-3">
-                            <div
-                                className="w-8 h-8 rounded-full flex items-center justify-center transition-transform group-hover:scale-110"
-                                style={{
-                                    background: `linear-gradient(135deg, ${fund.color}30, ${fund.color}10)`,
-                                }}
-                            >
-                                <PiggyBank size={14} style={{ color: fund.color }} />
-                            </div>
-                            <div className="min-w-0">
-                                <p className="text-[var(--text-primary)] text-sm font-medium truncate max-w-[150px]">{fund.name}</p>
-                                <p className="text-[var(--text-secondary)] text-xs">{fund.category}</p>
-                            </div>
-                        </div>
-                        <div className="col-span-2 flex items-center justify-end">
-                            <div
-                                className={`flex items-center gap-1 px-2 py-1 rounded text-xs font-medium ${fund.isPositive
-                                        ? 'text-[var(--accent-mint)] bg-[var(--accent-mint)]/10'
-                                        : 'text-[var(--accent-red)] bg-[var(--accent-red)]/10'
-                                    }`}
-                            >
-                                {fund.isPositive ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
-                                {fund.isPositive ? '+' : ''}{fund.change}%
-                            </div>
-                        </div>
-                        <div className="col-span-2 flex items-center justify-end">
-                            <span className="text-[var(--text-primary)] text-sm">{fund.aum}</span>
-                        </div>
-                        <div className="col-span-2 flex items-center justify-end">
-                            <span className="text-[var(--accent-mint)] text-sm font-medium">{fund.returns1Y}</span>
-                        </div>
-                        <div className="col-span-2 flex items-center justify-end">
-                            <span className="text-[var(--text-primary)] text-sm font-medium">{fund.nav}</span>
-                        </div>
+            {isLoading ? (
+                <div className="flex items-center justify-center py-12 relative z-10">
+                    <Loader2 size={24} className="animate-spin text-[var(--text-muted)]" />
+                </div>
+            ) : topFunds.length === 0 ? (
+                <div className="text-center py-8 relative z-10">
+                    <p className="text-[var(--text-muted)] text-sm">No holdings yet. Add funds to see performance.</p>
+                </div>
+            ) : (
+                <>
+                    {/* Table Header */}
+                    <div className="grid grid-cols-12 gap-4 px-4 py-2 text-[var(--text-secondary)] text-xs font-medium relative z-10">
+                        <div className="col-span-4">Fund Name</div>
+                        <div className="col-span-2 text-right">Returns</div>
+                        <div className="col-span-2 text-right">Value</div>
+                        <div className="col-span-2 text-right">Gain/Loss</div>
+                        <div className="col-span-2 text-right">NAV</div>
                     </div>
-                ))}
-            </div>
+
+                    {/* Table Body */}
+                    <div className="space-y-2 relative z-10">
+                        {topFunds.map((fund) => (
+                            <div
+                                key={fund.id}
+                                className="grid grid-cols-12 gap-4 p-4 rounded-xl hover:bg-gradient-to-r hover:from-[var(--bg-hover)] hover:to-transparent transition-all duration-300 cursor-pointer group border border-transparent hover:border-[var(--border-primary)]"
+                            >
+                                <div className="col-span-4 flex items-center gap-3">
+                                    <div
+                                        className="w-8 h-8 rounded-full flex items-center justify-center transition-transform group-hover:scale-110"
+                                        style={{
+                                            background: `linear-gradient(135deg, ${fund.color}30, ${fund.color}10)`,
+                                        }}
+                                    >
+                                        <PiggyBank size={14} style={{ color: fund.color }} />
+                                    </div>
+                                    <div className="min-w-0">
+                                        <p className="text-[var(--text-primary)] text-sm font-medium truncate max-w-[150px]">{fund.name}</p>
+                                        <p className="text-[var(--text-secondary)] text-xs">{fund.category}</p>
+                                    </div>
+                                </div>
+                                <div className="col-span-2 flex items-center justify-end">
+                                    <div
+                                        className={`flex items-center gap-1 px-2 py-1 rounded text-xs font-medium ${fund.isPositive
+                                                ? 'text-[var(--accent-mint)] bg-[var(--accent-mint)]/10'
+                                                : 'text-[var(--accent-red)] bg-[var(--accent-red)]/10'
+                                            }`}
+                                    >
+                                        {fund.isPositive ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
+                                        {fund.returns}
+                                    </div>
+                                </div>
+                                <div className="col-span-2 flex items-center justify-end">
+                                    <span className="text-[var(--text-primary)] text-sm">{fund.currentValue}</span>
+                                </div>
+                                <div className="col-span-2 flex items-center justify-end">
+                                    <span className={`text-sm font-medium ${fund.isPositive ? 'text-[var(--accent-mint)]' : 'text-[var(--accent-red)]'}`}>
+                                        {fund.returns}
+                                    </span>
+                                </div>
+                                <div className="col-span-2 flex items-center justify-end">
+                                    <span className="text-[var(--text-primary)] text-sm font-medium">{fund.nav}</span>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </>
+            )}
         </div>
     );
 }

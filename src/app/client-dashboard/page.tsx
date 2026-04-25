@@ -10,6 +10,7 @@ import { TrendingUp, TrendingDown, PiggyBank, Calendar, Wallet, Target, Calculat
 import { useState, useMemo } from 'react';
 import AssetChartCard from '@/components/AssetChartCard';
 import DistributionCard from '@/components/DistributionCard';
+import MarketIndicesTracker from '@/components/MarketIndicesTracker';
 import Link from 'next/link';
 
 const COLORS = ['#C4A265', '#3B82F6', '#5B7FA4', '#F59E0B', '#EC4899', '#10B981', '#6366F1'];
@@ -156,6 +157,11 @@ export default function ClientDashboard() {
                         </div>
                     </div>
                 </header>
+
+                {/* Live Market Indices */}
+                <div className="mb-6">
+                    <MarketIndicesTracker />
+                </div>
 
                 {/* Summary Cards */}
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 mb-6">

@@ -12,6 +12,8 @@ import ActivitySection from '@/components/ActivitySection';
 import StakingCard from '@/components/StakingCard';
 
 import MonthlySIPCard from '@/components/MonthlySIPCard';
+import MarketIndicesTracker from '@/components/MarketIndicesTracker';
+import MarketSnapshot from '@/components/MarketSnapshot';
 import { useAuth } from '@/context/AuthContext';
 
 export default function Home() {
@@ -44,6 +46,9 @@ export default function Home() {
 
         {/* Bento Grid Layout */}
         <div className="space-y-4">
+          {/* Row 0: Live Market Indices */}
+          <MarketIndicesTracker />
+
           {/* Row 1: Asset Chart + Distribution */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
             <AssetChartCard />
@@ -53,7 +58,8 @@ export default function Home() {
           {/* Row 2: Top Holdings (Full Width) */}
           <PortfolioCard />
 
-
+          {/* Row 3: Top Performing Holdings */}
+          <MarketSnapshot />
 
           {/* Row 4: Monthly SIP + Activity */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">

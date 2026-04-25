@@ -2,7 +2,11 @@
   "crons": [
     {
       "path": "/api/cron/daily-refresh",
-      "schedule": "0 10 * * 1-5"
+      "schedule": "30 16 * * 1-5"
+    },
+    {
+      "path": "/api/cron/sync-scheme-codes",
+      "schedule": "0 18 * * 0"
     },
     {
       "path": "/api/cron/process-sips",

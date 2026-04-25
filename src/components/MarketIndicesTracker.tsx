@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { TrendingUp, TrendingDown, RefreshCw, Activity, Clock } from 'lucide-react';
 
 interface MarketIndex {
@@ -17,86 +17,14 @@ interface MarketIndex {
     color: string;
 }
 
-// Mock market indices data - In production, this would come from a live API
-const mockIndices: MarketIndex[] = [
-    {
-        id: '1',
-        name: 'NIFTY 50',
-        symbol: 'NIFTY',
-        value: 23587.50,
-        change: 105.75,
-        changePercent: 0.45,
-        previousClose: 23481.75,
-        dayHigh: 23625.40,
-        dayLow: 23520.15,
-        open: 23545.00,
-        color: '#C4A265',
-    },
-    {
-        id: '2',
-        name: 'SENSEX',
-        symbol: 'SENSEX',
-        value: 78041.25,
-        change: 295.80,
-        changePercent: 0.38,
-        previousClose: 77745.45,
-        dayHigh: 78156.30,
-        dayLow: 77890.00,
-        open: 77920.50,
-        color: '#3B82F6',
-    },
-    {
-        id: '3',
-        name: 'NIFTY Bank',
-        symbol: 'BANKNIFTY',
-        value: 50234.70,
-        change: -125.40,
-        changePercent: -0.25,
-        previousClose: 50360.10,
-        dayHigh: 50450.00,
-        dayLow: 50150.25,
-        open: 50380.00,
-        color: '#5B7FA4',
-    },
-    {
-        id: '4',
-        name: 'NIFTY IT',
-        symbol: 'NIFTYIT',
-        value: 38562.85,
-        change: 456.20,
-        changePercent: 1.20,
-        previousClose: 38106.65,
-        dayHigh: 38620.00,
-        dayLow: 38250.40,
-        open: 38350.00,
-        color: '#F59E0B',
-    },
-    {
-        id: '5',
-        name: 'NIFTY Midcap 100',
-        symbol: 'NIFTYMID',
-        value: 52180.45,
-        change: 245.60,
-        changePercent: 0.47,
-        previousClose: 51934.85,
-        dayHigh: 52250.00,
-        dayLow: 52000.10,
-        open: 52050.00,
-        color: '#EC4899',
-    },
-    {
-        id: '6',
-        name: 'India VIX',
-        symbol: 'INDIAVIX',
-        value: 13.25,
-        change: -0.42,
-        changePercent: -3.07,
-        previousClose: 13.67,
-        dayHigh: 13.85,
-        dayLow: 13.10,
-        open: 13.70,
-        color: '#EF4444',
-    },
+// Index definitions — symbol maps to NSE API index name
+const INDEX_CONFIG: { symbol: string; name: string; nseIndex: string; color: string }[] = [
+    { symbol: 'NIFTY', name: 'NIFTY 50', nseIndex: 'NIFTY 50', color: '#C4A265' },
+    { symbol: 'BANKNIFTY', name: 'NIFTY Bank', nseIndex: 'NIFTY BANK', color: '#5B7FA4' },
+    { symbol: 'NIFTYIT', name: 'NIFTY IT', nseIndex: 'NIFTY IT', color: '#F59E0B' },
+    { symbol: 'NIFTYMID', name: 'NIFTY Midcap 100', nseIndex: 'NIFTY MIDCAP 100', color: '#EC4899' },
+    { symbol: 'NIFTYNEXT', name: 'NIFTY Next 50', nseIndex: 'NIFTY NEXT 50', color: '#3B82F6' },
+    { symbol: 'INDIAVIX', name: 'India VIX', nseIndex: 'INDIA VIX', color: '#EF4444' },
 ];
 
 function formatNumber(num: number, decimals = 2): string {
@@ -104,32 +32,87 @@ function formatNumber(num: number, decimals = 2): string {
 }
 
 export default function MarketIndicesTracker() {
-    const [indices, setIndices] = useState<MarketIndex[]>(mockIndices);
-    const [isLoading, setIsLoading] = useState(false);
-    const [lastUpdated, setLastUpdated] = useState(new Date());
+    const [indices, setIndices] = useState<MarketIndex[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+    const [fetchError, setFetchError] = useState<string | null>(null);
 
-    const refreshData = () => {
+    const fetchIndices = useCallback(async () => {
         setIsLoading(true);
-        // Simulate API call with slight randomization
-        setTimeout(() => {
-            const updatedIndices = indices.map(index => ({
-                ...index,
-                value: index.value + (Math.random() - 0.5) * 10,
-                change: index.change + (Math.random() - 0.5) * 5,
-                changePercent: index.changePercent + (Math.random() - 0.5) * 0.1,
-            }));
-            setIndices(updatedIndices);
-            setLastUpdated(new Date());
-            setIsLoading(false);
-        }, 1000);
-    };
+        setFetchError(null);
+        try {
+            const results: MarketIndex[] = [];
 
-    // Auto-refresh every 30 seconds
-    useEffect(() => {
-        const interval = setInterval(refreshData, 30000);
-        return () => clearInterval(interval);
-        // eslint-disable-next-line react-hooks/exhaustive-deps
+            // Fetch all indices in parallel
+            const fetches = INDEX_CONFIG.map(async (cfg) => {
+                try {
+                    const res = await fetch(`/api/nse/indices?index=${encodeURIComponent(cfg.nseIndex)}`);
+                    if (!res.ok) return null;
+                    const data = await res.json();
+
+                    // India VIX has a flat response shape
+                    if (cfg.nseIndex === 'INDIA VIX') {
+                        return {
+                            id: cfg.symbol,
+                            name: cfg.name,
+                            symbol: cfg.symbol,
+                            value: data.lastPrice ?? 0,
+                            change: data.change ?? 0,
+                            changePercent: data.pChange ?? 0,
+                            previousClose: data.previousClose ?? 0,
+                            dayHigh: data.dayHigh ?? 0,
+                            dayLow: data.dayLow ?? 0,
+                            open: data.open ?? 0,
+                            color: cfg.color,
+                        } as MarketIndex;
+                    }
+
+                    // Standard index — metadata contains index-level data
+                    const meta = data.metadata ?? data.data?.[0];
+                    if (!meta) return null;
+
+                    return {
+                        id: cfg.symbol,
+                        name: cfg.name,
+                        symbol: cfg.symbol,
+                        value: meta.last ?? meta.lastPrice ?? 0,
+                        change: meta.change ?? 0,
+                        changePercent: meta.percChange ?? meta.pChange ?? 0,
+                        previousClose: meta.previousClose ?? 0,
+                        dayHigh: meta.high ?? meta.dayHigh ?? 0,
+                        dayLow: meta.low ?? meta.dayLow ?? 0,
+                        open: meta.open ?? 0,
+                        color: cfg.color,
+                    } as MarketIndex;
+                } catch {
+                    return null;
+                }
+            });
+
+            const settled = await Promise.all(fetches);
+            for (const r of settled) {
+                if (r) results.push(r);
+            }
+
+            if (results.length > 0) {
+                setIndices(results);
+                setLastUpdated(new Date());
+            } else {
+                setFetchError('Unable to fetch market data');
+            }
+        } catch {
+            setFetchError('Network error');
+        } finally {
+            setIsLoading(false);
+        }
     }, []);
+
+    // Initial fetch + auto-refresh every 60 seconds
+    useEffect(() => {
+        fetchIndices();
+        const interval = setInterval(fetchIndices, 60000);
+        return () => clearInterval(interval);
+    }, [fetchIndices]);
 
     const marketStatus = new Date().getHours() >= 9 && new Date().getHours() < 16 ? 'Market Open' : 'Market Closed';
 
@@ -151,12 +134,14 @@ export default function MarketIndicesTracker() {
                     </span>
                 </div>
                 <div className="flex items-center gap-3">
-                    <span className="text-[var(--text-muted)] text-xs flex items-center gap-1">
-                        <Clock size={12} />
-                        {lastUpdated.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
-                    </span>
+                    {lastUpdated && (
+                        <span className="text-[var(--text-muted)] text-xs flex items-center gap-1">
+                            <Clock size={12} />
+                            {lastUpdated.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                    )}
                     <button
-                        onClick={refreshData}
+                        onClick={fetchIndices}
                         disabled={isLoading}
                         className={`p-2 rounded-lg hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] transition-all ${isLoading ? 'animate-spin' : ''}`}
                     >
@@ -164,6 +149,16 @@ export default function MarketIndicesTracker() {
                     </button>
                 </div>
             </div>
+
+            {/* Error / Empty State */}
+            {fetchError && indices.length === 0 && (
+                <div className="text-center py-8 relative z-10">
+                    <p className="text-[var(--text-muted)] text-sm">{fetchError}</p>
+                    <button onClick={fetchIndices} className="mt-2 text-[var(--accent-blue)] text-sm hover:underline">
+                        Try again
+                    </button>
+                </div>
+            )}
 
             {/* Indices Grid - Responsive */}
             <div className="grid grid-cols-2 md:grid-cols-3 gap-2 md:gap-4 relative z-10">
@@ -232,7 +227,7 @@ export default function MarketIndicesTracker() {
             {/* Footer */}
             <div className="mt-3 md:mt-4 pt-3 md:pt-4 border-t border-[var(--border-primary)] relative z-10">
                 <p className="text-[var(--text-muted)] text-[10px] md:text-xs text-center">
-                    Data is indicative and refreshes every 30 seconds. For real-time data, connect to NSE/BSE APIs.
+                    Live data from NSE India. Auto-refreshes every 60 seconds during market hours.
                 </p>
             </div>
         </div>

@@ -49,7 +49,17 @@ async function fetchMfapiNav(numericCode: number): Promise<number | null> {
     }
 }
 
+// Vercel Cron sends GET requests with `Authorization: Bearer <CRON_SECRET>` automatically.
+// Manual triggers and external schedulers can use either GET or POST.
+export async function GET(req: NextRequest) {
+    return runDailyRefresh(req);
+}
+
 export async function POST(req: NextRequest) {
+    return runDailyRefresh(req);
+}
+
+async function runDailyRefresh(req: NextRequest) {
     // Auth check
     const authHeader = req.headers.get('authorization');
     const cronSecret = process.env.CRON_SECRET;
