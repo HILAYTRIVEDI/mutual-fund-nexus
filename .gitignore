@@ -2,6 +2,11 @@
 
 # dependencies
 /node_modules
+/proxy/node_modules
+/proxy/package-lock.json
+
+# claude code local settings
+.claude/settings.local.json
 /.pnp
 .pnp.*
 .yarn/*
