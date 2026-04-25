@@ -16,7 +16,6 @@ import crypto from 'crypto';
 import { HttpsProxyAgent } from 'https-proxy-agent';
 
 const NSE_BASE_URL = process.env.NSE_BASE_URL ?? 'https://nseinvestuat.nseindia.com';
-// Referer must always be the real NSE domain — Akamai validates it and rejects proxy IPs
 const NSE_REFERER_URL = process.env.NSE_REFERER_URL ?? 'https://nseinvestuat.nseindia.com';
 const LOGIN_USER_ID = process.env.NSE_LOGIN_USER_ID ?? 'ADMIN';
 // api_key_member — PBKDF2 passphrase
