@@ -65,6 +65,7 @@ function ManageClientsContent() {
         startDate: '',
         schemeCode: 0,
         schemeName: '',
+        selectedIsin: '',
         stepUpAmount: '',
         stepUpInterval: 'Yearly' as 'Yearly' | 'Half-Yearly' | 'Quarterly',
         isCustomFund: false,
@@ -72,9 +73,11 @@ function ManageClientsContent() {
         customFundNAV: '',
     });
 
+    type EnrichedFundScheme = MutualFundScheme & { isin?: string };
+
     // Fund search state
     const [fundSearch, setFundSearch] = useState('');
-    const [fundResults, setFundResults] = useState<MutualFundScheme[]>([]);
+    const [fundResults, setFundResults] = useState<EnrichedFundScheme[]>([]);
     const [fundSearching, setFundSearching] = useState(false);
     const [showFundDropdown, setShowFundDropdown] = useState(false);
     const fundDropdownRef = useRef<HTMLDivElement>(null);
@@ -123,7 +126,24 @@ function ManageClientsContent() {
         setFundSearching(true);
         try {
             const results = await searchSchemes(fundSearch);
-            setFundResults(results.slice(0, 10)); // Limit to 10 results
+            const top10 = results.slice(0, 10);
+
+            // Batch-lookup ISINs from AMFI scheme master (free, no API key)
+            try {
+                const isinRes = await fetch('/api/amfi/isin-lookup', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ schemeCodes: top10.map(f => f.schemeCode) }),
+                });
+                if (isinRes.ok) {
+                    const isinMap: Record<number, string> = await isinRes.json();
+                    setFundResults(top10.map(f => ({ ...f, isin: isinMap[f.schemeCode] })));
+                } else {
+                    setFundResults(top10);
+                }
+            } catch {
+                setFundResults(top10);
+            }
         } catch (error) {
             console.error('Failed to search funds:', error);
         } finally {
@@ -140,11 +160,12 @@ function ManageClientsContent() {
         return () => clearTimeout(timer);
     }, [fundSearch, handleFundSearch]);
 
-    const handleSelectFund = (fund: MutualFundScheme) => {
+    const handleSelectFund = (fund: EnrichedFundScheme) => {
         setFormData(prev => ({
             ...prev,
             schemeCode: fund.schemeCode,
             schemeName: fund.schemeName,
+            selectedIsin: fund.isin ?? '',
         }));
         setFundSearch(fund.schemeName);
         setShowFundDropdown(false);
@@ -244,13 +265,17 @@ function ManageClientsContent() {
                 } else {
                     effectiveSchemeCode = formData.schemeCode.toString();
                     effectiveSchemeName = formData.schemeName;
-                    // Fetch latest NAV from MFAPI — also captures ISIN for NSE sync
+                    // Use ISIN already fetched from AMFI during search; fallback to MFAPI meta
+                    isinValue = formData.selectedIsin || null;
                     try {
                         const navData = await getSchemeLatestNAV(formData.schemeCode);
                         if (navData?.data?.[0]) {
                             currentNav = parseFloat(navData.data[0].nav);
                         }
-                        isinValue = navData?.meta?.isin_growth ?? null;
+                        // MFAPI isin_growth overrides if AMFI lookup missed it
+                        if (!isinValue) {
+                            isinValue = navData?.meta?.isin_growth ?? null;
+                        }
                     } catch (e) {
                         console.warn('Could not fetch latest NAV, using default', e);
                     }
@@ -393,6 +418,7 @@ function ManageClientsContent() {
             startDate: '',
             schemeCode: 0,
             schemeName: '',
+            selectedIsin: '',
             stepUpAmount: '',
             stepUpInterval: 'Yearly',
             isCustomFund: false,
@@ -473,6 +499,7 @@ function ManageClientsContent() {
             startDate: '',
             schemeCode: 0,
             schemeName: '',
+            selectedIsin: '',
             stepUpAmount: '',
             stepUpInterval: 'Yearly',
             isCustomFund: false,
@@ -953,6 +980,7 @@ function ManageClientsContent() {
                                                 isCustomFund: !prev.isCustomFund,
                                                 schemeCode: 0,
                                                 schemeName: '',
+                                                selectedIsin: '',
                                                 customFundName: '',
                                                 customFundNAV: '',
                                             }));
@@ -1027,7 +1055,9 @@ function ManageClientsContent() {
                                                         className="w-full text-left px-4 py-3 hover:bg-white/5 transition-colors border-b border-white/5 last:border-0"
                                                     >
                                                         <p className="text-white text-sm truncate">{fund.schemeName}</p>
-                                                        <p className="text-[#9CA3AF] text-xs">Code: {fund.schemeCode}</p>
+                                                        <p className="text-[#9CA3AF] text-xs">
+                                                            {fund.isin ? `ISIN: ${fund.isin}` : `Code: ${fund.schemeCode}`}
+                                                        </p>
                                                     </button>
                                                 ))}
                                             </div>
