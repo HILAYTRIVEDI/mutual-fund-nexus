@@ -114,8 +114,6 @@ export default function MarketIndicesTracker() {
         return () => clearInterval(interval);
     }, [fetchIndices]);
 
-    const marketStatus = new Date().getHours() >= 9 && new Date().getHours() < 16 ? 'Market Open' : 'Market Closed';
-
     return (
         <div className="glass-card rounded-2xl p-4 md:p-6 gradient-border relative overflow-hidden transition-colors duration-300">
             {/* Gradient overlay */}
@@ -126,12 +124,6 @@ export default function MarketIndicesTracker() {
                 <div className="flex items-center gap-2 flex-wrap">
                     <Activity size={18} className="text-[var(--accent-blue)]" />
                     <h3 className="text-[var(--text-primary)] font-semibold text-sm md:text-base">Market Indices</h3>
-                    <span className={`px-2 py-0.5 rounded-full text-[10px] md:text-xs font-medium ${marketStatus === 'Market Open'
-                        ? 'bg-[var(--accent-mint)]/10 text-[var(--accent-mint)]'
-                        : 'bg-[var(--accent-red)]/10 text-[var(--accent-red)]'
-                        }`}>
-                        {marketStatus}
-                    </span>
                 </div>
                 <div className="flex items-center gap-3">
                     {lastUpdated && (

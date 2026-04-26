@@ -64,23 +64,23 @@ export default function MutualFundCard({ scheme, onClose }: MutualFundCardProps)
             <div className="absolute inset-0 bg-gradient-to-br from-[#C4A265]/10 via-transparent to-[#5B7FA4]/5 pointer-events-none" />
 
             {/* Header */}
-            <div className="p-6 border-b border-white/10 relative z-10">
-                <div className="flex items-start justify-between">
+            <div className="p-4 sm:p-6 border-b border-white/10 relative z-10">
+                <div className="flex items-start justify-between gap-2">
                     <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-2">
-                            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#C4A265]/20 to-[#C4A265]/5 flex items-center justify-center">
+                            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#C4A265]/20 to-[#C4A265]/5 flex items-center justify-center shrink-0">
                                 <Building2 size={20} className="text-[#C4A265]" />
                             </div>
                             <span className="text-[#9CA3AF] text-sm font-mono">#{scheme.meta.scheme_code}</span>
                         </div>
-                        <h2 className="text-white text-lg font-semibold mb-1 pr-8">
+                        <h2 className="text-white text-base sm:text-lg font-semibold mb-1">
                             {scheme.meta.scheme_name}
                         </h2>
                         <p className="text-[#C4A265] text-sm font-medium">{scheme.meta.fund_house}</p>
                     </div>
                     <button
                         onClick={onClose}
-                        className="p-2 rounded-lg bg-white/5 hover:bg-white/10 transition-colors"
+                        className="p-2 rounded-lg bg-white/5 hover:bg-white/10 transition-colors shrink-0"
                     >
                         <X size={20} className="text-[#9CA3AF]" />
                     </button>
@@ -88,25 +88,26 @@ export default function MutualFundCard({ scheme, onClose }: MutualFundCardProps)
             </div>
 
             {/* NAV Info */}
-            <div className="p-6 border-b border-white/10 relative z-10">
-                <div className="grid grid-cols-3 gap-4">
-                    <div className="bg-white/5 rounded-xl p-4">
+            <div className="p-4 sm:p-6 border-b border-white/10 relative z-10">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
+                    <div className="bg-white/5 rounded-xl p-3 sm:p-4">
                         <p className="text-[#9CA3AF] text-xs mb-1">Latest NAV</p>
-                        <p className="text-white text-2xl font-bold">{formatNAV(latestNAV.nav)}</p>
-                        <p className="text-[#9CA3AF] text-xs mt-1">As of {latestNAV.date} • Code: {scheme.meta.scheme_code}</p>
+                        <p className="text-white text-xl sm:text-2xl font-bold">{formatNAV(latestNAV.nav)}</p>
+                        <p className="text-[#9CA3AF] text-xs mt-1">As of {latestNAV.date}</p>
+                        <p className="text-[#9CA3AF] text-xs">Code: {scheme.meta.scheme_code}</p>
                     </div>
-                    <div className="bg-white/5 rounded-xl p-4">
+                    <div className="bg-white/5 rounded-xl p-3 sm:p-4">
                         <p className="text-[#9CA3AF] text-xs mb-1">1M Change</p>
                         {change1M !== null ? (
                             <div className={`flex items-center gap-1 ${change1M >= 0 ? 'text-[#C4A265]' : 'text-[#EF4444]'}`}>
-                                {change1M >= 0 ? <TrendingUp size={20} /> : <TrendingDown size={20} />}
-                                <span className="text-2xl font-bold">{change1M >= 0 ? '+' : ''}{change1M.toFixed(2)}%</span>
+                                {change1M >= 0 ? <TrendingUp size={18} /> : <TrendingDown size={18} />}
+                                <span className="text-xl sm:text-2xl font-bold">{change1M >= 0 ? '+' : ''}{change1M.toFixed(2)}%</span>
                             </div>
                         ) : (
                             <span className="text-[#9CA3AF]">--</span>
                         )}
                     </div>
-                    <div className="bg-white/5 rounded-xl p-4">
+                    <div className="col-span-2 sm:col-span-1 bg-white/5 rounded-xl p-3 sm:p-4">
                         <p className="text-[#9CA3AF] text-xs mb-1">Category</p>
                         <p className="text-white text-sm font-medium">{scheme.meta.scheme_category || 'N/A'}</p>
                     </div>
@@ -114,7 +115,7 @@ export default function MutualFundCard({ scheme, onClose }: MutualFundCardProps)
             </div>
 
             {/* Chart */}
-            <div className="p-6 relative z-10">
+            <div className="p-4 sm:p-6 relative z-10">
                 <h3 className="text-white font-semibold mb-4">NAV History (1 Year)</h3>
                 {historyLoading ? (
                     <div className="h-[200px] flex items-center justify-center">
@@ -181,7 +182,7 @@ export default function MutualFundCard({ scheme, onClose }: MutualFundCardProps)
             </div>
 
             {/* Metadata */}
-            <div className="p-6 pt-0 relative z-10">
+            <div className="p-4 sm:p-6 pt-0 relative z-10">
                 <div className="flex flex-wrap gap-2">
                     <span className="flex items-center gap-1 px-3 py-1.5 bg-[#5B7FA4]/10 border border-[#5B7FA4]/20 rounded-full text-[#5B7FA4] text-xs">
                         <Tag size={12} />

@@ -63,11 +63,34 @@ export async function POST(request: NextRequest) {
 
     if (isUserExistsError) {
         console.log('User already exists, attempting to recover...');
-        
+
         const { data: { users } } = await supabaseAdmin.auth.admin.listUsers();
         const existingUser = users?.find(u => u.email === email);
-        
+
         if (existingUser) {
+            // Reset the auth user's password and metadata to match this re-add.
+            // Without this, the client cannot log in with the new password the
+            // admin just typed — only the old (pre-delete) password would work.
+            const { error: authUpdateError } = await supabaseAdmin.auth.admin.updateUserById(
+                existingUser.id,
+                {
+                    password,
+                    user_metadata: {
+                        full_name: name,
+                        role: 'client',
+                        advisor_id: advisorId,
+                    },
+                }
+            );
+
+            if (authUpdateError) {
+                console.error('Failed to reset auth user on recovery:', authUpdateError);
+                return NextResponse.json(
+                    { error: authUpdateError.message },
+                    { status: 400 }
+                );
+            }
+
             // Update existing profile to be a client of this admin
             const { error: updateError } = await supabaseAdmin
                 .from('profiles')
@@ -81,11 +104,11 @@ export async function POST(request: NextRequest) {
                     pan: pan || null,
                     aadhar: aadhar || null,
                 });
-            
+
             if (updateError) {
                 console.error('Failed to update existing user profile:', updateError);
             }
-            
+
             authData = { user: existingUser } as any;
             authError = null;
         }

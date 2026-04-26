@@ -95,7 +95,7 @@ export default function PortfolioCard() {
                                     <PiggyBank size={20} style={{ color }} />
                                 </div>
                                 <div className="min-w-0 flex-1">
-                                    <p className="text-[var(--text-primary)] font-medium text-sm truncate">
+                                    <p className="text-[var(--text-primary)] font-medium text-sm">
                                         {holding.mutual_fund?.name || holding.scheme_code || 'Fund'}
                                     </p>
                                     <p className="text-[var(--text-secondary)] text-xs truncate">

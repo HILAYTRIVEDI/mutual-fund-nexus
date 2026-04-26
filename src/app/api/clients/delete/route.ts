@@ -23,24 +23,33 @@ export async function DELETE(request: NextRequest) {
       }
     );
 
-    // Verify the client belongs to this advisor before deleting
+    // Verify the client belongs to this advisor (if profile still exists).
+    // The client-side flow may have already deleted the profile row before
+    // this API runs; in that case we still need to delete the auth user,
+    // so a missing profile is not a hard failure.
     const { data: profile, error: profileError } = await supabaseAdmin
       .from('profiles')
       .select('id, advisor_id')
       .eq('id', clientId)
-      .eq('advisor_id', advisorId)
       .maybeSingle();
 
     if (profileError) {
       return NextResponse.json({ error: profileError.message }, { status: 500 });
     }
 
-    if (!profile) {
+    if (profile && profile.advisor_id !== advisorId) {
       return NextResponse.json(
         { error: 'Client not found or not authorized' },
         { status: 403 }
       );
     }
+
+    // Best-effort cleanup of related rows in case the client-side delete
+    // missed any (or the profile was deleted but data wasn't).
+    await supabaseAdmin.from('holdings').delete().eq('user_id', clientId);
+    await supabaseAdmin.from('sips').delete().eq('user_id', clientId);
+    await supabaseAdmin.from('transactions').delete().eq('user_id', clientId);
+    await supabaseAdmin.from('profiles').delete().eq('id', clientId);
 
     // Delete auth user — this permanently removes them from Supabase Auth
     const { error: authDeleteError } = await supabaseAdmin.auth.admin.deleteUser(clientId);

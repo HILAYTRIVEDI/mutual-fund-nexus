@@ -61,8 +61,8 @@ export default function MarketSnapshot() {
                 </div>
             ) : (
                 <>
-                    {/* Table Header */}
-                    <div className="grid grid-cols-12 gap-4 px-4 py-2 text-[var(--text-secondary)] text-xs font-medium relative z-10">
+                    {/* Desktop Table Header - hidden on mobile */}
+                    <div className="hidden md:grid grid-cols-12 gap-4 px-4 py-2 text-[var(--text-secondary)] text-xs font-medium relative z-10">
                         <div className="col-span-4">Fund Name</div>
                         <div className="col-span-2 text-right">Returns</div>
                         <div className="col-span-2 text-right">Value</div>
@@ -75,43 +75,89 @@ export default function MarketSnapshot() {
                         {topFunds.map((fund) => (
                             <div
                                 key={fund.id}
-                                className="grid grid-cols-12 gap-4 p-4 rounded-xl hover:bg-gradient-to-r hover:from-[var(--bg-hover)] hover:to-transparent transition-all duration-300 cursor-pointer group border border-transparent hover:border-[var(--border-primary)]"
+                                className="p-3 md:p-4 rounded-xl hover:bg-gradient-to-r hover:from-[var(--bg-hover)] hover:to-transparent transition-all duration-300 cursor-pointer group border border-transparent hover:border-[var(--border-primary)]"
                             >
-                                <div className="col-span-4 flex items-center gap-3">
-                                    <div
-                                        className="w-8 h-8 rounded-full flex items-center justify-center transition-transform group-hover:scale-110"
-                                        style={{
-                                            background: `linear-gradient(135deg, ${fund.color}30, ${fund.color}10)`,
-                                        }}
-                                    >
-                                        <PiggyBank size={14} style={{ color: fund.color }} />
+                                {/* Desktop layout */}
+                                <div className="hidden md:grid grid-cols-12 gap-4">
+                                    <div className="col-span-4 flex items-center gap-3">
+                                        <div
+                                            className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 transition-transform group-hover:scale-110"
+                                            style={{
+                                                background: `linear-gradient(135deg, ${fund.color}30, ${fund.color}10)`,
+                                            }}
+                                        >
+                                            <PiggyBank size={14} style={{ color: fund.color }} />
+                                        </div>
+                                        <div className="min-w-0">
+                                            <p className="text-[var(--text-primary)] text-sm font-medium truncate">{fund.name}</p>
+                                            <p className="text-[var(--text-secondary)] text-xs">{fund.category}</p>
+                                        </div>
                                     </div>
-                                    <div className="min-w-0">
-                                        <p className="text-[var(--text-primary)] text-sm font-medium truncate max-w-[150px]">{fund.name}</p>
-                                        <p className="text-[var(--text-secondary)] text-xs">{fund.category}</p>
+                                    <div className="col-span-2 flex items-center justify-end">
+                                        <div
+                                            className={`flex items-center gap-1 px-2 py-1 rounded text-xs font-medium ${fund.isPositive
+                                                    ? 'text-[var(--accent-mint)] bg-[var(--accent-mint)]/10'
+                                                    : 'text-[var(--accent-red)] bg-[var(--accent-red)]/10'
+                                                }`}
+                                        >
+                                            {fund.isPositive ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
+                                            {fund.returns}
+                                        </div>
+                                    </div>
+                                    <div className="col-span-2 flex items-center justify-end">
+                                        <span className="text-[var(--text-primary)] text-sm">{fund.currentValue}</span>
+                                    </div>
+                                    <div className="col-span-2 flex items-center justify-end">
+                                        <span className={`text-sm font-medium ${fund.isPositive ? 'text-[var(--accent-mint)]' : 'text-[var(--accent-red)]'}`}>
+                                            {fund.returns}
+                                        </span>
+                                    </div>
+                                    <div className="col-span-2 flex items-center justify-end">
+                                        <span className="text-[var(--text-primary)] text-sm font-medium">{fund.nav}</span>
                                     </div>
                                 </div>
-                                <div className="col-span-2 flex items-center justify-end">
-                                    <div
-                                        className={`flex items-center gap-1 px-2 py-1 rounded text-xs font-medium ${fund.isPositive
-                                                ? 'text-[var(--accent-mint)] bg-[var(--accent-mint)]/10'
-                                                : 'text-[var(--accent-red)] bg-[var(--accent-red)]/10'
-                                            }`}
-                                    >
-                                        {fund.isPositive ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
-                                        {fund.returns}
+
+                                {/* Mobile layout - card style */}
+                                <div className="md:hidden flex flex-col gap-2">
+                                    <div className="flex items-center gap-3">
+                                        <div
+                                            className="w-8 h-8 rounded-full flex items-center justify-center shrink-0"
+                                            style={{
+                                                background: `linear-gradient(135deg, ${fund.color}30, ${fund.color}10)`,
+                                            }}
+                                        >
+                                            <PiggyBank size={14} style={{ color: fund.color }} />
+                                        </div>
+                                        <div className="min-w-0 flex-1">
+                                            <p className="text-[var(--text-primary)] text-sm font-medium">{fund.name}</p>
+                                            <p className="text-[var(--text-secondary)] text-xs">{fund.category}</p>
+                                        </div>
+                                        <div
+                                            className={`flex items-center gap-1 px-2 py-1 rounded text-xs font-medium shrink-0 ${fund.isPositive
+                                                    ? 'text-[var(--accent-mint)] bg-[var(--accent-mint)]/10'
+                                                    : 'text-[var(--accent-red)] bg-[var(--accent-red)]/10'
+                                                }`}
+                                        >
+                                            {fund.isPositive ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
+                                            {fund.returns}
+                                        </div>
                                     </div>
-                                </div>
-                                <div className="col-span-2 flex items-center justify-end">
-                                    <span className="text-[var(--text-primary)] text-sm">{fund.currentValue}</span>
-                                </div>
-                                <div className="col-span-2 flex items-center justify-end">
-                                    <span className={`text-sm font-medium ${fund.isPositive ? 'text-[var(--accent-mint)]' : 'text-[var(--accent-red)]'}`}>
-                                        {fund.returns}
-                                    </span>
-                                </div>
-                                <div className="col-span-2 flex items-center justify-end">
-                                    <span className="text-[var(--text-primary)] text-sm font-medium">{fund.nav}</span>
+                                    <div className="flex items-center justify-between pl-11 text-xs">
+                                        <div className="flex flex-col">
+                                            <span className="text-[var(--text-secondary)]">Value</span>
+                                            <span className="text-[var(--text-primary)] font-medium">{fund.currentValue}</span>
+                                        </div>
+                                        <div className="flex flex-col items-center">
+                                            <span className="text-[var(--text-secondary)]">Gain/Loss</span>
+                                            <span className={`font-medium ${fund.isPositive ? 'text-[var(--accent-mint)]' : 'text-[var(--accent-red)]'}`}>
+                                                {fund.returns}
+                                            </span>
+                                        </div>
+                                        <div className="flex flex-col items-end">
+                                            <span className="text-[var(--text-secondary)]">NAV</span>
+                                            <span className="text-[var(--text-primary)] font-medium">{fund.nav}</span>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         ))}
