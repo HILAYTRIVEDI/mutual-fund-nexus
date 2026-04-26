@@ -167,12 +167,7 @@ export default function ClientDashboard() {
                     </div>
                 </header>
 
-                {/* Live Market Indices */}
-                <div className="mb-6">
-                    <MarketIndicesTracker />
-                </div>
-
-                {/* Summary Cards */}
+                {/* Summary Cards */
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 mb-6">
                     <div className="glass-card rounded-2xl p-4 gradient-border">
                         <div className="flex items-center gap-2 mb-2">
@@ -306,6 +301,11 @@ export default function ClientDashboard() {
                             </div>
                         </div>
                     )}
+                </div>
+
+                {/* Live Market Indices */}
+                <div className="mt-6">
+                    <MarketIndicesTracker />
                 </div>
             </main>
 

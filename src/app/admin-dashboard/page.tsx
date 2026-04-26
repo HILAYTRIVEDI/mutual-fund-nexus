@@ -52,9 +52,6 @@ export default function Home() {
 
         {/* Bento Grid Layout */}
         <div className="space-y-4">
-          {/* Row 0: Live Market Indices */}
-          <MarketIndicesTracker />
-
           {/* Row 1: Asset Chart + Distribution */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
             <AssetChartCard />
@@ -75,6 +72,9 @@ export default function Home() {
 
           {/* Row 5: Upcoming SIPs (Full Width) */}
           <StakingCard />
+
+          {/* Row 6: Live Market Indices */}
+          <MarketIndicesTracker />
 
         </div>
       </main>
