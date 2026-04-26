@@ -96,7 +96,13 @@ export default function ClientDetailPage() {
         cashFlows.push({ amount: currentValue, date: new Date() });
         const xirr = calculateXIRR(cashFlows);
 
-        if (!showPostTax || grossReturnAmount <= 0) {
+        // No tax when not in post-tax mode, individual holding is in loss, or overall portfolio is in loss
+        const totalPortfolioGross = clientHoldings.reduce((sum, h) => {
+            const nav = h.current_nav || h.average_price;
+            return sum + (h.units * nav) - (h.invested_amount || (h.units * h.average_price));
+        }, 0);
+
+        if (!showPostTax || grossReturnAmount <= 0 || totalPortfolioGross <= 0) {
             return {
                 returnAmount: grossReturnAmount,
                 returnPercentage: investedAmount > 0 ? (grossReturnAmount / investedAmount) * 100 : 0,

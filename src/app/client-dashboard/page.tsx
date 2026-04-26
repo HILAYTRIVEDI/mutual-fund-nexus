@@ -37,6 +37,17 @@ export default function ClientDashboard() {
     const { netReturns, netReturnsPercentage, grossReturnsPercentage } = useMemo(() => {
         if (holdings.length === 0) return { netReturns: 0, netReturnsPercentage: 0, grossReturnsPercentage: 0 };
 
+        const currentTotalInvested = holdings.reduce((sum, h) => sum + h.invested_amount, 0);
+
+        // No tax when overall portfolio is in loss
+        if (totalGainLoss <= 0) {
+            return {
+                netReturns: totalGainLoss,
+                netReturnsPercentage: currentTotalInvested > 0 ? (totalGainLoss / currentTotalInvested) * 100 : 0,
+                grossReturnsPercentage: currentTotalInvested > 0 ? (totalGainLoss / currentTotalInvested) * 100 : 0
+            };
+        }
+
         const totalAdjustedReturns = holdings.reduce((sum, h) => {
             const gross = h.current_value - h.invested_amount;
             if (gross <= 0) return sum + gross;
@@ -50,8 +61,6 @@ export default function ClientDashboard() {
             return sum + (gross - taxAmount);
         }, 0);
 
-        const currentTotalInvested = holdings.reduce((sum, h) => sum + h.invested_amount, 0);
-        
         return {
             netReturns: totalAdjustedReturns,
             netReturnsPercentage: currentTotalInvested > 0 ? (totalAdjustedReturns / currentTotalInvested) * 100 : 0,

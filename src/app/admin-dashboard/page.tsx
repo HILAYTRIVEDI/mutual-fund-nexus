@@ -26,6 +26,12 @@ export default function Home() {
     }
   }, [isLoading, user, router]);
 
+  useEffect(() => {
+    if (!isLoading && user?.role !== 'admin') {
+      router.replace('/client-dashboard');
+    }
+  }, [isLoading, user, router]);
+
   if (isLoading || user?.role !== 'admin') {
     return (
       <div className="min-h-screen bg-[var(--bg-primary)] flex items-center justify-center">

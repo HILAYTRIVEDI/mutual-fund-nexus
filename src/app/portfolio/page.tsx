@@ -175,9 +175,13 @@ export default function PortfolioPage() {
 
     // Summary calculations
     // Summary calculations with Tax logic
+    // Check if overall portfolio is in loss
+    const totalPortfolioGross = holdingsData.reduce((sum, h) => sum + (h.currentValue - h.investedValue), 0);
+
     const calculateReturns = (holding: PortfolioHolding) => {
         const grossReturns = holding.currentValue - holding.investedValue;
-        if (!showPostTax || grossReturns <= 0) return { returns: grossReturns, returnsPercentage: (grossReturns / holding.investedValue) * 100 };
+        // No tax when portfolio is in loss, holding is in loss, or post-tax mode is off
+        if (!showPostTax || grossReturns <= 0 || totalPortfolioGross <= 0) return { returns: grossReturns, returnsPercentage: (grossReturns / holding.investedValue) * 100 };
 
         // Determine tax rate
         const purchaseDate = new Date(holding.investedDate);

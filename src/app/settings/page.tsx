@@ -5,7 +5,7 @@ import Sidebar from '@/components/Sidebar';
 import { useSettings } from '@/context/SettingsContext';
 import { useAuth } from '@/context/AuthContext';
 import { getSupabaseClient } from '@/lib/supabase';
-import { Save, Percent, AlertCircle, Check, Mail, Bell, Send, Loader2 } from 'lucide-react';
+import { Save, Percent, AlertCircle, Check, Mail, Bell, Send, Loader2, KeyRound, Eye, EyeOff, CheckCircle, XCircle } from 'lucide-react';
 import ThemeToggle from '@/components/ThemeToggle';
 import NotificationBell from '@/components/NotificationBell';
 
@@ -31,6 +31,14 @@ export default function SettingsPage() {
     const [emailSaveStatus, setEmailSaveStatus] = useState<'idle' | 'success' | 'error'>('idle');
     const [isSendingTest, setIsSendingTest] = useState(false);
     const [testEmailStatus, setTestEmailStatus] = useState<'idle' | 'success' | 'error'>('idle');
+
+    // Password reset states (admin only)
+    const [newPassword, setNewPassword] = useState('');
+    const [confirmPassword, setConfirmPassword] = useState('');
+    const [showNew, setShowNew] = useState(false);
+    const [showConfirm, setShowConfirm] = useState(false);
+    const [resetLoading, setResetLoading] = useState(false);
+    const [resetStatus, setResetStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
     // Sync with context if it changes externally
     useEffect(() => {
@@ -163,6 +171,34 @@ export default function SettingsPage() {
         } finally {
             setIsSendingTest(false);
             setTimeout(() => setTestEmailStatus('idle'), 5000);
+        }
+    };
+
+    const handlePasswordReset = async () => {
+        setResetStatus(null);
+        if (newPassword.length < 6) {
+            setResetStatus({ type: 'error', message: 'Password must be at least 6 characters.' });
+            return;
+        }
+        if (newPassword !== confirmPassword) {
+            setResetStatus({ type: 'error', message: 'Passwords do not match.' });
+            return;
+        }
+        setResetLoading(true);
+        try {
+            const { error } = await supabase.auth.updateUser({ password: newPassword });
+            if (error) throw error;
+            setResetStatus({ type: 'success', message: 'Password updated successfully.' });
+            setNewPassword('');
+            setConfirmPassword('');
+            setShowNew(false);
+            setShowConfirm(false);
+            setTimeout(() => setResetStatus(null), 3000);
+        } catch (err: unknown) {
+            const message = err instanceof Error ? err.message : 'Failed to update password.';
+            setResetStatus({ type: 'error', message });
+        } finally {
+            setResetLoading(false);
         }
     };
 
@@ -449,6 +485,108 @@ export default function SettingsPage() {
                             </>
                         )}
                     </div>
+
+                    {/* Admin Password Reset Card - only visible to admins */}
+                    {user?.role === 'admin' && (
+                        <div className="glass-card rounded-2xl p-6 md:p-8 gradient-border relative overflow-hidden">
+                            <div className="flex items-center gap-3 mb-6">
+                                <div className="p-3 rounded-xl bg-[var(--accent-gold)]/10 text-[var(--accent-gold)]">
+                                    <KeyRound size={24} />
+                                </div>
+                                <div>
+                                    <h2 className="text-lg md:text-xl font-semibold text-[var(--text-primary)]">Admin Password</h2>
+                                    <p className="text-[var(--text-secondary)] text-sm">Change your admin account password</p>
+                                </div>
+                            </div>
+
+                            <div className="space-y-4">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    {/* New Password */}
+                                    <div className="space-y-2">
+                                        <label className="block text-sm font-medium text-[var(--text-secondary)]">
+                                            New Password
+                                        </label>
+                                        <div className="relative group">
+                                            <input
+                                                type={showNew ? 'text' : 'password'}
+                                                value={newPassword}
+                                                onChange={(e) => setNewPassword(e.target.value)}
+                                                placeholder="Min 6 characters"
+                                                className="w-full px-4 py-3 bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-xl text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--accent-gold)] focus:ring-1 focus:ring-[var(--accent-gold)] transition-all pr-12 group-hover:border-[var(--text-secondary)]/50"
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowNew(!showNew)}
+                                                className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--text-muted)] hover:text-[var(--text-secondary)] transition-colors"
+                                            >
+                                                {showNew ? <EyeOff size={16} /> : <Eye size={16} />}
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {/* Confirm Password */}
+                                    <div className="space-y-2">
+                                        <label className="block text-sm font-medium text-[var(--text-secondary)]">
+                                            Confirm Password
+                                        </label>
+                                        <div className="relative group">
+                                            <input
+                                                type={showConfirm ? 'text' : 'password'}
+                                                value={confirmPassword}
+                                                onChange={(e) => setConfirmPassword(e.target.value)}
+                                                placeholder="Re-enter password"
+                                                className="w-full px-4 py-3 bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-xl text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--accent-gold)] focus:ring-1 focus:ring-[var(--accent-gold)] transition-all pr-12 group-hover:border-[var(--text-secondary)]/50"
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowConfirm(!showConfirm)}
+                                                className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--text-muted)] hover:text-[var(--text-secondary)] transition-colors"
+                                            >
+                                                {showConfirm ? <EyeOff size={16} /> : <Eye size={16} />}
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Action Footer */}
+                            <div className="mt-8 pt-6 border-t border-[var(--border-primary)] flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                    {resetStatus && (
+                                        <span className={`flex items-center gap-1 text-sm font-medium animate-fade-in ${resetStatus.type === 'success' ? 'text-[var(--accent-mint)]' : 'text-[var(--accent-red)]'}`}>
+                                            {resetStatus.type === 'success' ? <CheckCircle size={16} /> : <XCircle size={16} />}
+                                            {resetStatus.message}
+                                        </span>
+                                    )}
+                                </div>
+
+                                <button
+                                    onClick={handlePasswordReset}
+                                    disabled={resetLoading || !newPassword || !confirmPassword}
+                                    className={`
+                                        px-6 py-3 rounded-xl font-medium flex items-center gap-2 transition-all
+                                        ${resetLoading
+                                            ? 'bg-[var(--bg-hover)] text-[var(--text-secondary)] cursor-wait'
+                                            : 'bg-gradient-to-r from-[var(--accent-gold)] to-[#D4A265] text-white hover:shadow-lg hover:shadow-[var(--accent-gold)]/20 active:scale-95'
+                                        }
+                                        disabled:opacity-50 disabled:cursor-not-allowed
+                                    `}
+                                >
+                                    {resetLoading ? (
+                                        <>
+                                            <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                                            Updating...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <KeyRound size={18} />
+                                            Update Password
+                                        </>
+                                    )}
+                                </button>
+                            </div>
+                        </div>
+                    )}
                 </div>
             </main>
 
