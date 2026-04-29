@@ -219,8 +219,11 @@ export function ClientProvider({ children }: { children: ReactNode }) {
 
             if (!res.ok) {
                 const body = await res.json().catch(() => ({}));
-                // Log but don't block — profile is already gone
-                console.warn('[ClientContext] Auth user delete failed:', body.error);
+                const errMsg = body.error || 'Unknown error';
+                console.error('[ClientContext] Auth user delete failed:', errMsg);
+                // Profile is already deleted client-side, but the auth user persists.
+                // Return an error so the admin knows the delete was incomplete.
+                return { success: false, error: `Client data removed but auth account could not be deleted: ${errMsg}. The user may still be able to log in — please retry deletion.` };
             }
 
             setClients(prev => prev.filter(c => c.id !== id));

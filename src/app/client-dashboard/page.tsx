@@ -8,7 +8,6 @@ import Sidebar from '@/components/Sidebar';
 import ThemeToggle from '@/components/ThemeToggle';
 import { TrendingUp, TrendingDown, PiggyBank, Calendar, Wallet, Target, Calculator, Loader2, ArrowRight } from 'lucide-react';
 import { useState, useMemo } from 'react';
-import AssetChartCard from '@/components/AssetChartCard';
 import DistributionCard from '@/components/DistributionCard';
 import MarketIndicesTracker from '@/components/MarketIndicesTracker';
 import Link from 'next/link';
@@ -68,40 +67,6 @@ export default function ClientDashboard() {
         };
     }, [holdings, ltcgTax, stcgTax, totalGainLoss]);
 
-    // Generate Charts
-    const chartData = useMemo(() => {
-        if (!totalCurrentValue) return undefined;
-
-        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-        const currentMonthIndex = new Date().getMonth();
-
-        // Simulate a curve anchored to the REAL current value
-        const generateCurve = (monthsCount: number, volatility: number) => {
-            const data = [];
-            let val = totalCurrentValue;
-            for (let i = 0; i < monthsCount; i++) {
-                const date = new Date();
-                date.setMonth(currentMonthIndex - i);
-                const monthName = months[date.getMonth()];
-                data.unshift({ name: monthName, value: val });
-                val = val / (1 + (Math.random() * volatility));
-            }
-            return data;
-        };
-
-        const yearData = generateCurve(12, 0.02);
-        return {
-            '1Y': yearData,
-            '6M': yearData.slice(6),
-            '3M': yearData.slice(9),
-            '1M': [
-                { name: 'Week 1', value: totalCurrentValue * 0.96 },
-                { name: 'Week 2', value: totalCurrentValue * 0.98 },
-                { name: 'Week 3', value: totalCurrentValue * 0.99 },
-                { name: 'Week 4', value: totalCurrentValue },
-            ]
-        };
-    }, [totalCurrentValue]);
 
     const distributionData = useMemo(() => {
         const dist: Record<string, number> = {};
@@ -167,7 +132,7 @@ export default function ClientDashboard() {
                     </div>
                 </header>
 
-                {/* Summary Cards */
+                {/* Summary Cards */}
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 mb-6">
                     <div className="glass-card rounded-2xl p-4 gradient-border">
                         <div className="flex items-center gap-2 mb-2">
@@ -206,33 +171,18 @@ export default function ClientDashboard() {
                     </div>
                 </div>
 
-                {/* Main Content Grid */}
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-                    {/* Charts */}
-                    <div className="lg:col-span-2">
-                         <AssetChartCard 
-                            customChartData={chartData} 
-                            customAumValues={{
-                                currentValue: totalCurrentValue,
-                                investedValue: totalInvested,
-                                gainLoss: totalGainLoss
-                            }} 
-                        />
-                    </div>
-                    
-                    {/* Right Column: Distribution & SIPs */}
-                    <div className="space-y-6">
-                        <DistributionCard customData={distributionData} />
-                        
-                        {/* Start investing nudge if empty */}
-                        {holdings.length === 0 && (
-                            <div className="glass-card p-6 rounded-2xl text-center">
-                                <PiggyBank className="w-12 h-12 text-[var(--accent-mint)] mx-auto mb-3" />
-                                <h3 className="font-semibold text-[var(--text-primary)]">Start Investing</h3>
-                                <p className="text-sm text-[var(--text-secondary)] mt-1 mb-4">You haven't started your journey yet.</p>
-                            </div>
-                        )}
-                    </div>
+                {/* Distribution & empty state */}
+                <div className="mb-6 space-y-6">
+                    <DistributionCard customData={distributionData} />
+
+                    {/* Start investing nudge if empty */}
+                    {holdings.length === 0 && (
+                        <div className="glass-card p-6 rounded-2xl text-center">
+                            <PiggyBank className="w-12 h-12 text-[var(--accent-mint)] mx-auto mb-3" />
+                            <h3 className="font-semibold text-[var(--text-primary)]">Start Investing</h3>
+                            <p className="text-sm text-[var(--text-secondary)] mt-1 mb-4">You haven't started your journey yet.</p>
+                        </div>
+                    )}
                 </div>
 
                 {/* Bottom Row: Key Holdings & SIP Summary */}

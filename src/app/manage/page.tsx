@@ -31,6 +31,32 @@ const generatePassword = (pan: string, aadhar: string) => {
     }
 };
 
+// Finds NAV on or after targetDate from MFAPI history (dates in DD-MM-YYYY, sorted descending)
+function findNavForDate(navHistory: { date: string; nav: string }[], targetDate: Date): number {
+    const targetTs = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate()).getTime();
+    let bestNav: number | null = null;
+    let bestDiff = Infinity;
+
+    for (const item of navHistory) {
+        const [dd, mm, yyyy] = item.date.split('-').map(Number);
+        const itemTs = new Date(yyyy, mm - 1, dd).getTime();
+        const diff = itemTs - targetTs;
+        if (diff >= 0 && diff < bestDiff) {
+            bestDiff = diff;
+            bestNav = parseFloat(item.nav);
+        }
+    }
+    // Fallback to nearest date before target
+    if (bestNav === null) {
+        for (const item of navHistory) {
+            const [dd, mm, yyyy] = item.date.split('-').map(Number);
+            const itemTs = new Date(yyyy, mm - 1, dd).getTime();
+            if (itemTs <= targetTs) return parseFloat(item.nav);
+        }
+    }
+    return bestNav ?? 0;
+}
+
 function ManageClientsContent() {
     const { clients, addClient, updateClient, deleteClient } = useClientContext();
     const { addHolding, refreshHoldings } = useHoldings();
@@ -85,6 +111,20 @@ function ManageClientsContent() {
     const [showFundDropdown, setShowFundDropdown] = useState(false);
     const fundDropdownRef = useRef<HTMLDivElement>(null);
 
+    // SIP auto-calculation for Transfer mode
+    const [sipCalculation, setSipCalculation] = useState<{
+        totalUnits: number;
+        currentValue: number;
+        totalInvested: number;
+        latestNav: number;
+        pnl: number;
+        pnlPct: number;
+        nextSipDate: string;
+        nInstallments: number;
+        isLoading: boolean;
+        error: string | null;
+    } | null>(null);
+
     // Lock body scroll when modal is open
     useEffect(() => {
         if (showAddModal) {
@@ -97,15 +137,11 @@ function ManageClientsContent() {
         };
     }, [showAddModal]);
 
-    // When switching to Transfer mode, auto-set start date to tomorrow so SIP won't fire immediately
+    // When switching to/from Transfer mode, clear Transfer-specific fields
     useEffect(() => {
         if (formData.investmentType === 'Transfer') {
-            const tomorrow = new Date();
-            tomorrow.setDate(tomorrow.getDate() + 1);
-            const yyyy = tomorrow.getFullYear();
-            const mm = String(tomorrow.getMonth() + 1).padStart(2, '0');
-            const dd = String(tomorrow.getDate()).padStart(2, '0');
-            setFormData(prev => ({ ...prev, startDate: `${yyyy}-${mm}-${dd}` }));
+            setFormData(prev => ({ ...prev, startDate: '', amount: '', totalInvested: '' }));
+            setSipCalculation(null);
         }
     }, [formData.investmentType]);
 
@@ -146,6 +182,71 @@ function ManageClientsContent() {
         return () => clearTimeout(timer);
     }, [fundSearch, handleFundSearch]);
 
+    // Auto-calculate SIP values for Transfer mode using MFAPI NAV history
+    const calculateSIPValues = useCallback(async () => {
+        if (
+            formData.investmentType !== 'Transfer' ||
+            formData.schemeCode <= 0 ||
+            !formData.startDate ||
+            !formData.sipAmount ||
+            parseFloat(formData.sipAmount) <= 0
+        ) {
+            if (formData.investmentType === 'Transfer' && formData.schemeCode <= 0 && formData.startDate) {
+                setSipCalculation({ totalUnits: 0, currentValue: 0, totalInvested: 0, latestNav: 0, pnl: 0, pnlPct: 0, nextSipDate: '', nInstallments: 0, isLoading: false, error: 'Historical NAV calculation requires an AMFI-listed fund (not NSE-only).' });
+            }
+            return;
+        }
+
+        setSipCalculation(prev => ({ ...(prev ?? { totalUnits: 0, currentValue: 0, totalInvested: 0, latestNav: 0, pnl: 0, pnlPct: 0, nextSipDate: '', nInstallments: 0 }), isLoading: true, error: null }));
+
+        try {
+            const sipAmount = parseFloat(formData.sipAmount);
+            const startDate = new Date(formData.startDate + 'T00:00:00');
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            const res = await fetch(`https://api.mfapi.in/mf/${formData.schemeCode}`);
+            if (!res.ok) throw new Error('Failed to fetch NAV history');
+            const data = await res.json();
+            const navHistory: { date: string; nav: string }[] = data.data;
+            if (!navHistory?.length) throw new Error('No NAV data available for this fund');
+
+            let totalUnits = 0;
+            let nInstallments = 0;
+            const sipDate = new Date(startDate);
+
+            while (sipDate <= today) {
+                const nav = findNavForDate(navHistory, new Date(sipDate));
+                if (nav > 0) {
+                    totalUnits += sipAmount / nav;
+                    nInstallments++;
+                }
+                sipDate.setMonth(sipDate.getMonth() + 1);
+            }
+
+            const latestNav = parseFloat(navHistory[0].nav);
+            const currentValue = totalUnits * latestNav;
+            const totalInvested = nInstallments * sipAmount;
+            const pnl = currentValue - totalInvested;
+            const pnlPct = totalInvested > 0 ? (pnl / totalInvested) * 100 : 0;
+
+            // Next SIP date = startDate + nInstallments months (local date to avoid UTC offset shifting day)
+            const nextSip = new Date(startDate);
+            nextSip.setMonth(nextSip.getMonth() + nInstallments);
+            const nextSipDate = `${nextSip.getFullYear()}-${String(nextSip.getMonth() + 1).padStart(2, '0')}-${String(nextSip.getDate()).padStart(2, '0')}`;
+
+            setSipCalculation({ totalUnits, currentValue, totalInvested, latestNav, pnl, pnlPct, nextSipDate, nInstallments, isLoading: false, error: null });
+        } catch (err) {
+            setSipCalculation(prev => ({ ...(prev ?? { totalUnits: 0, currentValue: 0, totalInvested: 0, latestNav: 0, pnl: 0, pnlPct: 0, nextSipDate: '', nInstallments: 0 }), isLoading: false, error: err instanceof Error ? err.message : 'Calculation failed' }));
+        }
+    }, [formData.investmentType, formData.schemeCode, formData.startDate, formData.sipAmount]);
+
+    useEffect(() => {
+        if (formData.investmentType !== 'Transfer') { setSipCalculation(null); return; }
+        const timer = setTimeout(calculateSIPValues, 600);
+        return () => clearTimeout(timer);
+    }, [formData.investmentType, formData.schemeCode, formData.startDate, formData.sipAmount, calculateSIPValues]);
+
     const handleSelectFund = (fund: EnrichedFundScheme) => {
         setFormData(prev => ({
             ...prev,
@@ -185,16 +286,28 @@ function ManageClientsContent() {
             const hasSIP = formData.sipAmount && parseFloat(formData.sipAmount) > 0;
 
             if (formData.investmentType === 'Transfer') {
-                if (!hasLumpsum) {
-                    alert('Please enter the Current Portfolio Value to transfer');
-                    return;
-                }
-                if (!formData.totalInvested || parseFloat(formData.totalInvested) <= 0) {
-                    alert('Please enter the Total Invested Value till today');
-                    return;
-                }
                 if (!hasSIP) {
-                    alert('Please enter the Monthly SIP amount to continue');
+                    alert('Please enter the Monthly SIP amount');
+                    return;
+                }
+                if (!formData.startDate) {
+                    alert('Please enter the SIP Start Date');
+                    return;
+                }
+                if (formData.schemeCode <= 0) {
+                    alert('Please select an AMFI-listed mutual fund for Transfer mode (fund must have an AMFI code)');
+                    return;
+                }
+                if (!sipCalculation || sipCalculation.isLoading) {
+                    alert('Please wait for the SIP calculation to complete');
+                    return;
+                }
+                if (sipCalculation.error) {
+                    alert('SIP calculation failed: ' + sipCalculation.error);
+                    return;
+                }
+                if (sipCalculation.nInstallments === 0) {
+                    alert('No SIP installments found from the start date to today. Please check the SIP Start Date (it should be a past date).');
                     return;
                 }
             } else if (!hasLumpsum && !hasSIP) {
@@ -302,108 +415,124 @@ function ManageClientsContent() {
 
                 const lumpsumAmount = parseFloat(formData.amount) || 0;
                 const sipAmountInput = parseFloat(formData.sipAmount) || 0;
-                
-                let sipFirstAmount = 0;
-                let nextExecutionDate = formData.startDate ? new Date(formData.startDate) : new Date();
-                
-                // Check if SIP should execute immediately (Start Date <= Today)
-                if (sipAmountInput > 0) {
-                    const startDate = formData.startDate ? new Date(formData.startDate) : new Date();
-                    const today = new Date();
-                    // Reset times for date comparison
-                    startDate.setHours(0,0,0,0);
-                    today.setHours(0,0,0,0);
-                    
-                    if (startDate <= today) {
-                        console.log('SIP Start Date is today or past, executing first installment...');
-                        sipFirstAmount = sipAmountInput;
-                        // Schedule next for next month
-                        nextExecutionDate = new Date(startDate); // Base on start date
-                        nextExecutionDate.setMonth(nextExecutionDate.getMonth() + 1);
-                    }
-                }
-                
-                const totalInitialAmount = lumpsumAmount + sipFirstAmount;
 
-                // Create Holding if there is any initial investment
-                if (totalInitialAmount > 0) {
-                    console.log('Creating initial holding...', { lumpsumAmount, sipFirstAmount, total: totalInitialAmount });
-                    const totalUnits = currentNav > 0 ? totalInitialAmount / currentNav : 0;
-
-                    // For Transfer mode, anchor cost basis to user-supplied totalInvested so
-                    // P&L = currentValue − totalInvested. Holding.invested_amount is generated
-                    // as units × average_price, so we back-solve average_price from totalInvested.
-                    const transferTotalInvested = formData.investmentType === 'Transfer'
-                        ? parseFloat(formData.totalInvested) || 0
-                        : 0;
-                    const lumpsumUnits = currentNav > 0 ? lumpsumAmount / currentNav : 0;
-                    const lumpsumAvgPrice = formData.investmentType === 'Transfer' && lumpsumUnits > 0
-                        ? transferTotalInvested / lumpsumUnits
-                        : currentNav;
-                    const holdingAvgPrice = formData.investmentType === 'Transfer' && totalUnits > 0
-                        ? (transferTotalInvested + sipFirstAmount) / totalUnits
-                        : currentNav;
+                if (formData.investmentType === 'Transfer' && sipCalculation) {
+                    // Transfer mode: create holding from auto-calculated historical SIP values
+                    const { totalUnits, latestNav: calcNav, totalInvested: calcInvested, nextSipDate } = sipCalculation;
+                    const avgPrice = totalUnits > 0 ? calcInvested / totalUnits : calcNav;
+                    const navForHolding = calcNav || currentNav;
 
                     await addHolding({
                         user_id: targetClientId,
                         scheme_code: effectiveSchemeCode,
                         units: totalUnits,
-                        average_price: holdingAvgPrice,
-                        current_nav: currentNav,
+                        average_price: avgPrice,
+                        current_nav: navForHolding,
                     });
 
-                    // Record Lumpsum Transaction
-                    if (lumpsumAmount > 0) {
-                        const txAmount = formData.investmentType === 'Transfer' ? transferTotalInvested : lumpsumAmount;
-                        await addTransaction({
-                            user_id: targetClientId,
-                            scheme_code: effectiveSchemeCode,
-                            type: 'buy',
-                            amount: txAmount,
-                            units: lumpsumUnits,
-                            nav: lumpsumAvgPrice,
-                            status: 'completed',
-                            date: new Date().toISOString()
-                        });
-                    }
-                    
-                    // Record First SIP Transaction
-                    if (sipFirstAmount > 0) {
-                        const units = currentNav > 0 ? sipFirstAmount / currentNav : 0;
-                        await addTransaction({
-                            user_id: targetClientId,
-                            scheme_code: effectiveSchemeCode,
-                            type: 'sip',
-                            amount: sipFirstAmount,
-                            units: units,
-                            nav: currentNav,
-                            status: 'completed',
-                            date: new Date().toISOString()
-                        });
-                    }
-                }
+                    await addTransaction({
+                        user_id: targetClientId,
+                        scheme_code: effectiveSchemeCode,
+                        type: 'buy',
+                        amount: calcInvested,
+                        units: totalUnits,
+                        nav: avgPrice,
+                        status: 'completed',
+                        date: new Date().toISOString(),
+                    });
 
-                // Create SIP Record if applicable
-                if (sipAmountInput > 0) {
-                    console.log('Setting up SIP record...');
                     const sipPayload: any = {
                         user_id: targetClientId,
                         scheme_code: effectiveSchemeCode,
                         amount: sipAmountInput,
                         frequency: 'monthly',
-                        start_date: formData.startDate || new Date().toISOString(),
-                        next_execution_date: nextExecutionDate.toISOString(),
-                        status: 'active'
+                        start_date: formData.startDate,
+                        next_execution_date: new Date(nextSipDate + 'T00:00:00').toISOString(),
+                        status: 'active',
                     };
-                    
-                    // Add step-up fields if provided
                     const stepUp = parseFloat(formData.stepUpAmount);
                     if (stepUp > 0) {
                         sipPayload.step_up_amount = stepUp;
                         sipPayload.step_up_interval = formData.stepUpInterval;
                     }
-                    
                     await addSIP(sipPayload);
+
+                } else {
+                    // SIP / Lumpsum modes
+                    let sipFirstAmount = 0;
+                    let nextExecutionDate = formData.startDate ? new Date(formData.startDate) : new Date();
+
+                    if (sipAmountInput > 0) {
+                        const startDate = formData.startDate ? new Date(formData.startDate) : new Date();
+                        const today = new Date();
+                        startDate.setHours(0, 0, 0, 0);
+                        today.setHours(0, 0, 0, 0);
+                        if (startDate <= today) {
+                            sipFirstAmount = sipAmountInput;
+                            nextExecutionDate = new Date(startDate);
+                            nextExecutionDate.setMonth(nextExecutionDate.getMonth() + 1);
+                        }
+                    }
+
+                    const totalInitialAmount = lumpsumAmount + sipFirstAmount;
+
+                    if (totalInitialAmount > 0) {
+                        const totalUnits = currentNav > 0 ? totalInitialAmount / currentNav : 0;
+                        const lumpsumUnits = currentNav > 0 ? lumpsumAmount / currentNav : 0;
+
+                        await addHolding({
+                            user_id: targetClientId,
+                            scheme_code: effectiveSchemeCode,
+                            units: totalUnits,
+                            average_price: currentNav,
+                            current_nav: currentNav,
+                        });
+
+                        if (lumpsumAmount > 0) {
+                            await addTransaction({
+                                user_id: targetClientId,
+                                scheme_code: effectiveSchemeCode,
+                                type: 'buy',
+                                amount: lumpsumAmount,
+                                units: lumpsumUnits,
+                                nav: currentNav,
+                                status: 'completed',
+                                date: new Date().toISOString(),
+                            });
+                        }
+
+                        if (sipFirstAmount > 0) {
+                            const units = currentNav > 0 ? sipFirstAmount / currentNav : 0;
+                            await addTransaction({
+                                user_id: targetClientId,
+                                scheme_code: effectiveSchemeCode,
+                                type: 'sip',
+                                amount: sipFirstAmount,
+                                units,
+                                nav: currentNav,
+                                status: 'completed',
+                                date: new Date().toISOString(),
+                            });
+                        }
+                    }
+
+                    if (sipAmountInput > 0) {
+                        const sipPayload: any = {
+                            user_id: targetClientId,
+                            scheme_code: effectiveSchemeCode,
+                            amount: sipAmountInput,
+                            frequency: 'monthly',
+                            start_date: formData.startDate || new Date().toISOString(),
+                            next_execution_date: nextExecutionDate.toISOString(),
+                            status: 'active',
+                        };
+                        const stepUp = parseFloat(formData.stepUpAmount);
+                        if (stepUp > 0) {
+                            sipPayload.step_up_amount = stepUp;
+                            sipPayload.step_up_interval = formData.stepUpInterval;
+                        }
+                        await addSIP(sipPayload);
+                    }
                 }
             }
 
@@ -536,6 +665,7 @@ function ManageClientsContent() {
         setFundSearch('');
         setFundResults([]);
         setEditingClient(null);
+        setSipCalculation(null);
     };
 
     const filteredClients = clients.filter(client =>
@@ -1092,78 +1222,113 @@ function ManageClientsContent() {
                                 </div>
                             </div>
 
-                            {/* Amount */}
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                <div>
-                                    <label className="text-[#9CA3AF] text-xs mb-2 block">
-                                        {formData.investmentType === 'Transfer'
-                                            ? 'Current Portfolio Value (₹) *'
-                                            : formData.investmentType === 'SIP'
-                                            ? 'Initial Lumpsum (Optional)'
-                                            : 'Investment Amount *'}
-                                    </label>
-                                    <input
-                                        type="number"
-                                        placeholder={formData.investmentType === 'Transfer' ? '₹ e.g. 2109' : '₹ Amount'}
-                                        value={formData.amount}
-                                        onChange={(e) => setFormData(prev => ({ ...prev, amount: e.target.value }))}
-                                        className="w-full px-4 py-2.5 md:py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-[#9CA3AF] focus:outline-none focus:border-[#C4A265]/50 text-sm"
-                                    />
-                                </div>
-                                {(formData.investmentType === 'SIP' || formData.investmentType === 'Transfer') && (
+                            {/* Amount — hidden for Transfer (values auto-calculated) */}
+                            {formData.investmentType !== 'Transfer' && (
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     <div>
                                         <label className="text-[#9CA3AF] text-xs mb-2 block">
-                                            {formData.investmentType === 'Transfer' ? 'Monthly SIP to Continue (₹) *' : 'Monthly SIP Amount'}
+                                            {formData.investmentType === 'SIP' ? 'Initial Lumpsum (Optional)' : 'Investment Amount *'}
                                         </label>
                                         <input
                                             type="number"
-                                            placeholder="₹ Monthly"
+                                            placeholder="₹ Amount"
+                                            value={formData.amount}
+                                            onChange={(e) => setFormData(prev => ({ ...prev, amount: e.target.value }))}
+                                            className="w-full px-4 py-2.5 md:py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-[#9CA3AF] focus:outline-none focus:border-[#C4A265]/50 text-sm"
+                                        />
+                                    </div>
+                                    {formData.investmentType === 'SIP' && (
+                                        <div>
+                                            <label className="text-[#9CA3AF] text-xs mb-2 block">Monthly SIP Amount</label>
+                                            <input
+                                                type="number"
+                                                placeholder="₹ Monthly"
+                                                value={formData.sipAmount}
+                                                onChange={(e) => setFormData(prev => ({ ...prev, sipAmount: e.target.value }))}
+                                                className="w-full px-4 py-2.5 md:py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-[#9CA3AF] focus:outline-none focus:border-[#C4A265]/50 text-sm"
+                                            />
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
+                            {/* Transfer mode — SIP amount + start date (current value & invested auto-calculated) */}
+                            {formData.investmentType === 'Transfer' && (
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="text-[#9CA3AF] text-xs mb-2 block">Monthly SIP Amount (₹) *</label>
+                                        <input
+                                            type="number"
+                                            placeholder="₹ e.g. 5000"
                                             value={formData.sipAmount}
                                             onChange={(e) => setFormData(prev => ({ ...prev, sipAmount: e.target.value }))}
                                             className="w-full px-4 py-2.5 md:py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-[#9CA3AF] focus:outline-none focus:border-[#C4A265]/50 text-sm"
                                         />
                                     </div>
-                                )}
-                                {formData.investmentType === 'Transfer' && (
-                                    <div className="sm:col-span-2">
-                                        <label className="text-[#9CA3AF] text-xs mb-2 block">Total Invested Value Till Today (₹) *</label>
+                                    <div>
+                                        <label className="text-[#9CA3AF] text-xs mb-2 block">SIP Start Date (on previous platform) *</label>
                                         <input
-                                            type="number"
-                                            placeholder="₹ e.g. 1800"
-                                            value={formData.totalInvested}
-                                            onChange={(e) => setFormData(prev => ({ ...prev, totalInvested: e.target.value }))}
-                                            className="w-full px-4 py-2.5 md:py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-[#9CA3AF] focus:outline-none focus:border-[#C4A265]/50 text-sm"
+                                            type="date"
+                                            value={formData.startDate}
+                                            onChange={(e) => setFormData(prev => ({ ...prev, startDate: e.target.value }))}
+                                            className="w-full px-4 py-2.5 md:py-3 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:border-[#C4A265]/50 text-sm"
                                         />
-                                        <p className="text-[10px] text-[#9CA3AF] mt-1">Sum of all contributions made on the previous platform. Used as the cost basis for P&amp;L.</p>
+                                        <p className="text-[10px] text-[#9CA3AF] mt-1">Date of first SIP installment (must be in the past)</p>
                                     </div>
-                                )}
-                            </div>
 
-                            {/* Transfer summary card */}
-                            {formData.investmentType === 'Transfer' && parseFloat(formData.amount) > 0 && parseFloat(formData.sipAmount) > 0 && parseFloat(formData.totalInvested) > 0 && (
+                                    {/* Next SIP Date — computed from calculation */}
+                                    {sipCalculation && !sipCalculation.isLoading && !sipCalculation.error && sipCalculation.nextSipDate && (
+                                        <div className="sm:col-span-2">
+                                            <label className="text-[#9CA3AF] text-xs mb-2 block">Next SIP Date (computed)</label>
+                                            <div className="px-4 py-2.5 bg-white/5 border border-[#10B981]/30 rounded-xl text-[#6EE7B7] text-sm font-medium">
+                                                {new Date(sipCalculation.nextSipDate + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
+                            {/* Transfer auto-calculated summary card */}
+                            {formData.investmentType === 'Transfer' && (
                                 <div className="p-3 rounded-xl bg-[#10B981]/5 border border-[#10B981]/20">
-                                    <p className="text-[10px] text-[#10B981] mb-1.5 font-medium uppercase tracking-wider flex items-center gap-1">
+                                    <p className="text-[10px] text-[#10B981] mb-2 font-medium uppercase tracking-wider flex items-center gap-1.5">
                                         <ArrowRightLeft size={11} />
-                                        Transfer Summary
+                                        SIP Calculation (Auto)
+                                        {sipCalculation?.isLoading && <Loader2 size={11} className="animate-spin ml-1" />}
                                     </p>
-                                    <p className="text-[#D1FAE5] text-xs leading-relaxed">
-                                        <span className="font-semibold">₹{parseFloat(formData.amount).toLocaleString('en-IN')}</span> current value with cost basis{' '}
-                                        <span className="font-semibold">₹{parseFloat(formData.totalInvested).toLocaleString('en-IN')}</span> invested.{' '}
-                                        <span className="font-semibold">₹{parseFloat(formData.sipAmount).toLocaleString('en-IN')}/month</span> SIP will begin from{' '}
-                                        {formData.startDate ? new Date(formData.startDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : 'next month'}.
-                                    </p>
-                                    {(() => {
-                                        const cur = parseFloat(formData.amount);
-                                        const inv = parseFloat(formData.totalInvested);
-                                        const pnl = cur - inv;
-                                        const pct = inv > 0 ? (pnl / inv) * 100 : 0;
-                                        const positive = pnl >= 0;
-                                        return (
-                                            <p className={`text-[10px] mt-1.5 font-medium ${positive ? 'text-[#6EE7B7]' : 'text-[#FCA5A5]'}`}>
-                                                Opening P&amp;L: {positive ? '+' : ''}₹{pnl.toLocaleString('en-IN', { maximumFractionDigits: 2 })} ({positive ? '+' : ''}{pct.toFixed(2)}%)
-                                            </p>
-                                        );
-                                    })()}
+                                    {sipCalculation?.isLoading && (
+                                        <p className="text-[#9CA3AF] text-xs">Fetching NAV history and calculating...</p>
+                                    )}
+                                    {sipCalculation?.error && (
+                                        <p className="text-[#FCA5A5] text-xs">{sipCalculation.error}</p>
+                                    )}
+                                    {!sipCalculation && (
+                                        <p className="text-[#9CA3AF] text-xs">Enter the SIP amount and start date above to auto-calculate units, current value, and P&amp;L.</p>
+                                    )}
+                                    {sipCalculation && !sipCalculation.isLoading && !sipCalculation.error && (
+                                        <>
+                                            <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs mb-2">
+                                                <span className="text-[#9CA3AF]">Installments</span>
+                                                <span className="text-white font-medium text-right">{sipCalculation.nInstallments} months</span>
+                                                <span className="text-[#9CA3AF]">Total Units</span>
+                                                <span className="text-white font-medium text-right">{sipCalculation.totalUnits.toFixed(4)}</span>
+                                                <span className="text-[#9CA3AF]">Latest NAV</span>
+                                                <span className="text-white font-medium text-right">₹{sipCalculation.latestNav.toFixed(4)}</span>
+                                                <span className="text-[#9CA3AF]">Current Value</span>
+                                                <span className="text-white font-medium text-right">₹{sipCalculation.currentValue.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</span>
+                                                <span className="text-[#9CA3AF]">Total Invested</span>
+                                                <span className="text-white font-medium text-right">₹{sipCalculation.totalInvested.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</span>
+                                            </div>
+                                            {(() => {
+                                                const positive = sipCalculation.pnl >= 0;
+                                                return (
+                                                    <p className={`text-[11px] font-semibold border-t border-white/10 pt-1.5 ${positive ? 'text-[#6EE7B7]' : 'text-[#FCA5A5]'}`}>
+                                                        P&amp;L: {positive ? '+' : ''}₹{sipCalculation.pnl.toLocaleString('en-IN', { maximumFractionDigits: 2 })} ({positive ? '+' : ''}{sipCalculation.pnlPct.toFixed(2)}%)
+                                                    </p>
+                                                );
+                                            })()}
+                                        </>
+                                    )}
                                 </div>
                             )}
 
@@ -1204,21 +1369,18 @@ function ManageClientsContent() {
                                 </div>
                             )}
 
-                            {/* Start Date */}
-                            <div>
-                                <label className="text-[#9CA3AF] text-xs mb-2 block">
-                                    {formData.investmentType === 'Transfer' ? 'First SIP Date on Your Platform *' : 'Start Date *'}
-                                </label>
-                                <input
-                                    type="date"
-                                    value={formData.startDate}
-                                    onChange={(e) => setFormData(prev => ({ ...prev, startDate: e.target.value }))}
-                                    className="w-full px-4 py-2.5 md:py-3 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:border-[#C4A265]/50 text-sm"
-                                />
-                                {formData.investmentType === 'Transfer' && (
-                                    <p className="text-[10px] text-[#9CA3AF] mt-1">Keep this as a future date so the first SIP installment runs next month, not immediately.</p>
-                                )}
-                            </div>
+                            {/* Start Date — only for SIP/Lumpsum; Transfer mode has its own start date field above */}
+                            {formData.investmentType !== 'Transfer' && (
+                                <div>
+                                    <label className="text-[#9CA3AF] text-xs mb-2 block">Start Date *</label>
+                                    <input
+                                        type="date"
+                                        value={formData.startDate}
+                                        onChange={(e) => setFormData(prev => ({ ...prev, startDate: e.target.value }))}
+                                        className="w-full px-4 py-2.5 md:py-3 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:border-[#C4A265]/50 text-sm"
+                                    />
+                                </div>
+                            )}
                         </div>
 
                         {/* Modal Footer */}

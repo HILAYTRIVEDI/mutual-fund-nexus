@@ -140,7 +140,6 @@ export default function AssetChartCard({ customChartData, customAumValues }: Ass
             {/* Header */}
             <div className="flex items-start md:items-center justify-between mb-4 md:mb-6 relative z-10">
                 <div>
-                    <p className="text-[var(--text-secondary)] text-xs md:text-sm mb-1">Portfolio Value (AUM)</p>
                     <div className="flex items-baseline gap-2 md:gap-3">
                         <h2 className="text-2xl md:text-3xl font-bold text-[var(--text-primary)]">
                             {formatAUM(totalCurrentValue)}
