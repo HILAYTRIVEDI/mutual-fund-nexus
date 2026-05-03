@@ -1224,7 +1224,7 @@ function ManageClientsContent() {
                                     />
                                 </div>
                                 <div>
-                                    <label className="text-[#9CA3AF] text-xs mb-2 block">Aadhar Card *</label>
+                                    <label className="text-[#9CA3AF] text-xs mb-2 block">Aadhar Card</label>
                                     <input
                                         type="text"
                                         placeholder="XXXX XXXX XXXX"
