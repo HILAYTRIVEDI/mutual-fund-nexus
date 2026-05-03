@@ -61,7 +61,8 @@ export function SIPProvider({ children }: { children: ReactNode }) {
                 .from('sips')
                 .select(`
                     *,
-                    mutual_fund:mutual_funds(name)
+                    mutual_fund:mutual_funds(name),
+                    profile:profiles(full_name)
                 `)
                 .order('next_execution_date', { ascending: true });
 
@@ -88,6 +89,7 @@ export function SIPProvider({ children }: { children: ReactNode }) {
                 return {
                     ...sip,
                     scheme_name: sip.mutual_fund?.name,
+                    client_name: sip.profile?.full_name ?? undefined,
                     days_until_next: daysUntilNext ?? undefined,
                 };
             });

@@ -10,11 +10,11 @@ import { createClient } from '@supabase/supabase-js';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { userId, newPassword } = body;
+    const { userId, newPassword, advisorId } = body;
 
-    if (!userId || !newPassword) {
+    if (!userId || !newPassword || !advisorId) {
       return NextResponse.json(
-        { error: 'Missing required fields: userId, newPassword' },
+        { error: 'Missing required fields: userId, newPassword, advisorId' },
         { status: 400 }
       );
     }
@@ -37,10 +37,10 @@ export async function POST(request: NextRequest) {
       }
     );
 
-    // Verify the target user exists and is a client (not an admin)
+    // Verify the target user exists, is a client, and belongs to the calling advisor
     const { data: profile, error: profileError } = await supabaseAdmin
       .from('profiles')
-      .select('id, role')
+      .select('id, role, advisor_id')
       .eq('id', userId)
       .single();
 
@@ -51,6 +51,13 @@ export async function POST(request: NextRequest) {
     if (profile.role !== 'client') {
       return NextResponse.json(
         { error: 'Password can only be reset for client accounts' },
+        { status: 403 }
+      );
+    }
+
+    if (profile.advisor_id !== advisorId) {
+      return NextResponse.json(
+        { error: 'Not authorized to reset this client\'s password' },
         { status: 403 }
       );
     }

@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useState, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 
 type Theme = 'dark' | 'light';
 
@@ -12,17 +12,17 @@ interface ThemeContextType {
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-    const [theme, setTheme] = useState<Theme>(() => {
-        // Only run on client
-        if (typeof window !== 'undefined') {
-            const savedTheme = localStorage.getItem('ruacapital-theme') as Theme;
-            if (savedTheme) {
-                document.documentElement.setAttribute('data-theme', savedTheme);
-                return savedTheme;
-            }
+    // Always start with 'dark' so server and client render the same HTML (no hydration mismatch)
+    const [theme, setTheme] = useState<Theme>('dark');
+
+    // Apply saved preference after mount (client-only)
+    useEffect(() => {
+        const savedTheme = localStorage.getItem('ruacapital-theme') as Theme | null;
+        if (savedTheme === 'dark' || savedTheme === 'light') {
+            setTheme(savedTheme);
+            document.documentElement.setAttribute('data-theme', savedTheme);
         }
-        return 'dark';
-    });
+    }, []);
 
     const toggleTheme = () => {
         const newTheme = theme === 'dark' ? 'light' : 'dark';

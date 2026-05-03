@@ -26,26 +26,26 @@ export async function POST(request: NextRequest) {
 
     const supabase = getServerSupabaseClient();
 
-    // Calculate date range
+    // Calculate date range — fetch up to 30 days ahead to cover all per-client reminder windows
     const today = new Date();
-    const futureDate = new Date();
-    futureDate.setDate(today.getDate() + daysAhead);
+    const maxWindow = new Date();
+    maxWindow.setDate(today.getDate() + 30);
 
     // Format dates for PostgreSQL
     const todayStr = today.toISOString().split('T')[0];
-    const futureDateStr = futureDate.toISOString().split('T')[0];
+    const maxWindowStr = maxWindow.toISOString().split('T')[0];
 
-    // Fetch upcoming SIPs with client and fund info
+    // Fetch upcoming SIPs with client and fund info (including per-client reminder preference)
     const { data: sips, error: sipsError } = await supabase
       .from('sips')
       .select(`
         *,
-        client:profiles(id, full_name, email, advisor_id),
+        client:profiles(id, full_name, email, advisor_id, reminder_days_before, email_sip_reminders),
         mutual_fund:mutual_funds(name, code)
       `)
       .eq('status', 'active')
       .gte('next_execution_date', todayStr)
-      .lte('next_execution_date', futureDateStr);
+      .lte('next_execution_date', maxWindowStr);
 
     if (sipsError) {
       console.error('Error fetching SIPs:', sipsError);
@@ -105,6 +105,12 @@ export async function POST(request: NextRequest) {
       // Calculate days until execution
       const executionDate = new Date(sip.next_execution_date);
       const daysUntil = Math.ceil((executionDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+
+      // Skip if outside this client's personal reminder window
+      const clientReminderDays = (client.reminder_days_before ?? daysAhead);
+      if (daysUntil > clientReminderDays) {
+        continue;
+      }
 
       // Prepare email data
       const emailData = {

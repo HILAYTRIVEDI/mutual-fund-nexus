@@ -251,7 +251,7 @@ async function processSIPs(request: NextRequest) {
             units: newUnits,
             nav: currentNav,
             status: 'completed',
-            date: new Date().toISOString(),
+            date: new Date().toISOString().split('T')[0],
             sip_id: sip.id,
           } as any);
 

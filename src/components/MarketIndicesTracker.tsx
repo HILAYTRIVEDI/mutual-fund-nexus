@@ -178,7 +178,7 @@ export default function MarketIndicesTracker() {
                             </div>
 
                             {/* Value */}
-                            <p className="text-[var(--text-primary)] text-sm md:text-lg font-bold mb-0.5 md:mb-1 truncate">
+                            <p className="text-[var(--text-primary)] text-sm md:text-lg font-bold mb-0.5 md:mb-1 ">
                                 {formatNumber(index.value)}
                             </p>
 

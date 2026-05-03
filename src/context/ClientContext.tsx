@@ -81,7 +81,7 @@ export function ClientProvider({ children }: { children: ReactNode }) {
                 name: profile.full_name || profile.email?.split('@')[0] || 'Client',
                 panCard: profile.pan,
                 aadharCard: profile.aadhar,
-                status: 'active' as const,
+                status: (profile.kyc_status === 'rejected' || profile.kyc_status === 'expired') ? 'inactive' as const : 'active' as const,
             }));
 
             setClients(mappedClients);
@@ -188,29 +188,8 @@ export function ClientProvider({ children }: { children: ReactNode }) {
 
     const deleteClient = async (id: string): Promise<{ success: boolean; error?: string }> => {
         try {
-            // Delete all related data first to avoid FK constraint errors
-            const [holdingsRes, sipsRes, txRes] = await Promise.all([
-                supabase.from('holdings').delete().eq('user_id', id),
-                supabase.from('sips').delete().eq('user_id', id),
-                supabase.from('transactions').delete().eq('user_id', id)
-            ]);
-
-            if (holdingsRes.error) console.warn('Holdings drop error:', holdingsRes.error);
-            if (sipsRes.error) console.warn('SIPs drop error:', sipsRes.error);
-            if (txRes.error) console.warn('Tx drop error:', txRes.error);
-
-            // Delete the profile row
-            const { error: deleteError } = await (supabase
-                .from('profiles') as any)
-                .delete()
-                .eq('id', id)
-                .eq('advisor_id', user?.id); // Security: only delete own clients
-
-            if (deleteError) {
-                throw deleteError;
-            }
-
-            // Delete the auth user via server-side API (requires service role key)
+            // All deletion (data + auth user) is handled server-side via service role key
+            // to avoid: (1) RLS blocking advisor-initiated deletes, (2) orphaned auth users
             const res = await fetch('/api/clients/delete', {
                 method: 'DELETE',
                 headers: { 'Content-Type': 'application/json' },
@@ -219,11 +198,7 @@ export function ClientProvider({ children }: { children: ReactNode }) {
 
             if (!res.ok) {
                 const body = await res.json().catch(() => ({}));
-                const errMsg = body.error || 'Unknown error';
-                console.error('[ClientContext] Auth user delete failed:', errMsg);
-                // Profile is already deleted client-side, but the auth user persists.
-                // Return an error so the admin knows the delete was incomplete.
-                return { success: false, error: `Client data removed but auth account could not be deleted: ${errMsg}. The user may still be able to log in — please retry deletion.` };
+                return { success: false, error: body.error || 'Failed to delete client' };
             }
 
             setClients(prev => prev.filter(c => c.id !== id));

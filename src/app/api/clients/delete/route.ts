@@ -44,8 +44,8 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    // Best-effort cleanup of related rows in case the client-side delete
-    // missed any (or the profile was deleted but data wasn't).
+    // Delete all related data in dependency order before removing the profile
+    await supabaseAdmin.from('notifications').delete().eq('user_id', clientId);
     await supabaseAdmin.from('holdings').delete().eq('user_id', clientId);
     await supabaseAdmin.from('sips').delete().eq('user_id', clientId);
     await supabaseAdmin.from('transactions').delete().eq('user_id', clientId);

@@ -38,6 +38,20 @@ export interface MutualFund {
   type: string | null;
   current_nav: number | null;
   last_updated: string | null;
+  nse_code: string | null;
+  isin_value: string | null;
+}
+
+// NSE Scheme Master (weekly-synced cache from NSE MASTER_DOWNLOAD)
+export interface NseSchememaster {
+  scheme_code: string;
+  scheme_name: string;
+  isin: string | null;
+  amc_code: string | null;
+  scheme_type: string | null;
+  current_nav: number | null;
+  nav_date: string | null;
+  last_synced: string;
 }
 
 // Holding (User Investment) - now linked to profiles.id
@@ -119,9 +133,14 @@ export interface Database {
         Insert: MutualFund;
         Update: Partial<Omit<MutualFund, 'code'>>;
       };
+      nse_scheme_master: {
+        Row: NseSchememaster;
+        Insert: NseSchememaster;
+        Update: Partial<Omit<NseSchememaster, 'scheme_code'>>;
+      };
       holdings: {
         Row: Holding;
-        Insert: Omit<Holding, 'id' | 'invested_amount' | 'created_at' | 'updated_at' | 'mutual_fund' | 'profile'>;
+        Insert: Omit<Holding, 'id' | 'invested_amount' | 'created_at' | 'updated_at' | 'mutual_fund' | 'profile' | 'current_nav'> & { current_nav?: number };
         Update: Partial<Omit<Holding, 'id' | 'invested_amount' | 'created_at' | 'updated_at'>>;
       };
       transactions: {

@@ -234,12 +234,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                             if (mounted) setIsLoading(false);
                         });
                     } else {
-                        // No session - check if we have cached user
-                        const cachedUser = getCachedData<User>(CACHE_KEY_USER);
-                        if (!cachedUser) {
-                            setUser(null);
-                            setProfile(null);
-                        }
+                        // No active session — clear any stale cached identity immediately
+                        clearCache();
+                        setUser(null);
+                        setProfile(null);
                         setIsLoading(false);
                     }
                 }

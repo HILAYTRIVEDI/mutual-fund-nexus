@@ -290,7 +290,7 @@ export default function CompareFundsPage() {
                                                         disabled={loadingFunds.has(scheme.schemeCode)}
                                                         className="w-full p-3 text-left hover:bg-[var(--bg-hover)] transition-colors disabled:opacity-50"
                                                     >
-                                                        <p className="text-[var(--text-primary)] text-sm font-medium truncate">{scheme.schemeName}</p>
+                                                        <p className="text-[var(--text-primary)] text-sm font-medium ">{scheme.schemeName}</p>
                                                         <p className="text-[var(--text-secondary)] text-xs">Code: {scheme.schemeCode}</p>
                                                     </button>
                                                 ))

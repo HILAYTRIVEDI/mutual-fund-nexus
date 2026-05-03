@@ -84,7 +84,9 @@ export default function PortfolioPage() {
                 amount: currentValue,
                 date: new Date()
             });
-            const xirr = calculateXIRR(cashFlows);
+            const hasOutflows = cashFlows.some(cf => cf.amount < 0);
+            const rawXirr = hasOutflows && currentValue > 0 ? calculateXIRR(cashFlows) : 0;
+            const xirr = isNaN(rawXirr) ? 0 : rawXirr;
 
             // Use earliest completed buy/sip transaction date for LTCG/STCG determination
             // Falls back to holding creation date if no transactions found
@@ -120,7 +122,11 @@ export default function PortfolioPage() {
     const portfolioXirr = useMemo(() => {
         const currentTotal = holdingsData.reduce((sum, h) => sum + h.currentValue, 0);
         if (!transactions.length || currentTotal === 0) return 0;
-        const cashFlows = transactions.map(t => ({
+        // Filter to the holdings' user IDs to avoid mixing cross-account cash flows for admins
+        const holdingUserIds = new Set(holdings.map(h => h.user_id));
+        const scopedTxs = transactions.filter(t => t.user_id && holdingUserIds.has(t.user_id));
+        if (!scopedTxs.length) return 0;
+        const cashFlows = scopedTxs.map(t => ({
             amount: (t.type === 'buy' || t.type === 'sip') ? -t.amount : t.amount,
             date: new Date(t.date || t.created_at)
         }));
@@ -128,8 +134,10 @@ export default function PortfolioPage() {
             amount: currentTotal,
             date: new Date()
         });
-        return calculateXIRR(cashFlows);
-    }, [transactions, holdingsData]);
+        if (!cashFlows.some(cf => cf.amount < 0)) return 0;
+        const result = calculateXIRR(cashFlows);
+        return isNaN(result) ? 0 : result;
+    }, [transactions, holdingsData, holdings]);
 
     const handleSort = (key: SortKey) => {
         if (sortKey === key) {
@@ -240,17 +248,17 @@ export default function PortfolioPage() {
                 <div className="flex lg:grid lg:grid-cols-4 gap-3 md:gap-4 mb-4 md:mb-6 overflow-x-auto pb-2 lg:pb-0 -mx-4 px-4 lg:mx-0 lg:px-0">
                     <div className="glass-card rounded-2xl p-3 md:p-4 gradient-border flex-shrink-0 min-w-[140px] lg:min-w-0">
                         <p className="text-[var(--text-secondary)] text-[10px] md:text-xs mb-1">Total Invested</p>
-                        <p className="text-[var(--text-primary)] text-lg md:text-xl font-bold truncate">{formatCurrency(totalInvested)}</p>
+                        <p className="text-[var(--text-primary)] text-lg md:text-xl font-bold ">{formatCurrency(totalInvested)}</p>
                     </div>
                     <div className="glass-card rounded-2xl p-3 md:p-4 gradient-border flex-shrink-0 min-w-[140px] lg:min-w-0">
                         <p className="text-[var(--text-secondary)] text-[10px] md:text-xs mb-1">Current Value</p>
-                        <p className="text-[var(--text-primary)] text-lg md:text-xl font-bold truncate">{formatCurrency(totalCurrent)}</p>
+                        <p className="text-[var(--text-primary)] text-lg md:text-xl font-bold ">{formatCurrency(totalCurrent)}</p>
                     </div>
                     <div className="glass-card rounded-2xl p-3 md:p-4 gradient-border flex-shrink-0 min-w-[140px] lg:min-w-0">
                         <p className="text-[var(--text-secondary)] text-[10px] md:text-xs mb-1">
                             {showPostTax ? 'Returns (Post-Tax)' : 'Total Returns'}
                         </p>
-                        <p className={`text-lg md:text-xl font-bold truncate ${totalAdjustedReturns >= 0 ? 'text-[var(--accent-mint)]' : 'text-[var(--accent-red)]'}`}>
+                        <p className={`text-lg md:text-xl font-bold  ${totalAdjustedReturns >= 0 ? 'text-[var(--accent-mint)]' : 'text-[var(--accent-red)]'}`}>
                             {totalAdjustedReturns >= 0 ? '+' : ''}{formatCurrency(totalAdjustedReturns)}
                         </p>
                     </div>
@@ -261,7 +269,7 @@ export default function PortfolioPage() {
                                 {showXirr ? 'Show Absolute %' : 'Show XIRR %'}
                             </button>
                         </div>
-                        <p className={`text-lg md:text-xl font-bold truncate ${showXirr ? (portfolioXirr >= 0 ? 'text-[var(--accent-mint)]' : 'text-[var(--accent-red)]') : (parseFloat(totalReturnsPercentage) >= 0 ? 'text-[var(--accent-mint)]' : 'text-[var(--accent-red)]')}`}>
+                        <p className={`text-lg md:text-xl font-bold  ${showXirr ? (portfolioXirr >= 0 ? 'text-[var(--accent-mint)]' : 'text-[var(--accent-red)]') : (parseFloat(totalReturnsPercentage) >= 0 ? 'text-[var(--accent-mint)]' : 'text-[var(--accent-red)]')}`}>
                             {showXirr ? `${portfolioXirr > 0 ? '+' : ''}${portfolioXirr.toFixed(2)}% (XIRR)` : `${parseFloat(totalReturnsPercentage) >= 0 ? '+' : ''}${totalReturnsPercentage}%`}
                         </p>
                     </div>
@@ -439,7 +447,7 @@ export default function PortfolioPage() {
                                                 <PiggyBank size={18} style={{ color: holding.color }} />
                                             </div>
                                             <div className="min-w-0">
-                                                <p className="text-[var(--text-primary)] font-medium text-sm truncate">{holding.fundName}</p>
+                                                <p className="text-[var(--text-primary)] font-medium text-sm ">{holding.fundName}</p>
                                                 <div className="flex items-center gap-2">
                                                     <span className="text-[var(--text-secondary)] text-xs">{holding.fundHouse}</span>
                                                     <span className="px-1.5 py-0.5 rounded text-xs bg-[var(--bg-hover)] text-[var(--text-secondary)]">

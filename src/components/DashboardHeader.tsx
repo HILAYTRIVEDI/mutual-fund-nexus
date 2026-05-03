@@ -1,3 +1,5 @@
+'use client';
+
 import Link from 'next/link';
 import { TrendingUp, Users, PiggyBank, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 import GlobalSearch from './GlobalSearch';
@@ -89,7 +91,7 @@ export default function DashboardHeader({ title, subtitle }: DashboardHeaderProp
             {/* Row 1: Title + Theme Toggle + Notifications */}
             <div className="flex items-start md:items-center justify-between gap-4">
                 <div className="flex-1 min-w-0 pr-12 md:pr-0">
-                    <h1 className="text-xl md:text-2xl font-bold text-[var(--text-primary)] truncate">{title}</h1>
+                    <h1 className="text-xl md:text-2xl font-bold text-[var(--text-primary)] ">{title}</h1>
                     <p className="text-[var(--text-secondary)] text-xs md:text-sm line-clamp-2 md:line-clamp-1">{subtitle}</p>
                 </div>
 

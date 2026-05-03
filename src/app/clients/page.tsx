@@ -198,7 +198,7 @@ function ClientsPageContent() {
 
     const totalAUM = filteredClients.reduce((sum, c) => sum + c.currentValue, 0);
     const totalPnL = filteredClients.reduce((sum, c) => sum + c.pnl, 0);
-    const isLoading = clientsLoading || holdingsLoading || sipsLoading;
+    const isLoading = clientsLoading || holdingsLoading || sipsLoading || txLoading;
 
     if (isLoading) {
         return (
@@ -288,30 +288,30 @@ function ClientsPageContent() {
                             </div>
                             <div>
                                 <p className="text-[#9CA3AF] text-[10px] md:text-xs">Total Clients</p>
-                                <p className="text-white text-lg md:text-xl font-bold truncate">{filteredClients.length}</p>
+                                <p className="text-white text-lg md:text-xl font-bold ">{filteredClients.length}</p>
                             </div>
                         </div>
                     </div>
                     <div className="glass-card rounded-2xl p-3 md:p-4 gradient-border flex-shrink-0 min-w-[140px] lg:min-w-0">
                         <p className="text-[#9CA3AF] text-[10px] md:text-xs">Total AUM</p>
-                        <p className="text-white text-lg md:text-xl font-bold truncate">{formatCurrency(totalAUM)}</p>
+                        <p className="text-white text-lg md:text-xl font-bold ">{formatCurrency(totalAUM)}</p>
                     </div>
                     <div className="glass-card rounded-2xl p-3 md:p-4 gradient-border flex-shrink-0 min-w-[140px] lg:min-w-0">
                         <p className="text-[#9CA3AF] text-[10px] md:text-xs">Total P&L</p>
-                        <p className={`text-lg md:text-xl font-bold truncate ${totalPnL >= 0 ? 'text-[#C4A265]' : 'text-[#EF4444]'}`}>
+                        <p className={`text-lg md:text-xl font-bold  ${totalPnL >= 0 ? 'text-[#C4A265]' : 'text-[#EF4444]'}`}>
                             {totalPnL >= 0 ? '+' : ''}{formatCurrency(totalPnL)}
                         </p>
                     </div>
                     <div className="glass-card rounded-2xl p-3 md:p-4 gradient-border flex-shrink-0 min-w-[140px] lg:min-w-0">
                         <p className="text-[#9CA3AF] text-[10px] md:text-xs">SIP Clients</p>
 
-                        <p className="text-[#C4A265] text-lg md:text-xl font-bold truncate">
+                        <p className="text-[#C4A265] text-lg md:text-xl font-bold ">
                             {filteredClients.filter(c => c.investmentType.includes('SIP')).length}
                         </p>
                     </div>
                     <div className="glass-card rounded-2xl p-3 md:p-4 gradient-border flex-shrink-0 min-w-[140px] lg:min-w-0">
                         <p className="text-[#9CA3AF] text-[10px] md:text-xs">Lumpsum</p>
-                        <p className="text-[#5B7FA4] text-lg md:text-xl font-bold truncate">
+                        <p className="text-[#5B7FA4] text-lg md:text-xl font-bold ">
                             {filteredClients.filter(c => c.investmentType.includes('Lumpsum')).length}
                         </p>
                     </div>
@@ -497,7 +497,7 @@ function ClientsPageContent() {
                                                     {client.name.split(' ').map(n => n[0]).join('')}
                                                 </div>
                                                 <div className="min-w-0">
-                                                    <p className="text-white font-medium text-sm truncate">{client.name}</p>
+                                                    <p className="text-white font-medium text-sm ">{client.name}</p>
                                                     <p className="text-[#9CA3AF] text-xs">{client.id.slice(0, 8)}</p>
                                                 </div>
                                             </div>

@@ -114,8 +114,8 @@ export default function Sidebar() {
                             {user.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
                         </div>
                         <div className="min-w-0">
-                            <p className="text-[var(--text-primary)] font-medium text-sm truncate">{user.name}</p>
-                            <p className="text-[var(--accent-gold)] text-xs truncate capitalize">{user.role} Account</p>
+                            <p className="text-[var(--text-primary)] font-medium text-sm ">{user.name}</p>
+                            <p className="text-[var(--accent-gold)] text-xs  capitalize">{user.role} Account</p>
                         </div>
                     </div>
                 )}

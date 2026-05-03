@@ -292,10 +292,10 @@ export default function GlobalSearch() {
                                                         />
                                                     </div>
                                                     <div className="flex-1 min-w-0">
-                                                        <p className="text-[var(--text-primary)] font-medium truncate text-sm">
+                                                        <p className="text-[var(--text-primary)] font-medium  text-sm">
                                                             {result.title}
                                                         </p>
-                                                        <p className="text-[var(--text-secondary)] text-xs truncate">
+                                                        <p className="text-[var(--text-secondary)] text-xs ">
                                                             {result.subtitle}
                                                         </p>
                                                     </div>

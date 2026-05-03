@@ -94,7 +94,9 @@ export default function ClientDetailPage() {
             date: new Date(t.date || t.created_at)
         }));
         cashFlows.push({ amount: currentValue, date: new Date() });
-        const xirr = calculateXIRR(cashFlows);
+        const hasOutflows = cashFlows.some(cf => cf.amount < 0);
+        const rawXirr = hasOutflows && currentValue > 0 ? calculateXIRR(cashFlows) : 0;
+        const xirr = isNaN(rawXirr) ? 0 : rawXirr;
 
         // No tax when not in post-tax mode, individual holding is in loss, or overall portfolio is in loss
         const totalPortfolioGross = clientHoldings.reduce((sum, h) => {
@@ -195,7 +197,7 @@ export default function ClientDetailPage() {
                                 {initials}
                             </div>
                             <div className="min-w-0">
-                                <h1 className="text-lg md:text-2xl font-bold truncate">{client.name}</h1>
+                                <h1 className="text-lg md:text-2xl font-bold ">{client.name}</h1>
                                 <p className="text-[var(--text-secondary)] text-xs">ID: {client.id.slice(0, 8)}</p>
                                 <div className="flex flex-wrap items-center gap-1.5 mt-1">
                                     <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
@@ -238,7 +240,7 @@ export default function ClientDetailPage() {
                         <div className="flex items-center gap-1.5 text-[var(--text-secondary)] text-xs mb-1">
                             <Mail size={11} /> Email
                         </div>
-                        <p className="text-[var(--text-primary)] text-sm font-medium truncate">{client.email || '—'}</p>
+                        <p className="text-[var(--text-primary)] text-sm font-medium ">{client.email || '—'}</p>
                     </div>
                     <div className="glass-card rounded-2xl p-3 md:p-4">
                         <div className="flex items-center gap-1.5 text-[var(--text-secondary)] text-xs mb-1">
@@ -420,7 +422,7 @@ export default function ClientDetailPage() {
                                                             <PiggyBank size={16} className="text-[var(--accent-mint)]" />
                                                         </div>
                                                         <div className="min-w-0">
-                                                            <p className="text-[var(--text-primary)] text-sm font-medium truncate">{fundName}</p>
+                                                            <p className="text-[var(--text-primary)] text-sm font-medium ">{fundName}</p>
                                                             <p className="text-[var(--text-secondary)] text-xs flex items-center gap-1">
                                                                 NAV ₹{holding.current_nav?.toFixed(2) || holding.average_price.toFixed(2)}
                                                                 {returns.isStaleNav && (
@@ -552,7 +554,7 @@ export default function ClientDetailPage() {
                                                         </span>
                                                     </div>
                                                     <div className="col-span-4 flex items-center">
-                                                        <p className="text-[var(--text-primary)] text-sm truncate">{fundName}</p>
+                                                        <p className="text-[var(--text-primary)] text-sm ">{fundName}</p>
                                                     </div>
                                                     <div className="col-span-2 flex items-center justify-end">
                                                         <p className={`text-sm font-medium ${isBuy ? 'text-[var(--accent-mint)]' : 'text-[var(--accent-red)]'}`}>

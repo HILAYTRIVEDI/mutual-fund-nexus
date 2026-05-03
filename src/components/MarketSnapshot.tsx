@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { PiggyBank, TrendingUp, TrendingDown, Loader2 } from 'lucide-react';
 import { useHoldings, HoldingWithValue } from '@/context/HoldingsContext';
 import { useMemo } from 'react';
@@ -46,9 +47,9 @@ export default function MarketSnapshot() {
 
             <div className="flex items-center justify-between mb-4 relative z-10">
                 <h3 className="text-[var(--text-primary)] font-semibold">Top Performing Holdings</h3>
-                <button className="text-[var(--accent-mint)] text-sm font-medium hover:underline transition-colors">
+                <Link href="/portfolio" className="text-[var(--accent-mint)] text-sm font-medium hover:underline transition-colors">
                     View All
-                </button>
+                </Link>
             </div>
 
             {isLoading ? (
@@ -89,7 +90,7 @@ export default function MarketSnapshot() {
                                             <PiggyBank size={14} style={{ color: fund.color }} />
                                         </div>
                                         <div className="min-w-0">
-                                            <p className="text-[var(--text-primary)] text-sm font-medium truncate">{fund.name}</p>
+                                            <p className="text-[var(--text-primary)] text-sm font-medium ">{fund.name}</p>
                                             <p className="text-[var(--text-secondary)] text-xs">{fund.category}</p>
                                         </div>
                                     </div>

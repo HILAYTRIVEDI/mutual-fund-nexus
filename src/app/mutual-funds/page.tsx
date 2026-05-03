@@ -149,7 +149,7 @@ export default function MutualFundsPage() {
 
                 {/* Results Info & Pagination */}
                 <div className="flex items-center justify-between mb-3 md:mb-4 gap-2">
-                    <p className="text-[#9CA3AF] text-xs md:text-sm truncate">
+                    <p className="text-[#9CA3AF] text-xs md:text-sm ">
                         {searchQuery ? (
                             <>Showing {schemes.length} results</>
                         ) : (
@@ -233,7 +233,7 @@ export default function MutualFundsPage() {
                                             <span className="text-white text-sm font-mono">{scheme.schemeCode}</span>
                                         </div>
                                         <div className="col-span-8">
-                                            <span className="text-white text-sm truncate block">{scheme.schemeName}</span>
+                                            <span className="text-white text-sm  block">{scheme.schemeName}</span>
                                         </div>
                                         <div className="col-span-2 flex items-center justify-end">
                                             <button className="px-3 py-1.5 rounded-lg bg-[#C4A265]/10 border border-[#C4A265]/20 text-[#C4A265] text-xs font-medium hover:bg-[#C4A265]/20 transition-colors flex items-center gap-1">

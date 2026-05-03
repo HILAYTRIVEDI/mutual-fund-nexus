@@ -67,6 +67,8 @@
   --color-red: var(--accent-red);
   --color-gray: var(--text-secondary);
   --font-sans: var(--font-inter);
+  /* Extend grid columns beyond Tailwind's default 12 */
+  --grid-template-columns-14: repeat(14, minmax(0, 1fr));
 }
 
 body {

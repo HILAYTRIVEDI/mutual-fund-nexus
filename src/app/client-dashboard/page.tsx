@@ -208,7 +208,7 @@ export default function ClientDashboard() {
                                                 <PiggyBank size={14} style={{ color: COLORS[idx % COLORS.length] }} />
                                             </div>
                                             <div className="min-w-0">
-                                                <p className="text-sm font-medium text-[var(--text-primary)] truncate max-w-[150px]">{h.mutual_fund?.name || (h.scheme_code || 'Scheme Name')}</p>
+                                                <p className="text-sm font-medium text-[var(--text-primary)]  max-w-[150px]">{h.mutual_fund?.name || (h.scheme_code || 'Scheme Name')}</p>
                                                 <p className="text-xs text-[var(--text-secondary)]">{formatCurrency(h.current_value)}</p>
                                             </div>
                                         </div>

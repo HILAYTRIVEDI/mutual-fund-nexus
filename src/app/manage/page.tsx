@@ -21,16 +21,6 @@ function formatCurrency(amount: number): string {
     return `₹${amount.toLocaleString('en-IN')}`;
 }
 
-const generatePassword = (pan: string, aadhar: string) => {
-    // Simple mock encryption: Base64 of PAN + Last 4 of Aadhar
-    const aadharLast4 = aadhar.replace(/\D/g, '').slice(-4);
-    try {
-        return btoa(`${pan}${aadharLast4}`).slice(0, 10);
-    } catch (e) {
-        return 'pass1234'; // Fallback
-    }
-};
-
 // Finds NAV on or after targetDate from MFAPI history (dates in DD-MM-YYYY, sorted descending)
 function findNavForDate(navHistory: { date: string; nav: string }[], targetDate: Date): number {
     const targetTs = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate()).getTime();
@@ -58,6 +48,7 @@ function findNavForDate(navHistory: { date: string; nav: string }[], targetDate:
 }
 
 function ManageClientsContent() {
+    const { user } = useAuth();
     const { clients, addClient, updateClient, deleteClient } = useClientContext();
     const { addHolding, refreshHoldings } = useHoldings();
     const { addSIP, refreshSIPs } = useSIPs();
@@ -125,6 +116,19 @@ function ManageClientsContent() {
         error: string | null;
     } | null>(null);
 
+    // Lumpsum auto-calculation
+    const [lumpCalculation, setLumpCalculation] = useState<{
+        units: number;
+        currentValue: number;
+        investedAmount: number;
+        navOnDate: number;
+        latestNav: number;
+        pnl: number;
+        pnlPct: number;
+        isLoading: boolean;
+        error: string | null;
+    } | null>(null);
+
     // Lock body scroll when modal is open
     useEffect(() => {
         if (showAddModal) {
@@ -182,18 +186,47 @@ function ManageClientsContent() {
         return () => clearTimeout(timer);
     }, [fundSearch, handleFundSearch]);
 
+    // Resolve AMFI scheme code: direct > selectedFundCode numeric > ISIN reverse lookup
+    const resolveAmfiCode = useCallback(async (schemeCode: number, selectedFundCode: string, isin: string): Promise<number> => {
+        if (schemeCode > 0) return schemeCode;
+        const parsed = parseInt(selectedFundCode, 10);
+        if (parsed > 0) return parsed;
+        if (isin && isin.startsWith('IN')) {
+            try {
+                const res = await fetch(`/api/amfi/isin-lookup?isin=${encodeURIComponent(isin)}`);
+                if (res.ok) {
+                    const data = await res.json() as { schemeCode?: number };
+                    if (data.schemeCode && data.schemeCode > 0) return data.schemeCode;
+                }
+            } catch {
+                // best effort
+            }
+        }
+        return 0;
+    }, []);
+
     // Auto-calculate SIP values for Transfer mode using MFAPI NAV history
     const calculateSIPValues = useCallback(async () => {
+        // Resolve AMFI code: direct schemeCode > numeric selectedFundCode > ISIN reverse lookup
+        const effectiveAmfiCode = await resolveAmfiCode(
+            formData.schemeCode,
+            formData.selectedFundCode,
+            formData.selectedIsin,
+        );
+
         if (
             formData.investmentType !== 'Transfer' ||
-            formData.schemeCode <= 0 ||
             !formData.startDate ||
             !formData.sipAmount ||
             parseFloat(formData.sipAmount) <= 0
         ) {
-            if (formData.investmentType === 'Transfer' && formData.schemeCode <= 0 && formData.startDate) {
+            if (formData.investmentType === 'Transfer' && !(effectiveAmfiCode > 0) && formData.startDate) {
                 setSipCalculation({ totalUnits: 0, currentValue: 0, totalInvested: 0, latestNav: 0, pnl: 0, pnlPct: 0, nextSipDate: '', nInstallments: 0, isLoading: false, error: 'Historical NAV calculation requires an AMFI-listed fund (not NSE-only).' });
             }
+            return;
+        }
+        if (!(effectiveAmfiCode > 0)) {
+            setSipCalculation({ totalUnits: 0, currentValue: 0, totalInvested: 0, latestNav: 0, pnl: 0, pnlPct: 0, nextSipDate: '', nInstallments: 0, isLoading: false, error: 'Historical NAV calculation requires an AMFI-listed fund (not NSE-only).' });
             return;
         }
 
@@ -205,7 +238,7 @@ function ManageClientsContent() {
             const today = new Date();
             today.setHours(0, 0, 0, 0);
 
-            const res = await fetch(`https://api.mfapi.in/mf/${formData.schemeCode}`);
+            const res = await fetch(`https://api.mfapi.in/mf/${effectiveAmfiCode}`);
             if (!res.ok) throw new Error('Failed to fetch NAV history');
             const data = await res.json();
             const navHistory: { date: string; nav: string }[] = data.data;
@@ -239,13 +272,71 @@ function ManageClientsContent() {
         } catch (err) {
             setSipCalculation(prev => ({ ...(prev ?? { totalUnits: 0, currentValue: 0, totalInvested: 0, latestNav: 0, pnl: 0, pnlPct: 0, nextSipDate: '', nInstallments: 0 }), isLoading: false, error: err instanceof Error ? err.message : 'Calculation failed' }));
         }
-    }, [formData.investmentType, formData.schemeCode, formData.startDate, formData.sipAmount]);
+    }, [formData.investmentType, formData.schemeCode, formData.selectedFundCode, formData.selectedIsin, formData.startDate, formData.sipAmount, resolveAmfiCode]);
 
     useEffect(() => {
         if (formData.investmentType !== 'Transfer') { setSipCalculation(null); return; }
         const timer = setTimeout(calculateSIPValues, 600);
         return () => clearTimeout(timer);
-    }, [formData.investmentType, formData.schemeCode, formData.startDate, formData.sipAmount, calculateSIPValues]);
+    }, [formData.investmentType, formData.schemeCode, formData.selectedFundCode, formData.selectedIsin, formData.startDate, formData.sipAmount, calculateSIPValues]);
+
+    // Auto-calculate Lumpsum values using MFAPI NAV history
+    const calculateLumpsumValues = useCallback(async () => {
+        // Resolve AMFI code: direct schemeCode > numeric selectedFundCode > ISIN reverse lookup
+        const effectiveAmfiCode = await resolveAmfiCode(
+            formData.schemeCode,
+            formData.selectedFundCode,
+            formData.selectedIsin,
+        );
+
+        if (
+            formData.investmentType !== 'Lumpsum' ||
+            !formData.startDate ||
+            !formData.amount ||
+            parseFloat(formData.amount) <= 0
+        ) {
+            if (formData.investmentType === 'Lumpsum' && !(effectiveAmfiCode > 0) && formData.startDate) {
+                setLumpCalculation({ units: 0, currentValue: 0, investedAmount: 0, navOnDate: 0, latestNav: 0, pnl: 0, pnlPct: 0, isLoading: false, error: 'Historical NAV calculation requires an AMFI-listed fund (not NSE-only).' });
+            }
+            return;
+        }
+        if (!(effectiveAmfiCode > 0)) {
+            setLumpCalculation({ units: 0, currentValue: 0, investedAmount: 0, navOnDate: 0, latestNav: 0, pnl: 0, pnlPct: 0, isLoading: false, error: 'Historical NAV calculation requires an AMFI-listed fund (not NSE-only).' });
+            return;
+        }
+
+        setLumpCalculation(prev => ({ ...(prev ?? { units: 0, currentValue: 0, investedAmount: 0, navOnDate: 0, latestNav: 0, pnl: 0, pnlPct: 0 }), isLoading: true, error: null }));
+
+        try {
+            const investedAmount = parseFloat(formData.amount);
+            const investmentDate = new Date(formData.startDate + 'T00:00:00');
+
+            const res = await fetch(`https://api.mfapi.in/mf/${effectiveAmfiCode}`);
+            if (!res.ok) throw new Error('Failed to fetch NAV history');
+            const data = await res.json();
+            const navHistory: { date: string; nav: string }[] = data.data;
+            if (!navHistory?.length) throw new Error('No NAV data available for this fund');
+
+            const navOnDate = findNavForDate(navHistory, investmentDate);
+            if (navOnDate <= 0) throw new Error('Could not find NAV for the investment date. Try an earlier date.');
+
+            const units = investedAmount / navOnDate;
+            const latestNav = parseFloat(navHistory[0].nav);
+            const currentValue = units * latestNav;
+            const pnl = currentValue - investedAmount;
+            const pnlPct = investedAmount > 0 ? (pnl / investedAmount) * 100 : 0;
+
+            setLumpCalculation({ units, currentValue, investedAmount, navOnDate, latestNav, pnl, pnlPct, isLoading: false, error: null });
+        } catch (err) {
+            setLumpCalculation(prev => ({ ...(prev ?? { units: 0, currentValue: 0, investedAmount: 0, navOnDate: 0, latestNav: 0, pnl: 0, pnlPct: 0 }), isLoading: false, error: err instanceof Error ? err.message : 'Calculation failed' }));
+        }
+    }, [formData.investmentType, formData.schemeCode, formData.selectedFundCode, formData.selectedIsin, formData.startDate, formData.amount, resolveAmfiCode]);
+
+    useEffect(() => {
+        if (formData.investmentType !== 'Lumpsum') { setLumpCalculation(null); return; }
+        const timer = setTimeout(calculateLumpsumValues, 600);
+        return () => clearTimeout(timer);
+    }, [formData.investmentType, formData.schemeCode, formData.selectedFundCode, formData.selectedIsin, formData.startDate, formData.amount, calculateLumpsumValues]);
 
     const handleSelectFund = (fund: EnrichedFundScheme) => {
         setFormData(prev => ({
@@ -328,7 +419,7 @@ function ManageClientsContent() {
                     email: formData.email,
                     phone: formData.phone,
                     pan: formData.panCard,
-                    aadhar: formData.aadharCard,
+                    aadhar: formData.aadharCard.replace(/\s/g, '') || null,
                     notes: null,
                 });
                 targetClientId = editingClient.id;
@@ -340,7 +431,7 @@ function ManageClientsContent() {
                     email: formData.email,
                     phone: formData.phone || undefined,
                     pan: formData.panCard,
-                    aadhar: formData.aadharCard || undefined,
+                    aadhar: formData.aadharCard ? formData.aadharCard.replace(/\s/g, '') : undefined,
                     password: formData.password,
                 });
 
@@ -438,7 +529,7 @@ function ManageClientsContent() {
                         units: totalUnits,
                         nav: avgPrice,
                         status: 'completed',
-                        date: new Date().toISOString(),
+                        date: new Date().toISOString().split('T')[0],
                     });
 
                     const sipPayload: any = {
@@ -447,7 +538,7 @@ function ManageClientsContent() {
                         amount: sipAmountInput,
                         frequency: 'monthly',
                         start_date: formData.startDate,
-                        next_execution_date: new Date(nextSipDate + 'T00:00:00').toISOString(),
+                        next_execution_date: nextSipDate,
                         status: 'active',
                     };
                     const stepUp = parseFloat(formData.stepUpAmount);
@@ -456,6 +547,29 @@ function ManageClientsContent() {
                         sipPayload.step_up_interval = formData.stepUpInterval;
                     }
                     await addSIP(sipPayload);
+
+                } else if (formData.investmentType === 'Lumpsum' && lumpCalculation && !lumpCalculation.error) {
+                    // Lumpsum mode with auto-calculated historical NAV values
+                    const { units: calcUnits, navOnDate, latestNav: calcLatestNav, investedAmount: calcInvested } = lumpCalculation;
+
+                    await addHolding({
+                        user_id: targetClientId,
+                        scheme_code: effectiveSchemeCode,
+                        units: calcUnits,
+                        average_price: navOnDate,
+                        current_nav: calcLatestNav,
+                    });
+
+                    await addTransaction({
+                        user_id: targetClientId,
+                        scheme_code: effectiveSchemeCode,
+                        type: 'buy',
+                        amount: calcInvested,
+                        units: calcUnits,
+                        nav: navOnDate,
+                        status: 'completed',
+                        date: formData.startDate || new Date().toISOString().split('T')[0],
+                    });
 
                 } else {
                     // SIP / Lumpsum modes
@@ -497,7 +611,7 @@ function ManageClientsContent() {
                                 units: lumpsumUnits,
                                 nav: currentNav,
                                 status: 'completed',
-                                date: new Date().toISOString(),
+                                date: formData.startDate || new Date().toISOString().split('T')[0],
                             });
                         }
 
@@ -511,7 +625,7 @@ function ManageClientsContent() {
                                 units,
                                 nav: currentNav,
                                 status: 'completed',
-                                date: new Date().toISOString(),
+                                date: formData.startDate || new Date().toISOString().split('T')[0],
                             });
                         }
                     }
@@ -523,7 +637,7 @@ function ManageClientsContent() {
                             amount: sipAmountInput,
                             frequency: 'monthly',
                             start_date: formData.startDate || new Date().toISOString(),
-                            next_execution_date: nextExecutionDate.toISOString(),
+                            next_execution_date: nextExecutionDate.toISOString().split('T')[0],
                             status: 'active',
                         };
                         const stepUp = parseFloat(formData.stepUpAmount);
@@ -553,16 +667,16 @@ function ManageClientsContent() {
         }
     };
 
-    const handleEditClient = (client: Client) => {
+    const handleEditClient = useCallback((client: Client) => {
         setEditingClient(client);
         setFormData({
             name: client.name || client.full_name || '',
             email: client.email || '',
             phone: client.phone || '',
             panCard: client.panCard || client.pan || '',
-            aadharCard: client.aadharCard || client.aadhar || '', // Now stored in new schema
-            password: '', // Password not editable for existing clients
-            investmentType: 'SIP', // Default - holdings are stored separately
+            aadharCard: client.aadharCard || client.aadhar || '',
+            password: '',
+            investmentType: 'SIP',
             amount: '0',
             totalInvested: '',
             sipAmount: '',
@@ -580,7 +694,7 @@ function ManageClientsContent() {
         });
         setFundSearch('');
         setShowAddModal(true);
-    };
+    }, []);
 
     // Handle edit from query params
     useEffect(() => {
@@ -593,7 +707,7 @@ function ManageClientsContent() {
                 router.replace('/manage', { scroll: false });
             }
         }
-    }, [searchParams, clients, showAddModal, router]);
+    }, [searchParams, clients, showAddModal, router, handleEditClient]);
 
     const handleOpenPasswordModal = (client: Client) => {
         setPasswordForm({ newPassword: '', confirmPassword: '', showNew: false, showConfirm: false });
@@ -615,7 +729,7 @@ function ManageClientsContent() {
             const res = await fetch('/api/clients/update-password', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ userId: showPasswordModal.clientId, newPassword: passwordForm.newPassword }),
+                body: JSON.stringify({ userId: showPasswordModal.clientId, newPassword: passwordForm.newPassword, advisorId: user?.id }),
             });
             const data = await res.json();
             if (!res.ok) throw new Error(data.error || 'Failed to update password');
@@ -666,6 +780,7 @@ function ManageClientsContent() {
         setFundResults([]);
         setEditingClient(null);
         setSipCalculation(null);
+        setLumpCalculation(null);
     };
 
     const filteredClients = clients.filter(client =>
@@ -797,7 +912,7 @@ function ManageClientsContent() {
                                             </div>
                                         </div>
                                         <div className="col-span-3">
-                                            <p className="text-white text-sm truncate">{client.email}</p>
+                                            <p className="text-white text-sm ">{client.email}</p>
                                             <p className="text-[#9CA3AF] text-xs">{client.phone || '-'}</p>
                                         </div>
                                         <div className="col-span-2 flex items-center justify-center">
@@ -1166,7 +1281,7 @@ function ManageClientsContent() {
                                                             className="w-full text-left px-4 py-3 hover:bg-white/5 transition-colors border-b border-white/5 last:border-0"
                                                         >
                                                             <div className="flex items-start justify-between gap-2">
-                                                                <p className="text-white text-sm truncate flex-1">{fund.schemeName}</p>
+                                                                <p className="text-white text-sm  flex-1">{fund.schemeName}</p>
                                                                 <span className={`shrink-0 text-[10px] px-2 py-0.5 rounded-full border ${sourceBadge.cls}`}>
                                                                     {sourceBadge.label}
                                                                 </span>
@@ -1372,13 +1487,62 @@ function ManageClientsContent() {
                             {/* Start Date — only for SIP/Lumpsum; Transfer mode has its own start date field above */}
                             {formData.investmentType !== 'Transfer' && (
                                 <div>
-                                    <label className="text-[#9CA3AF] text-xs mb-2 block">Start Date *</label>
+                                    <label className="text-[#9CA3AF] text-xs mb-2 block">
+                                        {formData.investmentType === 'Lumpsum' ? 'Investment Date (when lumpsum was made) *' : 'Start Date *'}
+                                    </label>
                                     <input
                                         type="date"
                                         value={formData.startDate}
                                         onChange={(e) => setFormData(prev => ({ ...prev, startDate: e.target.value }))}
                                         className="w-full px-4 py-2.5 md:py-3 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:border-[#C4A265]/50 text-sm"
                                     />
+                                    {formData.investmentType === 'Lumpsum' && (
+                                        <p className="text-[10px] text-[#9CA3AF] mt-1">Date the lumpsum investment was originally made (must be in the past)</p>
+                                    )}
+                                </div>
+                            )}
+
+                            {/* Lumpsum auto-calculated summary card */}
+                            {formData.investmentType === 'Lumpsum' && (
+                                <div className="p-3 rounded-xl bg-[#5B7FA4]/5 border border-[#5B7FA4]/20">
+                                    <p className="text-[10px] text-[#5B7FA4] mb-2 font-medium uppercase tracking-wider flex items-center gap-1.5">
+                                        <TrendingUp size={11} />
+                                        Lumpsum Calculation (Auto)
+                                        {lumpCalculation?.isLoading && <Loader2 size={11} className="animate-spin ml-1" />}
+                                    </p>
+                                    {lumpCalculation?.isLoading && (
+                                        <p className="text-[#9CA3AF] text-xs">Fetching NAV history and calculating...</p>
+                                    )}
+                                    {lumpCalculation?.error && (
+                                        <p className="text-[#FCA5A5] text-xs">{lumpCalculation.error}</p>
+                                    )}
+                                    {!lumpCalculation && (
+                                        <p className="text-[#9CA3AF] text-xs">Enter the investment amount and investment date above to auto-calculate units, current value, and P&amp;L.</p>
+                                    )}
+                                    {lumpCalculation && !lumpCalculation.isLoading && !lumpCalculation.error && (
+                                        <>
+                                            <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs mb-2">
+                                                <span className="text-[#9CA3AF]">NAV on Inv. Date</span>
+                                                <span className="text-white font-medium text-right">₹{lumpCalculation.navOnDate.toFixed(4)}</span>
+                                                <span className="text-[#9CA3AF]">Units Purchased</span>
+                                                <span className="text-white font-medium text-right">{lumpCalculation.units.toFixed(4)}</span>
+                                                <span className="text-[#9CA3AF]">Latest NAV</span>
+                                                <span className="text-white font-medium text-right">₹{lumpCalculation.latestNav.toFixed(4)}</span>
+                                                <span className="text-[#9CA3AF]">Current Value</span>
+                                                <span className="text-white font-medium text-right">₹{lumpCalculation.currentValue.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</span>
+                                                <span className="text-[#9CA3AF]">Invested Amount</span>
+                                                <span className="text-white font-medium text-right">₹{lumpCalculation.investedAmount.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</span>
+                                            </div>
+                                            {(() => {
+                                                const positive = lumpCalculation.pnl >= 0;
+                                                return (
+                                                    <p className={`text-[11px] font-semibold border-t border-white/10 pt-1.5 ${positive ? 'text-[#6EE7B7]' : 'text-[#FCA5A5]'}`}>
+                                                        P&amp;L: {positive ? '+' : ''}₹{lumpCalculation.pnl.toLocaleString('en-IN', { maximumFractionDigits: 2 })} ({positive ? '+' : ''}{lumpCalculation.pnlPct.toFixed(2)}%)
+                                                    </p>
+                                                );
+                                            })()}
+                                        </>
+                                    )}
                                 </div>
                             )}
                         </div>

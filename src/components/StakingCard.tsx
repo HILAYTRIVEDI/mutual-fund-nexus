@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { Calendar, PiggyBank, Clock, Loader2 } from 'lucide-react';
 import { useSIPs } from '@/context/SIPContext';
+import { useAuth } from '@/context/AuthContext';
 
 function formatCurrency(amount: number): string {
     if (amount >= 100000) {
@@ -20,6 +21,8 @@ const colors = ['#C4A265', '#5B7FA4', '#D4B87A', '#7A9DBF', '#8B7355'];
 
 export default function StakingCard() {
     const { upcomingSIPs, activeSIPs, isLoading, error } = useSIPs();
+    const { user } = useAuth();
+    const sipLink = user?.role === 'client' ? '/portfolio' : '/clients?type=SIP';
     
     // Get next 4 upcoming SIPs
     const displaySIPs = activeSIPs
@@ -77,7 +80,7 @@ export default function StakingCard() {
 
                 <div className="mt-3 md:mt-4 relative z-10">
                     <Link
-                        href="/clients?type=SIP"
+                        href={sipLink}
                         className="block w-full py-2.5 md:py-3 rounded-xl bg-gradient-to-r from-[var(--accent-gold)]/20 to-[var(--accent-gold)]/10 border border-[var(--accent-gold)]/30 text-[var(--accent-gold)] font-medium hover:from-[var(--accent-gold)]/30 hover:to-[var(--accent-gold)]/20 hover:shadow-lg hover:shadow-[var(--accent-gold)]/20 transition-all duration-300 text-center text-sm"
                     >
                         Manage SIPs
@@ -129,10 +132,10 @@ export default function StakingCard() {
                                     <PiggyBank size={14} className="md:w-[18px] md:h-[18px]" style={{ color: sip.color }} />
                                 </div>
                                 <div className="min-w-0">
-                                    <p className="text-[var(--text-primary)] font-medium text-xs md:text-sm truncate">
+                                    <p className="text-[var(--text-primary)] font-medium text-xs md:text-sm ">
                                         {sip.client_name || 'Client'}
                                     </p>
-                                    <p className="text-[var(--text-secondary)] text-[10px] md:text-xs truncate">
+                                    <p className="text-[var(--text-secondary)] text-[10px] md:text-xs ">
                                         {sip.scheme_name || sip.scheme_code || 'Fund'}
                                     </p>
                                 </div>
@@ -167,7 +170,7 @@ export default function StakingCard() {
             {/* View All Button */}
             <div className="mt-3 md:mt-4 relative z-10">
                 <Link
-                    href="/clients?type=SIP"
+                    href={sipLink}
                     className="block w-full py-2.5 md:py-3 rounded-xl bg-gradient-to-r from-[var(--accent-gold)]/20 to-[var(--accent-gold)]/10 border border-[var(--accent-gold)]/30 text-[var(--accent-gold)] font-medium hover:from-[var(--accent-gold)]/30 hover:to-[var(--accent-gold)]/20 hover:shadow-lg hover:shadow-[var(--accent-gold)]/20 transition-all duration-300 text-center text-sm"
                 >
                     View All SIPs
