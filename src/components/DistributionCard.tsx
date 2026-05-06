@@ -206,12 +206,17 @@ export default function DistributionCard({ customData }: DistributionCardProps =
                                 />
                             ))}
                         </Pie>
-                        <Tooltip content={<CustomTooltip />} />
+                        <Tooltip
+                            content={<CustomTooltip />}
+                            allowEscapeViewBox={{ x: true, y: true }}
+                            position={{ x: 4, y: 4 }}
+                            wrapperStyle={{ zIndex: 9999, pointerEvents: 'none' }}
+                        />
                     </PieChart>
                 </ResponsiveContainer>
 
                 {/* Center text */}
-                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center justify-center pointer-events-none w-[100px] text-center">
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center justify-center pointer-events-none w-[100px] text-center z-[60]">
                     <p className="text-[var(--text-secondary)] text-[9px] leading-tight line-clamp-2 w-full" title={focusItem.name}>{focusItem.name}</p>
                     <p className="text-2xl font-bold text-[var(--text-primary)] mt-0.5">{focusItem.value}%</p>
                 </div>

@@ -39,10 +39,9 @@ export default function DashboardHeader({ title, subtitle }: DashboardHeaderProp
     const { sips } = useSIPs();
 
     const stats = useMemo(() => {
-        // 1. New Clients (MTD)
+        // 1. Total Clients
         const now = new Date();
-        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-        const newClientsCount = clients.filter(c => new Date(c.created_at) >= startOfMonth).length;
+        const totalClientsCount = clients.length;
 
         // 2. SIPs This Week (Count of active SIPs started this week)
         const startOfWeek = new Date(now);
@@ -70,8 +69,8 @@ export default function DashboardHeader({ title, subtitle }: DashboardHeaderProp
                 color: 'var(--accent-mint)',
             },
             {
-                label: 'New Clients (MTD)',
-                value: newClientsCount.toString(),
+                label: 'Total Clients',
+                value: totalClientsCount.toString(),
                 icon: Users,
                 color: 'var(--accent-blue)',
             },
