@@ -88,13 +88,10 @@ export default function MonthlySIPCard() {
 
     return (
         <div className="glass-card rounded-2xl p-4 md:p-6 gradient-border relative overflow-hidden transition-colors duration-300 h-full">
-            {/* Gradient overlay */}
-            <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent-blue)]/10 via-transparent to-[var(--accent-mint)]/5 pointer-events-none" />
-
             {/* Header */}
             <div className="flex items-center justify-between mb-4 md:mb-6 relative z-10">
                 <div className="flex items-center gap-2">
-                    <div className="p-2 rounded-xl bg-gradient-to-br from-[var(--accent-blue)]/20 to-[var(--accent-blue)]/10">
+                    <div className="p-2 rounded-xl bg-[var(--accent-blue)]/20">
                         <Calendar size={18} className="text-[var(--accent-blue)]" />
                     </div>
                     <div>
@@ -114,7 +111,7 @@ export default function MonthlySIPCard() {
 
             {/* Main Amount */}
             <div className="mb-4 md:mb-6 relative z-10">
-                <h2 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-[var(--text-primary)] to-[var(--text-secondary)] bg-clip-text text-transparent">
+                <h2 className="text-2xl md:text-3xl font-bold text-[var(--text-primary)]">
                     {formatCurrency(totalMonthlyAmount)}
                 </h2>
                 <p className="text-[var(--text-secondary)] text-xs mt-1">Total monthly SIP collection</p>
@@ -122,14 +119,14 @@ export default function MonthlySIPCard() {
 
             {/* Stats Grid */}
             <div className="grid grid-cols-2 gap-3 md:gap-4 mb-4 md:mb-6 relative z-10">
-                <div className="p-3 rounded-xl bg-gradient-to-br from-[var(--bg-hover)] to-transparent border border-[var(--border-primary)]">
+                <div className="p-3 rounded-xl bg-[var(--bg-hover)] border border-[var(--border-primary)]">
                     <div className="flex items-center gap-2 mb-1">
                         <BarChart3 size={14} className="text-[var(--accent-purple)]" />
                         <span className="text-[var(--text-secondary)] text-[10px] md:text-xs">Active SIPs</span>
                     </div>
                     <p className="text-[var(--text-primary)] text-lg md:text-xl font-bold">{activeSIPCount}</p>
                 </div>
-                <div className="p-3 rounded-xl bg-gradient-to-br from-[var(--bg-hover)] to-transparent border border-[var(--border-primary)]">
+                <div className="p-3 rounded-xl bg-[var(--bg-hover)] border border-[var(--border-primary)]">
                     <div className="flex items-center gap-2 mb-1">
                         <ArrowUpRight size={14} className="text-[var(--accent-mint)]" />
                         <span className="text-[var(--text-secondary)] text-[10px] md:text-xs">Avg Amount</span>

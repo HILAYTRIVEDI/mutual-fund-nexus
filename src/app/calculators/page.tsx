@@ -170,7 +170,7 @@ export default function CalculatorsPage() {
                 {/* Header */}
                 <header className="mb-6 pr-14 md:pr-0">
                     <div className="flex items-center gap-3 mb-2">
-                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[var(--accent-mint)] to-[var(--accent-blue)] flex items-center justify-center">
+                        <div className="w-10 h-10 rounded-xl bg-[var(--accent-mint)] flex items-center justify-center">
                             <Calculator size={20} className="text-white" />
                         </div>
                         <div>
@@ -196,7 +196,7 @@ export default function CalculatorsPage() {
                         onClick={() => setActiveCalculator('sip')}
                         className={`px-4 md:px-6 py-2.5 rounded-lg text-sm font-medium transition-all duration-300 flex items-center gap-2 ${
                             activeCalculator === 'sip'
-                                ? 'bg-gradient-to-r from-[var(--accent-mint)] to-[var(--accent-blue)] text-white shadow-md'
+                                ? 'bg-[var(--accent-mint)] text-white shadow-md'
                                 : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
                         }`}
                     >
@@ -207,7 +207,7 @@ export default function CalculatorsPage() {
                         onClick={() => setActiveCalculator('lumpsum')}
                         className={`px-4 md:px-6 py-2.5 rounded-lg text-sm font-medium transition-all duration-300 flex items-center gap-2 ${
                             activeCalculator === 'lumpsum'
-                                ? 'bg-gradient-to-r from-[var(--accent-purple)] to-[#D4B87A] text-white shadow-md'
+                                ? 'bg-[var(--accent-purple)] text-white shadow-md'
                                 : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
                         }`}
                     >
@@ -218,7 +218,7 @@ export default function CalculatorsPage() {
                         onClick={() => setActiveCalculator('step-up-sip')}
                         className={`px-4 md:px-6 py-2.5 rounded-lg text-sm font-medium transition-all duration-300 flex items-center gap-2 ${
                             activeCalculator === 'step-up-sip'
-                                ? 'bg-gradient-to-r from-[#F59E0B] to-[#EF4444] text-white shadow-md'
+                                ? 'bg-[#F59E0B] text-white shadow-md'
                                 : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
                         }`}
                     >
@@ -229,7 +229,7 @@ export default function CalculatorsPage() {
                         onClick={() => setActiveCalculator('swp')}
                         className={`px-4 md:px-6 py-2.5 rounded-lg text-sm font-medium transition-all duration-300 flex items-center gap-2 ${
                             activeCalculator === 'swp'
-                                ? 'bg-gradient-to-r from-[#EF4444] to-[#EC4899] text-white shadow-md'
+                                ? 'bg-[#EF4444] text-white shadow-md'
                                 : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
                         }`}
                     >
@@ -511,16 +511,6 @@ export default function CalculatorsPage() {
 
                     {/* Results Section */}
                     <div className="glass-card rounded-2xl p-5 md:p-6 relative overflow-hidden">
-                        {/* Gradient Overlay */}
-                        <div className={`absolute inset-0 bg-gradient-to-br ${
-                            activeCalculator === 'sip'
-                                ? 'from-[var(--accent-mint)]/10 via-transparent to-[var(--accent-blue)]/5'
-                                : activeCalculator === 'lumpsum'
-                                ? 'from-[var(--accent-purple)]/10 via-transparent to-[var(--accent-mint)]/5'
-                                : activeCalculator === 'swp'
-                                ? 'from-[#EF4444]/10 via-transparent to-[#EC4899]/5'
-                                : 'from-[#F59E0B]/10 via-transparent to-[#EF4444]/5'
-                        } pointer-events-none`} />
                         
                         <h2 className="text-lg font-semibold mb-6 flex items-center gap-2 relative z-10">
                             <TrendingUp size={20} className={

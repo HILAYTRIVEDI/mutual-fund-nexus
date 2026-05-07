@@ -98,7 +98,7 @@ export default function LandingPage() {
       {/* Navbar */}
       <nav className="relative z-20 flex items-center justify-between px-6 md:px-12 lg:px-20 py-5">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-gradient-to-br from-[var(--accent-gold)] to-[var(--accent-blue)] rounded-xl flex items-center justify-center shadow-lg shadow-[var(--accent-gold)]/20">
+          <div className="w-10 h-10 bg-[var(--accent-gold)] rounded-xl flex items-center justify-center shadow-lg shadow-[var(--accent-gold)]/20">
             <ShieldCheck size={22} className="text-white" />
           </div>
           <span className="text-xl font-bold tracking-tight">RuaCapital</span>
@@ -107,7 +107,7 @@ export default function LandingPage() {
           <ThemeToggle />
           <Link
             href="/login"
-            className="px-5 py-2.5 text-sm font-medium text-white bg-gradient-to-r from-[var(--accent-gold)] to-[var(--accent-blue)] rounded-xl hover:opacity-90 transition-opacity duration-200 shadow-md shadow-[var(--accent-gold)]/20"
+            className="px-5 py-2.5 text-sm font-medium text-white bg-[var(--accent-gold)] rounded-xl hover:opacity-90 transition-opacity duration-200 shadow-md shadow-[var(--accent-gold)]/20"
           >
             Sign In
           </Link>
@@ -124,7 +124,7 @@ export default function LandingPage() {
 
           <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold leading-[1.1] tracking-tight mb-6">
             Smart Mutual Fund{' '}
-            <span className="bg-gradient-to-r from-[var(--accent-gold)] via-[var(--accent-blue)] to-[var(--accent-mint)] bg-clip-text text-transparent">
+            <span className="text-[var(--accent-gold)]">
               Management
             </span>
           </h1>
@@ -137,7 +137,7 @@ export default function LandingPage() {
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link
               href="/login"
-              className="group flex items-center gap-2 px-8 py-3.5 text-base font-semibold text-white bg-gradient-to-r from-[var(--accent-gold)] to-[var(--accent-blue)] rounded-xl hover:opacity-90 transition-all duration-200 shadow-lg shadow-[var(--accent-gold)]/25"
+              className="group flex items-center gap-2 px-8 py-3.5 text-base font-semibold text-white bg-[var(--accent-gold)] rounded-xl hover:opacity-90 transition-all duration-200 shadow-lg shadow-[var(--accent-gold)]/25"
             >
               Start Managing
               <ArrowRight size={18} className="transition-transform duration-200 group-hover:translate-x-1" />
@@ -209,7 +209,7 @@ export default function LandingPage() {
               </p>
               <Link
                 href="/login"
-                className="group inline-flex items-center gap-2 px-8 py-3.5 text-base font-semibold text-white bg-gradient-to-r from-[var(--accent-gold)] to-[var(--accent-blue)] rounded-xl hover:opacity-90 transition-all duration-200 shadow-lg shadow-[var(--accent-gold)]/25"
+                className="group inline-flex items-center gap-2 px-8 py-3.5 text-base font-semibold text-white bg-[var(--accent-gold)] rounded-xl hover:opacity-90 transition-all duration-200 shadow-lg shadow-[var(--accent-gold)]/25"
               >
                 Sign In to Your Account
                 <ChevronRight size={18} className="transition-transform duration-200 group-hover:translate-x-1" />
@@ -223,7 +223,7 @@ export default function LandingPage() {
       <footer className="relative z-10 border-t border-[var(--border-primary)] px-6 md:px-12 lg:px-20 py-8">
         <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
-            <div className="w-7 h-7 bg-gradient-to-br from-[var(--accent-gold)] to-[var(--accent-blue)] rounded-lg flex items-center justify-center">
+            <div className="w-7 h-7 bg-[var(--accent-gold)] rounded-lg flex items-center justify-center">
               <ShieldCheck size={14} className="text-white" />
             </div>
             <span className="text-sm font-semibold">RuaCapital</span>

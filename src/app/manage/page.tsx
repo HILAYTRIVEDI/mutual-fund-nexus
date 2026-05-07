@@ -801,7 +801,7 @@ function ManageClientsContent() {
                     </div>
                     <button
                         onClick={() => setShowAddModal(true)}
-                        className="px-4 md:px-5 py-2 md:py-2.5 rounded-xl bg-gradient-to-r from-[#C4A265] to-[#D4B87A] text-white font-medium flex items-center justify-center gap-2 hover:shadow-lg hover:shadow-[#C4A265]/30 transition-all text-sm self-start sm:self-auto"
+                        className="px-4 md:px-5 py-2 md:py-2.5 rounded-xl bg-[#C4A265] text-white font-medium flex items-center justify-center gap-2 hover:shadow-lg hover:shadow-[#C4A265]/30 transition-all text-sm self-start sm:self-auto"
                     >
                         <Plus size={18} />
                         Add Client
@@ -853,7 +853,7 @@ function ManageClientsContent() {
                                     <div className="lg:hidden p-4 hover:bg-white/5 transition-all">
                                         <div className="flex items-start justify-between gap-3 mb-3">
                                             <div className="flex items-center gap-3">
-                                                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#C4A265] to-[#5B7FA4] flex items-center justify-center text-white font-semibold text-xs flex-shrink-0">
+                                                <div className="w-10 h-10 rounded-full bg-[#C4A265] flex items-center justify-center text-white font-semibold text-xs flex-shrink-0">
                                                     {client.name.split(' ').map(n => n[0]).join('')}
                                                 </div>
                                                 <div>
@@ -902,7 +902,7 @@ function ManageClientsContent() {
                                     <div className="hidden lg:grid grid-cols-12 gap-4 p-4 hover:bg-white/5 transition-all items-center">
                                         <div className="col-span-3">
                                             <div className="flex items-center gap-3">
-                                                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#C4A265] to-[#5B7FA4] flex items-center justify-center text-white font-semibold text-sm">
+                                                <div className="w-10 h-10 rounded-full bg-[#C4A265] flex items-center justify-center text-white font-semibold text-sm">
                                                     {client.name.split(' ').map(n => n[0]).join('')}
                                                 </div>
                                                 <div>
@@ -1558,7 +1558,7 @@ function ManageClientsContent() {
                             <button
                                 onClick={handleAddClient}
                                 disabled={isSubmitting}
-                                className="flex-1 py-2.5 md:py-3 rounded-xl bg-gradient-to-r from-[#C4A265] to-[#D4B87A] text-white font-medium hover:shadow-lg hover:shadow-[#C4A265]/30 transition-all text-sm disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                                className="flex-1 py-2.5 md:py-3 rounded-xl bg-[#C4A265] text-white font-medium hover:shadow-lg hover:shadow-[#C4A265]/30 transition-all text-sm disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                             >
                                 {isSubmitting ? (
                                     <>

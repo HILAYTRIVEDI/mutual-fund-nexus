@@ -209,7 +209,7 @@ export default function SettingsPage() {
                 {/* Header */}
                 <header className="mb-6 md:mb-8 flex items-center justify-between">
                     <div>
-                        <h1 className="text-xl md:text-3xl font-bold bg-gradient-to-r from-[var(--text-primary)] to-[var(--text-secondary)] bg-clip-text text-transparent">
+                        <h1 className="text-xl md:text-3xl font-bold text-[var(--text-primary)]">
                             Settings
                         </h1>
                         <p className="text-[var(--text-secondary)] text-xs md:text-sm mt-1">
@@ -305,7 +305,7 @@ export default function SettingsPage() {
                                     px-6 py-3 rounded-xl font-medium flex items-center gap-2 transition-all
                                     ${isSaving
                                         ? 'bg-[var(--bg-hover)] text-[var(--text-secondary)] cursor-wait'
-                                        : 'bg-gradient-to-r from-[var(--accent-mint)] to-[#D4B87A] text-white hover:shadow-lg hover:shadow-[var(--accent-mint)]/20 active:scale-95'
+                                        : 'bg-[var(--accent-mint)] text-white hover:shadow-lg hover:shadow-[var(--accent-mint)]/20 active:scale-95'
                                     }
                                 `}
                             >
@@ -465,7 +465,7 @@ export default function SettingsPage() {
                                             px-6 py-3 rounded-xl font-medium flex items-center gap-2 transition-all
                                             ${isSavingEmail
                                                 ? 'bg-[var(--bg-hover)] text-[var(--text-secondary)] cursor-wait'
-                                                : 'bg-gradient-to-r from-[var(--accent-blue)] to-[var(--accent-purple)] text-white hover:shadow-lg hover:shadow-[var(--accent-blue)]/20 active:scale-95'
+                                                : 'bg-[var(--accent-blue)] text-white hover:shadow-lg hover:shadow-[var(--accent-blue)]/20 active:scale-95'
                                             }
                                         `}
                                     >
@@ -567,7 +567,7 @@ export default function SettingsPage() {
                                         px-6 py-3 rounded-xl font-medium flex items-center gap-2 transition-all
                                         ${resetLoading
                                             ? 'bg-[var(--bg-hover)] text-[var(--text-secondary)] cursor-wait'
-                                            : 'bg-gradient-to-r from-[var(--accent-gold)] to-[#D4A265] text-white hover:shadow-lg hover:shadow-[var(--accent-gold)]/20 active:scale-95'
+                                            : 'bg-[var(--accent-gold)] text-white hover:shadow-lg hover:shadow-[var(--accent-gold)]/20 active:scale-95'
                                         }
                                         disabled:opacity-50 disabled:cursor-not-allowed
                                     `}

@@ -42,9 +42,6 @@ export default function MarketSnapshot() {
 
     return (
         <div className="glass-card rounded-2xl p-6 gradient-border relative overflow-hidden transition-colors duration-300">
-            {/* Gradient overlay */}
-            <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent-gold)]/5 via-transparent to-[var(--accent-slate)]/5 pointer-events-none" />
-
             <div className="flex items-center justify-between mb-4 relative z-10">
                 <h3 className="text-[var(--text-primary)] font-semibold">Top Performing Holdings</h3>
                 <Link href="/portfolio" className="text-[var(--accent-mint)] text-sm font-medium hover:underline transition-colors">
@@ -76,7 +73,7 @@ export default function MarketSnapshot() {
                         {topFunds.map((fund) => (
                             <div
                                 key={fund.id}
-                                className="p-3 md:p-4 rounded-xl hover:bg-gradient-to-r hover:from-[var(--bg-hover)] hover:to-transparent transition-all duration-300 cursor-pointer group border border-transparent hover:border-[var(--border-primary)]"
+                                className="p-3 md:p-4 rounded-xl hover:bg-[var(--bg-hover)] transition-all duration-300 cursor-pointer group border border-transparent hover:border-[var(--border-primary)]"
                             >
                                 {/* Desktop layout */}
                                 <div className="hidden md:grid grid-cols-12 gap-4">
@@ -84,7 +81,7 @@ export default function MarketSnapshot() {
                                         <div
                                             className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 transition-transform group-hover:scale-110"
                                             style={{
-                                                background: `linear-gradient(135deg, ${fund.color}30, ${fund.color}10)`,
+                                                background: `${fund.color}30`,
                                             }}
                                         >
                                             <PiggyBank size={14} style={{ color: fund.color }} />
@@ -124,7 +121,7 @@ export default function MarketSnapshot() {
                                         <div
                                             className="w-8 h-8 rounded-full flex items-center justify-center shrink-0"
                                             style={{
-                                                background: `linear-gradient(135deg, ${fund.color}30, ${fund.color}10)`,
+                                                background: `${fund.color}30`,
                                             }}
                                         >
                                             <PiggyBank size={14} style={{ color: fund.color }} />

@@ -60,15 +60,13 @@ export default function MutualFundCard({ scheme, onClose }: MutualFundCardProps)
 
     return (
         <div className="glass-card rounded-2xl overflow-hidden relative">
-            {/* Gradient overlay */}
-            <div className="absolute inset-0 bg-gradient-to-br from-[#C4A265]/10 via-transparent to-[#5B7FA4]/5 pointer-events-none" />
 
             {/* Header */}
             <div className="p-4 sm:p-6 border-b border-white/10 relative z-10">
                 <div className="flex items-start justify-between gap-2">
                     <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-2">
-                            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#C4A265]/20 to-[#C4A265]/5 flex items-center justify-center shrink-0">
+                            <div className="w-10 h-10 rounded-xl bg-[#C4A265]/20 flex items-center justify-center shrink-0">
                                 <Building2 size={20} className="text-[#C4A265]" />
                             </div>
                             <span className="text-[#9CA3AF] text-sm font-mono">#{scheme.meta.scheme_code}</span>
@@ -128,8 +126,8 @@ export default function MutualFundCard({ scheme, onClose }: MutualFundCardProps)
                             <AreaChart data={chartData}>
                                 <defs>
                                     <linearGradient id="navGradient" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="0%" stopColor="#C4A265" stopOpacity={0.4} />
-                                        <stop offset="100%" stopColor="#C4A265" stopOpacity={0} />
+                                        <stop offset="0%" stopColor="#C4A265" stopOpacity={0.3} />
+                                        <stop offset="100%" stopColor="#C4A265" stopOpacity={0.05} />
                                     </linearGradient>
                                 </defs>
                                 <XAxis

@@ -193,7 +193,7 @@ export default function ClientDetailPage() {
                     <div className="flex items-start justify-between gap-3">
                         {/* Avatar + name */}
                         <div className="flex items-center gap-3 min-w-0">
-                            <div className="w-14 h-14 shrink-0 rounded-full bg-gradient-to-br from-[var(--accent-mint)] to-[var(--accent-purple)] flex items-center justify-center text-white text-xl font-bold">
+                            <div className="w-14 h-14 shrink-0 rounded-full bg-[var(--accent-mint)] flex items-center justify-center text-white text-xl font-bold">
                                 {initials}
                             </div>
                             <div className="min-w-0">

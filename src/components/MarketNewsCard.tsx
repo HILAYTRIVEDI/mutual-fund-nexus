@@ -40,13 +40,10 @@ export default function MarketNewsCard() {
 
     return (
         <div className="glass-card rounded-2xl p-6 h-full flex flex-col relative overflow-hidden group">
-            {/* Gradient overlay */}
-            <div className="absolute inset-0 bg-gradient-to-br from-[#C4A265]/5 via-transparent to-[#5B7FA4]/5 pointer-events-none transition-opacity duration-300 group-hover:opacity-100 opacity-50" />
-
             {/* Header */}
             <div className="flex items-center justify-between mb-6 relative z-10">
                 <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#C4A265]/20 to-[#C4A265]/5 flex items-center justify-center">
+                    <div className="w-10 h-10 rounded-xl bg-[#C4A265]/20 flex items-center justify-center">
                         <Newspaper size={20} className="text-[#C4A265]" />
                     </div>
                     <div>

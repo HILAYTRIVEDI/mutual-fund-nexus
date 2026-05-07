@@ -60,10 +60,10 @@ export default function LoginPage() {
             <div className="w-full max-w-md glass-card p-8 rounded-3xl relative z-10 border border-[var(--border-primary)] shadow-2xl shadow-black/20">
                 {/* Header */}
                 <div className="text-center mb-6">
-                    <div className="mx-auto w-16 h-16 bg-gradient-to-br from-[var(--accent-gold)] to-[var(--accent-blue)] rounded-2xl flex items-center justify-center shadow-lg shadow-[var(--accent-gold)]/20 mb-4">
+                    <div className="mx-auto w-16 h-16 bg-[var(--accent-gold)] rounded-2xl flex items-center justify-center shadow-lg shadow-[var(--accent-gold)]/20 mb-4">
                         <ShieldCheck size={32} className="text-white" />
                     </div>
-                    <h1 className="text-2xl font-bold bg-gradient-to-r from-[var(--text-primary)] to-[var(--text-secondary)] bg-clip-text text-transparent">
+                    <h1 className="text-2xl font-bold text-[var(--text-primary)]">
                         Welcome Back
                     </h1>
                     <p className="text-[var(--text-secondary)] text-sm mt-2">
@@ -122,7 +122,7 @@ export default function LoginPage() {
                         <button
                             type="submit"
                             disabled={isLoading}
-                            className="w-full mt-6 py-3 px-4 bg-gradient-to-r from-[var(--accent-gold)] to-[#D4B87A] text-white font-semibold rounded-xl hover:shadow-lg hover:shadow-[var(--accent-gold)]/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2 group disabled:opacity-70 disabled:cursor-not-allowed"
+                            className="w-full mt-6 py-3 px-4 bg-[var(--accent-gold)] text-white font-semibold rounded-xl hover:shadow-lg hover:shadow-[var(--accent-gold)]/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2 group disabled:opacity-70 disabled:cursor-not-allowed"
                         >
                             {isLoading ? (
                                 <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />

@@ -63,7 +63,6 @@ export default function StakingCard() {
     if (displaySIPs.length === 0) {
         return (
             <div className="glass-card rounded-2xl p-4 md:p-6 h-full gradient-border mint-glow relative overflow-hidden transition-colors duration-300">
-                <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent-gold)]/10 via-transparent to-[var(--accent-slate)]/5 pointer-events-none" />
                 
                 <div className="mb-4 md:mb-6 relative z-10">
                     <div className="flex items-center gap-1.5 md:gap-2 mb-2">
@@ -81,7 +80,7 @@ export default function StakingCard() {
                 <div className="mt-3 md:mt-4 relative z-10">
                     <Link
                         href={sipLink}
-                        className="block w-full py-2.5 md:py-3 rounded-xl bg-gradient-to-r from-[var(--accent-gold)]/20 to-[var(--accent-gold)]/10 border border-[var(--accent-gold)]/30 text-[var(--accent-gold)] font-medium hover:from-[var(--accent-gold)]/30 hover:to-[var(--accent-gold)]/20 hover:shadow-lg hover:shadow-[var(--accent-gold)]/20 transition-all duration-300 text-center text-sm"
+                        className="block w-full py-2.5 md:py-3 rounded-xl bg-[var(--accent-gold)]/20 border border-[var(--accent-gold)]/30 text-[var(--accent-gold)] font-medium hover:bg-[var(--accent-gold)]/30 hover:shadow-lg hover:shadow-[var(--accent-gold)]/20 transition-all duration-300 text-center text-sm"
                     >
                         Manage SIPs
                     </Link>
@@ -92,8 +91,6 @@ export default function StakingCard() {
 
     return (
         <div className="glass-card rounded-2xl p-4 md:p-6 h-full gradient-border mint-glow relative overflow-hidden transition-colors duration-300">
-            {/* Gradient overlay */}
-            <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent-mint)]/10 via-transparent to-[var(--accent-purple)]/5 pointer-events-none" />
 
             {/* Header */}
             <div className="mb-4 md:mb-6 relative z-10">
@@ -106,7 +103,7 @@ export default function StakingCard() {
                         Next {displaySIPs.length}
                     </span>
                 </div>
-                <h2 className="text-xl md:text-2xl font-bold bg-gradient-to-r from-[var(--text-primary)] to-[var(--text-secondary)] bg-clip-text text-transparent">
+                <h2 className="text-xl md:text-2xl font-bold text-[var(--text-primary)]">
                     {formatCurrency(totalUpcoming)}
                 </h2>
                 <p className="text-[var(--text-secondary)] text-[10px] md:text-xs mt-1">Total upcoming amount</p>
@@ -117,7 +114,7 @@ export default function StakingCard() {
                 {displaySIPs.map((sip, index) => (
                     <div
                         key={sip.id}
-                        className={`p-2.5 md:p-3 rounded-xl bg-gradient-to-br from-[var(--bg-hover)] to-transparent backdrop-blur-sm border transition-all duration-300 hover:border-[var(--accent-mint)]/30 ${index === 0 ? 'border-[var(--accent-mint)]/30' : 'border-[var(--border-primary)]'
+                        className={`p-2.5 md:p-3 rounded-xl bg-[var(--bg-hover)] backdrop-blur-sm border transition-all duration-300 hover:border-[var(--accent-mint)]/30 ${index === 0 ? 'border-[var(--accent-mint)]/30' : 'border-[var(--border-primary)]'
                             }`}
                     >
                         <div className="flex items-center justify-between">
@@ -125,7 +122,7 @@ export default function StakingCard() {
                                 <div
                                     className="w-8 h-8 md:w-10 md:h-10 rounded-full flex items-center justify-center flex-shrink-0"
                                     style={{
-                                        background: `linear-gradient(135deg, ${sip.color}30, ${sip.color}10)`,
+                                        background: `${sip.color}30`,
                                         boxShadow: `0 0 15px ${sip.color}20`
                                     }}
                                 >
@@ -171,7 +168,7 @@ export default function StakingCard() {
             <div className="mt-3 md:mt-4 relative z-10">
                 <Link
                     href={sipLink}
-                    className="block w-full py-2.5 md:py-3 rounded-xl bg-gradient-to-r from-[var(--accent-gold)]/20 to-[var(--accent-gold)]/10 border border-[var(--accent-gold)]/30 text-[var(--accent-gold)] font-medium hover:from-[var(--accent-gold)]/30 hover:to-[var(--accent-gold)]/20 hover:shadow-lg hover:shadow-[var(--accent-gold)]/20 transition-all duration-300 text-center text-sm"
+                    className="block w-full py-2.5 md:py-3 rounded-xl bg-[var(--accent-gold)]/20 border border-[var(--accent-gold)]/30 text-[var(--accent-gold)] font-medium hover:bg-[var(--accent-gold)]/30 hover:shadow-lg hover:shadow-[var(--accent-gold)]/20 transition-all duration-300 text-center text-sm"
                 >
                     View All SIPs
                 </Link>

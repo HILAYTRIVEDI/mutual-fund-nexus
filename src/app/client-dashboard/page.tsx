@@ -110,7 +110,7 @@ export default function ClientDashboard() {
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pr-14 md:pr-0">
                         <div>
                             <h1 className="text-xl md:text-3xl font-bold">
-                                Welcome, <span className="bg-gradient-to-r from-[var(--accent-mint)] to-[var(--accent-blue)] bg-clip-text text-transparent">{user?.name?.split(' ')[0] || 'Investor'}</span>
+                                Welcome, <span className="text-[var(--accent-mint)]">{user?.name?.split(' ')[0] || 'Investor'}</span>
                             </h1>
                             <p className="text-[var(--text-secondary)] text-xs md:text-sm mt-1">
                                 Your real-time investment overview

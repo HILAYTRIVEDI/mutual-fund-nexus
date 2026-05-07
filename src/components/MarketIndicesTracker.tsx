@@ -116,9 +116,6 @@ export default function MarketIndicesTracker() {
 
     return (
         <div className="glass-card rounded-2xl p-4 md:p-6 gradient-border relative overflow-hidden transition-colors duration-300">
-            {/* Gradient overlay */}
-            <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent-blue)]/5 via-transparent to-[var(--accent-mint)]/5 pointer-events-none" />
-
             {/* Header */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4 relative z-10">
                 <div className="flex items-center gap-2 flex-wrap">

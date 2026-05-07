@@ -74,8 +74,7 @@ export default function ActivitySection() {
     if (recentTransactions.length === 0) {
         return (
             <div className="glass-card rounded-2xl p-4 md:p-6 gradient-border relative overflow-hidden transition-colors duration-300">
-                <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent-gold)]/5 via-transparent to-[var(--accent-slate)]/5 pointer-events-none" />
-                <div className="flex items-center justify-between mb-3 md:mb-4 relative z-10">
+                    <div className="flex items-center justify-between mb-3 md:mb-4 relative z-10">
                     <h3 className="text-[var(--text-primary)] font-semibold text-sm md:text-base">Recent Transactions</h3>
                     <Link href="/history" className="text-[var(--accent-gold)] text-xs md:text-sm font-medium hover:underline transition-colors">
                         View All
@@ -92,8 +91,6 @@ export default function ActivitySection() {
 
     return (
         <div className="glass-card rounded-2xl p-4 md:p-6 gradient-border relative overflow-hidden transition-colors duration-300">
-            {/* Gradient overlay */}
-            <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent-mint)]/5 via-transparent to-[var(--accent-purple)]/5 pointer-events-none" />
 
             <div className="flex items-center justify-between mb-3 md:mb-4 relative z-10">
                 <h3 className="text-[var(--text-primary)] font-semibold text-sm md:text-base">Recent Transactions</h3>
@@ -111,13 +108,13 @@ export default function ActivitySection() {
                     return (
                         <div
                             key={tx.id}
-                            className="flex items-center justify-between p-2.5 md:p-3 rounded-xl hover:bg-gradient-to-r hover:from-[var(--bg-hover)] hover:to-transparent transition-all duration-300 group"
+                            className="flex items-center justify-between p-2.5 md:p-3 rounded-xl hover:bg-[var(--bg-hover)] transition-all duration-300 group"
                         >
                             <div className="flex items-center gap-2.5 md:gap-3">
                                 <div
                                     className={`w-8 h-8 md:w-10 md:h-10 rounded-full flex items-center justify-center transition-transform group-hover:scale-110 ${isPositive
-                                        ? 'bg-gradient-to-br from-[var(--accent-mint)]/20 to-[var(--accent-mint)]/5 shadow-lg shadow-[var(--accent-mint)]/20'
-                                        : 'bg-gradient-to-br from-[var(--accent-red)]/20 to-[var(--accent-red)]/5 shadow-lg shadow-[var(--accent-red)]/20'
+                                        ? 'bg-[var(--accent-mint)]/20 shadow-lg shadow-[var(--accent-mint)]/20'
+                                        : 'bg-[var(--accent-red)]/20 shadow-lg shadow-[var(--accent-red)]/20'
                                         }`}
                                 >
                                     <Icon

@@ -121,7 +121,6 @@ export default function MutualFundsPage() {
 
                 {/* Search Bar */}
                 <div className="glass-card rounded-2xl p-3 md:p-4 mb-4 md:mb-6 relative overflow-hidden">
-                    <div className="absolute inset-0 bg-gradient-to-r from-[#C4A265]/5 via-transparent to-[#5B7FA4]/5 pointer-events-none" />
                     <div className="relative z-10 flex items-center gap-2 md:gap-3">
                         <div className="flex-1 relative">
                             <Search className="absolute left-3 md:left-4 top-1/2 -translate-y-1/2 text-[#9CA3AF]" size={18} />
@@ -204,14 +203,14 @@ export default function MutualFundsPage() {
                             {schemes.map((scheme) => (
                                 <div
                                     key={scheme.schemeCode}
-                                    className="p-3 md:p-4 hover:bg-gradient-to-r hover:from-white/5 hover:to-transparent transition-all duration-300 cursor-pointer group"
+                                    className="p-3 md:p-4 hover:bg-white/5 transition-all duration-300 cursor-pointer group"
                                     onClick={() => handleViewScheme(scheme.schemeCode)}
                                 >
                                     {/* Mobile Layout */}
                                     <div className="lg:hidden">
                                         <div className="flex items-start justify-between gap-3 mb-2">
                                             <div className="flex items-center gap-2">
-                                                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#C4A265]/20 to-[#C4A265]/5 flex items-center justify-center flex-shrink-0">
+                                                <div className="w-8 h-8 rounded-lg bg-[#C4A265]/20 flex items-center justify-center flex-shrink-0">
                                                     <Building2 size={14} className="text-[#C4A265]" />
                                                 </div>
                                                 <span className="text-white text-xs font-mono">{scheme.schemeCode}</span>
@@ -227,7 +226,7 @@ export default function MutualFundsPage() {
                                     {/* Desktop Layout */}
                                     <div className="hidden lg:grid grid-cols-12 gap-4 items-center">
                                         <div className="col-span-2 flex items-center gap-2">
-                                            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#C4A265]/20 to-[#C4A265]/5 flex items-center justify-center group-hover:scale-110 transition-transform">
+                                            <div className="w-8 h-8 rounded-lg bg-[#C4A265]/20 flex items-center justify-center group-hover:scale-110 transition-transform">
                                                 <Building2 size={14} className="text-[#C4A265]" />
                                             </div>
                                             <span className="text-white text-sm font-mono">{scheme.schemeCode}</span>
@@ -265,7 +264,7 @@ export default function MutualFundsPage() {
                         <button
                             onClick={handleNextPage}
                             disabled={!hasMore}
-                            className="px-3 md:px-4 py-2 rounded-lg bg-gradient-to-r from-[#C4A265]/20 to-[#C4A265]/10 border border-[#C4A265]/30 text-[#C4A265] disabled:opacity-30 disabled:cursor-not-allowed hover:from-[#C4A265]/30 hover:to-[#C4A265]/20 transition-colors flex items-center gap-1 md:gap-2 text-sm"
+                            className="px-3 md:px-4 py-2 rounded-lg bg-[#C4A265]/20 border border-[#C4A265]/30 text-[#C4A265] disabled:opacity-30 disabled:cursor-not-allowed hover:bg-[#C4A265]/30 transition-colors flex items-center gap-1 md:gap-2 text-sm"
                         >
                             <span className="hidden sm:inline">Next</span>
                             <ChevronRight size={14} />

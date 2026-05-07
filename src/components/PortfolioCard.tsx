@@ -46,7 +46,6 @@ export default function PortfolioCard() {
     if (topHoldings.length === 0) {
         return (
             <div className="glass-card rounded-2xl p-6 gradient-border relative overflow-hidden transition-colors duration-300">
-                <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent-gold)]/5 via-transparent to-[var(--accent-slate)]/5 pointer-events-none" />
                 <div className="flex items-center justify-between mb-6 relative z-10">
                     <h3 className="text-[var(--text-primary)] font-semibold">Top Holdings</h3>
                     <Link href="/portfolio" className="text-[var(--accent-gold)] text-sm font-medium hover:underline transition-colors">
@@ -64,8 +63,6 @@ export default function PortfolioCard() {
 
     return (
         <div className="glass-card rounded-2xl p-6 gradient-border relative overflow-hidden transition-colors duration-300">
-            {/* Gradient overlay */}
-            <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent-mint)]/5 via-transparent to-[var(--accent-purple)]/5 pointer-events-none" />
 
             <div className="flex items-center justify-between mb-6 relative z-10">
                 <h3 className="text-[var(--text-primary)] font-semibold">Top Holdings</h3>
@@ -82,14 +79,14 @@ export default function PortfolioCard() {
                     return (
                         <div
                             key={holding.id}
-                            className="p-4 rounded-xl bg-[var(--bg-hover)] hover:bg-gradient-to-r hover:from-[var(--bg-hover)] hover:to-transparent transition-all duration-300 cursor-pointer border border-[var(--border-primary)] hover:border-[var(--border-hover)] group"
+                            className="p-4 rounded-xl bg-[var(--bg-hover)] hover:bg-[var(--bg-hover)] transition-all duration-300 cursor-pointer border border-[var(--border-primary)] hover:border-[var(--border-hover)] group"
                         >
                             {/* Fund Info - Row 1 */}
                             <div className="flex items-center gap-3 mb-3">
                                 <div
                                     className="w-10 h-10 rounded-full flex items-center justify-center transition-transform group-hover:scale-110 flex-shrink-0"
                                     style={{
-                                        background: `linear-gradient(135deg, color-mix(in srgb, ${color} 30%, transparent), color-mix(in srgb, ${color} 10%, transparent))`,
+                                        background: `${color}30`,
                                     }}
                                 >
                                     <PiggyBank size={20} style={{ color }} />

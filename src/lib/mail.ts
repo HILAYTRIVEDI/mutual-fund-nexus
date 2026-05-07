@@ -69,7 +69,7 @@ function generateSIPReminderHTML(data: SIPReminderData): string {
         <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-bottom: 32px;">
           <tr>
             <td>
-              <h1 style="margin: 0; font-size: 28px; font-weight: 700; background: linear-gradient(135deg, #C4A265 0%, #5B7FA4 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">
+              <h1 style="margin: 0; font-size: 28px; font-weight: 700; color: #C4A265;">
                 💰 RuaCapital
               </h1>
             </td>
@@ -77,13 +77,13 @@ function generateSIPReminderHTML(data: SIPReminderData): string {
         </table>
 
         <!-- Main Card -->
-        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%); border-radius: 16px; border: 1px solid rgba(255,255,255,0.1); overflow: hidden;">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background: rgba(255,255,255,0.07); border-radius: 16px; border: 1px solid rgba(255,255,255,0.1); overflow: hidden;">
           <tr>
             <td style="padding: 32px;">
               <!-- Alert Badge -->
               <table role="presentation" cellspacing="0" cellpadding="0" style="margin-bottom: 24px;">
                 <tr>
-                  <td style="background: linear-gradient(135deg, #C4A265 0%, #C4A265 100%); color: #0a0e14; font-size: 12px; font-weight: 600; padding: 6px 16px; border-radius: 20px; text-transform: uppercase; letter-spacing: 0.5px;">
+                  <td style="background: #C4A265; color: #0a0e14; font-size: 12px; font-weight: 600; padding: 6px 16px; border-radius: 20px; text-transform: uppercase; letter-spacing: 0.5px;">
                     ⏰ SIP Reminder
                   </td>
                 </tr>
@@ -134,7 +134,7 @@ function generateSIPReminderHTML(data: SIPReminderData): string {
               <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
                 <tr>
                   <td align="center">
-                    <a href="#" style="display: inline-block; background: linear-gradient(135deg, #C4A265 0%, #5B7FA4 100%); color: #ffffff; font-size: 14px; font-weight: 600; padding: 14px 32px; border-radius: 12px; text-decoration: none;">
+                    <a href="#" style="display: inline-block; background: #C4A265; color: #ffffff; font-size: 14px; font-weight: 600; padding: 14px 32px; border-radius: 12px; text-decoration: none;">
                       View Portfolio
                     </a>
                   </td>
@@ -185,7 +185,7 @@ function generateSIPExecutedHTML(data: SIPExecutedData): string {
         <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-bottom: 32px;">
           <tr>
             <td>
-              <h1 style="margin: 0; font-size: 28px; font-weight: 700; background: linear-gradient(135deg, #C4A265 0%, #5B7FA4 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">
+              <h1 style="margin: 0; font-size: 28px; font-weight: 700; color: #C4A265;">
                 💰 RuaCapital
               </h1>
             </td>
@@ -193,13 +193,13 @@ function generateSIPExecutedHTML(data: SIPExecutedData): string {
         </table>
 
         <!-- Main Card -->
-        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%); border-radius: 16px; border: 1px solid rgba(255,255,255,0.1); overflow: hidden;">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background: rgba(255,255,255,0.07); border-radius: 16px; border: 1px solid rgba(255,255,255,0.1); overflow: hidden;">
           <tr>
             <td style="padding: 32px;">
               <!-- Success Badge -->
               <table role="presentation" cellspacing="0" cellpadding="0" style="margin-bottom: 24px;">
                 <tr>
-                  <td style="background: linear-gradient(135deg, #10B981 0%, #10B981 100%); color: #ffffff; font-size: 12px; font-weight: 600; padding: 6px 16px; border-radius: 20px; text-transform: uppercase; letter-spacing: 0.5px;">
+                  <td style="background: #10B981; color: #ffffff; font-size: 12px; font-weight: 600; padding: 6px 16px; border-radius: 20px; text-transform: uppercase; letter-spacing: 0.5px;">
                     ✅ SIP Executed
                   </td>
                 </tr>
@@ -266,7 +266,7 @@ function generateSIPExecutedHTML(data: SIPExecutedData): string {
               <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
                 <tr>
                   <td align="center">
-                    <a href="#" style="display: inline-block; background: linear-gradient(135deg, #C4A265 0%, #5B7FA4 100%); color: #ffffff; font-size: 14px; font-weight: 600; padding: 14px 32px; border-radius: 12px; text-decoration: none;">
+                    <a href="#" style="display: inline-block; background: #C4A265; color: #ffffff; font-size: 14px; font-weight: 600; padding: 14px 32px; border-radius: 12px; text-decoration: none;">
                       View Transaction History
                     </a>
                   </td>

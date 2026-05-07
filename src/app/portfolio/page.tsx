@@ -366,7 +366,7 @@ export default function PortfolioPage() {
                                             <div
                                                 className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
                                                 style={{
-                                                    background: `linear-gradient(135deg, ${holding.color}30, ${holding.color}10)`,
+                                                    background: `${holding.color}30`,
                                                 }}
                                             >
                                                 <PiggyBank size={18} style={{ color: holding.color }} />
@@ -441,7 +441,7 @@ export default function PortfolioPage() {
                                             <div
                                                 className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
                                                 style={{
-                                                    background: `linear-gradient(135deg, ${holding.color}30, ${holding.color}10)`,
+                                                    background: `${holding.color}30`,
                                                 }}
                                             >
                                                 <PiggyBank size={18} style={{ color: holding.color }} />

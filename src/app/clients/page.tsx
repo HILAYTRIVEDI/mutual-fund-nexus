@@ -271,7 +271,7 @@ function ClientsPageContent() {
                     </div>
                     <button
                         onClick={exportToCSV}
-                        className="px-3 md:px-4 py-2 md:py-2.5 rounded-xl bg-gradient-to-r from-[#C4A265]/20 to-[#C4A265]/10 border border-[#C4A265]/30 text-[#C4A265] font-medium flex items-center justify-center gap-2 hover:from-[#C4A265]/30 hover:to-[#C4A265]/20 hover:shadow-lg hover:shadow-[#C4A265]/20 transition-all text-sm self-start sm:self-auto"
+                        className="px-3 md:px-4 py-2 md:py-2.5 rounded-xl bg-[#C4A265]/20 border border-[#C4A265]/30 text-[#C4A265] font-medium flex items-center justify-center gap-2 hover:bg-[#C4A265]/30 hover:shadow-lg hover:shadow-[#C4A265]/20 transition-all text-sm self-start sm:self-auto"
                     >
                         <Download size={16} />
                         <span className="hidden sm:inline">Export CSV</span>
@@ -319,7 +319,6 @@ function ClientsPageContent() {
 
                 {/* Search & Filters */}
                 <div className="glass-card rounded-2xl p-3 md:p-4 mb-4 md:mb-6 relative overflow-hidden">
-                    <div className="absolute inset-0 bg-gradient-to-r from-[#C4A265]/5 via-transparent to-[#5B7FA4]/5 pointer-events-none" />
                     <div className="relative z-10 flex flex-col sm:flex-row items-stretch sm:items-center gap-3 md:gap-4">
                         {/* Search */}
                         <div className="flex-1 relative">
@@ -452,10 +451,10 @@ function ClientsPageContent() {
                                     className="block"
                                 >
                                     {/* Mobile Card View */}
-                                    <div className="lg:hidden p-4 hover:bg-gradient-to-r hover:from-white/5 hover:to-transparent transition-all duration-300">
+                                    <div className="lg:hidden p-4 hover:bg-white/5 transition-all duration-300">
                                         <div className="flex items-start justify-between gap-3 mb-3">
                                             <div className="flex items-center gap-3">
-                                                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#C4A265] to-[#5B7FA4] flex items-center justify-center text-white font-semibold text-xs flex-shrink-0">
+                                                <div className="w-10 h-10 rounded-full bg-[#C4A265] flex items-center justify-center text-white font-semibold text-xs flex-shrink-0">
                                                     {client.name.split(' ').map(n => n[0]).join('')}
                                                 </div>
                                                 <div>
@@ -489,11 +488,11 @@ function ClientsPageContent() {
                                     </div>
 
                                     {/* Desktop Table Row */}
-                                    <div className="hidden lg:grid grid-cols-14 gap-3 p-4 hover:bg-gradient-to-r hover:from-white/5 hover:to-transparent transition-all duration-300">
+                                    <div className="hidden lg:grid grid-cols-14 gap-3 p-4 hover:bg-white/5 transition-all duration-300">
                                         {/* Client Info */}
                                         <div className="col-span-2">
                                             <div className="flex items-center gap-2">
-                                                <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[#C4A265] to-[#5B7FA4] flex items-center justify-center text-white font-semibold text-xs flex-shrink-0">
+                                                <div className="w-9 h-9 rounded-full bg-[#C4A265] flex items-center justify-center text-white font-semibold text-xs flex-shrink-0">
                                                     {client.name.split(' ').map(n => n[0]).join('')}
                                                 </div>
                                                 <div className="min-w-0">

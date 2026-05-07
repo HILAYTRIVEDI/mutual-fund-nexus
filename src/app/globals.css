@@ -13,8 +13,8 @@
   --text-secondary: #9CA3AF;
   --text-muted: rgba(156, 163, 175, 0.6);
 
-  --border-primary: rgba(196, 162, 101, 0.15);
-  --border-hover: rgba(196, 162, 101, 0.3);
+  --border-primary: rgba(255, 255, 255, 0.12);
+  --border-hover: rgba(255, 255, 255, 0.25);
 
   --accent-mint: #10B981;
   --accent-gold: #C4A265;
@@ -110,7 +110,7 @@ body {
 
 /* Green gradient backgrounds */
 .gradient-glow {
-  background: linear-gradient(135deg, var(--glow-mint) 0%, var(--glow-purple) 100%);
+  background: var(--glow-mint);
 }
 
 .gradient-border {
@@ -123,7 +123,7 @@ body {
   inset: 0;
   border-radius: inherit;
   padding: 1px;
-  background: linear-gradient(135deg, rgba(196, 162, 101, 0.3), rgba(91, 127, 164, 0.2));
+  background: rgba(255, 255, 255, 0.15);
   -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
   mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
   -webkit-mask-composite: xor;
@@ -142,24 +142,8 @@ body {
 }
 
 /* Animated gradient for highlights */
-@keyframes gradient-shift {
-  0% {
-    background-position: 0% 50%;
-  }
-
-  50% {
-    background-position: 100% 50%;
-  }
-
-  100% {
-    background-position: 0% 50%;
-  }
-}
-
 .animated-gradient {
-  background: linear-gradient(-45deg, #C4A265, #5B7FA4, #C4A265);
-  background-size: 200% 200%;
-  animation: gradient-shift 5s ease infinite;
+  background: #C4A265;
 }
 
 /* Custom scrollbar for dark theme */
