@@ -279,10 +279,11 @@ export default function CalculatorsPage() {
                                             <div className="flex items-center gap-1 bg-[var(--bg-hover)] px-3 py-1.5 rounded-lg border border-[var(--border-primary)]">
                                                 <span className="text-[var(--text-secondary)] text-sm">₹</span>
                                                 <input
-                                                    type="number"
-                                                    value={swpCorpus}
-                                                    onChange={(e) => setSwpCorpus(parseInt(e.target.value) || 0)}
-                                                    className="bg-transparent w-24 text-right text-[var(--text-primary)] font-medium focus:outline-none text-sm"
+                                                    type="text"
+                                                    inputMode="numeric"
+                                                    value={swpCorpus.toLocaleString('en-IN')}
+                                                    onChange={(e) => setSwpCorpus(parseInt(e.target.value.replace(/,/g, '')) || 0)}
+                                                    className="bg-transparent w-28 text-right text-[var(--text-primary)] font-medium focus:outline-none text-sm"
                                                 />
                                             </div>
                                         </div>
@@ -312,10 +313,11 @@ export default function CalculatorsPage() {
                                             <div className="flex items-center gap-1 bg-[var(--bg-hover)] px-3 py-1.5 rounded-lg border border-[var(--border-primary)]">
                                                 <span className="text-[var(--text-secondary)] text-sm">₹</span>
                                                 <input
-                                                    type="number"
-                                                    value={swpWithdrawal}
-                                                    onChange={(e) => setSwpWithdrawal(parseInt(e.target.value) || 0)}
-                                                    className="bg-transparent w-24 text-right text-[var(--text-primary)] font-medium focus:outline-none text-sm"
+                                                    type="text"
+                                                    inputMode="numeric"
+                                                    value={swpWithdrawal.toLocaleString('en-IN')}
+                                                    onChange={(e) => setSwpWithdrawal(parseInt(e.target.value.replace(/,/g, '')) || 0)}
+                                                    className="bg-transparent w-28 text-right text-[var(--text-primary)] font-medium focus:outline-none text-sm"
                                                 />
                                             </div>
                                         </div>
@@ -346,15 +348,16 @@ export default function CalculatorsPage() {
                                         <div className="flex items-center gap-1 bg-[var(--bg-hover)] px-3 py-1.5 rounded-lg border border-[var(--border-primary)]">
                                             <span className="text-[var(--text-secondary)] text-sm">₹</span>
                                             <input
-                                                type="number"
-                                                value={activeCalculator === 'sip' ? sipAmount : activeCalculator === 'lumpsum' ? lumpsumAmount : stepUpAmount}
+                                                type="text"
+                                                inputMode="numeric"
+                                                value={(activeCalculator === 'sip' ? sipAmount : activeCalculator === 'lumpsum' ? lumpsumAmount : stepUpAmount).toLocaleString('en-IN')}
                                                 onChange={(e) => {
-                                                    const val = parseInt(e.target.value) || 0;
+                                                    const val = parseInt(e.target.value.replace(/,/g, '')) || 0;
                                                     if (activeCalculator === 'sip') setSipAmount(val);
                                                     else if (activeCalculator === 'lumpsum') setLumpsumAmount(val);
                                                     else setStepUpAmount(val);
                                                 }}
-                                                className="bg-transparent w-24 text-right text-[var(--text-primary)] font-medium focus:outline-none text-sm"
+                                                className="bg-transparent w-28 text-right text-[var(--text-primary)] font-medium focus:outline-none text-sm"
                                             />
                                         </div>
                                     </div>
