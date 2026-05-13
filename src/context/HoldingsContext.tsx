@@ -261,25 +261,51 @@ export function HoldingsProvider({ children }: { children: ReactNode }) {
     const addHolding = async (holdingData: HoldingInsert): Promise<{ success: boolean; error?: string }> => {
         console.log('[HoldingsContext] addHolding called with:', holdingData);
         try {
-            const { data, error: insertError } = await (supabase
+            // Check if a holding already exists for this user + scheme
+            const { data: existing } = await (supabase
                 .from('holdings') as any)
-                .insert(holdingData)
-                .select()
-                .single();
+                .select('id, units, average_price')
+                .eq('user_id', holdingData.user_id)
+                .eq('scheme_code', holdingData.scheme_code)
+                .maybeSingle();
 
-            if (insertError) {
-                console.error('[HoldingsContext] Insert error:', insertError);
-                throw insertError;
+            if (existing) {
+                // Accumulate units with weighted-average price
+                const newTotalUnits = existing.units + holdingData.units;
+                const newAvgPrice = newTotalUnits > 0
+                    ? (existing.units * existing.average_price + holdingData.units * holdingData.average_price) / newTotalUnits
+                    : holdingData.average_price;
+
+                const { error: updateError } = await (supabase
+                    .from('holdings') as any)
+                    .update({
+                        units: newTotalUnits,
+                        average_price: newAvgPrice,
+                        current_nav: holdingData.current_nav,
+                    })
+                    .eq('id', existing.id);
+
+                if (updateError) {
+                    console.error('[HoldingsContext] Update error:', updateError);
+                    throw updateError;
+                }
+                console.log('[HoldingsContext] Holding updated (units accumulated):', existing.id);
+            } else {
+                const { data, error: insertError } = await (supabase
+                    .from('holdings') as any)
+                    .insert(holdingData)
+                    .select()
+                    .single();
+
+                if (insertError) {
+                    console.error('[HoldingsContext] Insert error:', insertError);
+                    throw insertError;
+                }
+                console.log('[HoldingsContext] Holding inserted successfully:', data);
             }
 
-            console.log('[HoldingsContext] Holding inserted successfully:', data);
-
-            if (data) {
-                await fetchHoldings(); // Refresh to get calculated values
-                return { success: true };
-            }
-
-            return { success: false, error: 'Failed to add holding' };
+            await fetchHoldings();
+            return { success: true };
         } catch (err) {
             console.error('[HoldingsContext] Error adding holding:', err);
             return { success: false, error: err instanceof Error ? err.message : 'Failed to add holding' };

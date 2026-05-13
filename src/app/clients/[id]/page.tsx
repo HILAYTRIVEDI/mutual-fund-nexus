@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, Mail, Phone, Calendar, PiggyBank, TrendingUp, TrendingDown, FileText, Edit, Trash2, Plus, Calculator, Loader2, ShieldCheck } from 'lucide-react';
+import { ArrowLeft, Mail, Phone, Calendar, PiggyBank, TrendingUp, TrendingDown, FileText, Edit, Trash2, Plus, Calculator, Loader2, ShieldCheck, Search, X, Check, ArrowRightLeft } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
 import { useSettings } from '@/context/SettingsContext';
 import { useClientContext } from '@/context/ClientContext';
@@ -12,6 +12,8 @@ import { useSIPs } from '@/context/SIPContext';
 import { useTransactions } from '@/context/TransactionsContext';
 import { useAuth } from '@/context/AuthContext';
 import { calculateXIRR } from '@/lib/utils/finance';
+import { searchSchemesMerged, type MergedFundScheme, getSchemeLatestNAV, resolveSchemeCode } from '@/lib/mfapi';
+import { getSupabaseClient } from '@/lib/supabase';
 
 function formatCurrency(amount: number): string {
     if (amount >= 10000000) return `₹${(amount / 10000000).toFixed(2)} Cr`;
@@ -21,6 +23,27 @@ function formatCurrency(amount: number): string {
 
 function formatDate(dateStr: string): string {
     return new Date(dateStr).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+}
+
+// Finds NAV on or after targetDate from MFAPI history (dates in DD-MM-YYYY, sorted descending)
+function findNavForDate(navHistory: { date: string; nav: string }[], targetDate: Date): number {
+    const targetTs = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate()).getTime();
+    let bestNav: number | null = null;
+    let bestDiff = Infinity;
+    for (const item of navHistory) {
+        const [dd, mm, yyyy] = item.date.split('-').map(Number);
+        const itemTs = new Date(yyyy, mm - 1, dd).getTime();
+        const diff = itemTs - targetTs;
+        if (diff >= 0 && diff < bestDiff) { bestDiff = diff; bestNav = parseFloat(item.nav); }
+    }
+    if (bestNav === null) {
+        for (const item of navHistory) {
+            const [dd, mm, yyyy] = item.date.split('-').map(Number);
+            const itemTs = new Date(yyyy, mm - 1, dd).getTime();
+            if (itemTs <= targetTs) return parseFloat(item.nav);
+        }
+    }
+    return bestNav ?? 0;
 }
 
 export default function ClientDetailPage() {
@@ -37,11 +60,202 @@ export default function ClientDetailPage() {
 
     const { ltcgTax, stcgTax } = useSettings();
     const { clients, deleteClient, updateClient, isLoading: clientsLoading } = useClientContext();
-    const { holdings, deleteHolding, refreshHoldings } = useHoldings();
-    const { sips, cancelSIP, refreshSIPs } = useSIPs();
-    const { transactions, refreshTransactions } = useTransactions();
+    const { holdings, addHolding, deleteHolding, refreshHoldings } = useHoldings();
+    const { sips, addSIP, cancelSIP, refreshSIPs } = useSIPs();
+    const { transactions, addTransaction, refreshTransactions } = useTransactions();
 
     const [activeTab, setActiveTab] = useState<'investments' | 'transactions' | 'notes'>('investments');
+
+    // ── Add Investment modal state ──────────────────────────────────────────
+    const [showAddInvestmentModal, setShowAddInvestmentModal] = useState(false);
+    const [isAddingInvestment, setIsAddingInvestment] = useState(false);
+    const investFundDropdownRef = useRef<HTMLDivElement>(null);
+
+    const defaultInvestForm = {
+        investmentType: 'SIP' as 'SIP' | 'Lumpsum' | 'Transfer',
+        amount: '',
+        sipAmount: '',
+        startDate: '',
+        schemeCode: 0,
+        schemeName: '',
+        selectedIsin: '',
+        selectedNseCode: '',
+        selectedFundCode: '',
+        stepUpAmount: '',
+        stepUpInterval: 'Yearly' as 'Yearly' | 'Half-Yearly' | 'Quarterly',
+    };
+    const [investForm, setInvestForm] = useState(defaultInvestForm);
+    const [investFundSearch, setInvestFundSearch] = useState('');
+    const [investFundResults, setInvestFundResults] = useState<MergedFundScheme[]>([]);
+    const [investFundSearching, setInvestFundSearching] = useState(false);
+    const [showInvestFundDropdown, setShowInvestFundDropdown] = useState(false);
+
+    type SipCalc = { totalUnits: number; currentValue: number; totalInvested: number; latestNav: number; pnl: number; pnlPct: number; nextSipDate: string; nInstallments: number; isLoading: boolean; error: string | null };
+    type LumpCalc = { units: number; currentValue: number; investedAmount: number; navOnDate: number; latestNav: number; pnl: number; pnlPct: number; isLoading: boolean; error: string | null };
+
+    const [investSipCalc, setInvestSipCalc] = useState<SipCalc | null>(null);
+    const [investLumpCalc, setInvestLumpCalc] = useState<LumpCalc | null>(null);
+
+    // Lock body scroll when modal open
+    useEffect(() => {
+        document.body.style.overflow = showAddInvestmentModal ? 'hidden' : '';
+        return () => { document.body.style.overflow = ''; };
+    }, [showAddInvestmentModal]);
+
+    // Reset Transfer-specific fields when switching away from Transfer
+    useEffect(() => {
+        if (investForm.investmentType === 'Transfer') {
+            setInvestForm(prev => ({ ...prev, startDate: '', amount: '' }));
+            setInvestSipCalc(null);
+        }
+    }, [investForm.investmentType]);
+
+    // Click-outside to close fund dropdown
+    useEffect(() => {
+        function handleClickOutside(e: MouseEvent) {
+            if (investFundDropdownRef.current && !investFundDropdownRef.current.contains(e.target as Node))
+                setShowInvestFundDropdown(false);
+        }
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    // Debounced fund search
+    useEffect(() => {
+        if (investFundSearch.length < 2) { setInvestFundResults([]); return; }
+        const timer = setTimeout(async () => {
+            setInvestFundSearching(true);
+            try {
+                const results = await searchSchemesMerged(investFundSearch);
+                setInvestFundResults(results.slice(0, 10));
+            } catch { /* ignore */ } finally { setInvestFundSearching(false); }
+        }, 300);
+        return () => clearTimeout(timer);
+    }, [investFundSearch]);
+
+    const resolveInvestAmfiCode = useCallback(async (schemeCode: number, fundCode: string, isin: string): Promise<number> => {
+        if (schemeCode > 0) return schemeCode;
+        const parsed = parseInt(fundCode, 10);
+        if (parsed > 0) return parsed;
+        if (isin?.startsWith('IN')) {
+            try {
+                const res = await fetch(`/api/amfi/isin-lookup?isin=${encodeURIComponent(isin)}`);
+                if (res.ok) {
+                    const data = await res.json() as { schemeCode?: number };
+                    if (data.schemeCode && data.schemeCode > 0) return data.schemeCode;
+                }
+            } catch { /* best effort */ }
+        }
+        return 0;
+    }, []);
+
+    const calculateInvestSIPValues = useCallback(async () => {
+        const effectiveAmfiCode = await resolveInvestAmfiCode(investForm.schemeCode, investForm.selectedFundCode, investForm.selectedIsin);
+        if (investForm.investmentType !== 'Transfer' || !investForm.startDate || !investForm.sipAmount || parseFloat(investForm.sipAmount) <= 0) {
+            if (investForm.investmentType === 'Transfer' && !(effectiveAmfiCode > 0) && investForm.startDate)
+                setInvestSipCalc({ totalUnits: 0, currentValue: 0, totalInvested: 0, latestNav: 0, pnl: 0, pnlPct: 0, nextSipDate: '', nInstallments: 0, isLoading: false, error: 'Historical NAV calculation requires an AMFI-listed fund.' });
+            return;
+        }
+        if (!(effectiveAmfiCode > 0)) {
+            setInvestSipCalc({ totalUnits: 0, currentValue: 0, totalInvested: 0, latestNav: 0, pnl: 0, pnlPct: 0, nextSipDate: '', nInstallments: 0, isLoading: false, error: 'Historical NAV calculation requires an AMFI-listed fund.' });
+            return;
+        }
+        setInvestSipCalc(prev => ({ ...(prev ?? { totalUnits: 0, currentValue: 0, totalInvested: 0, latestNav: 0, pnl: 0, pnlPct: 0, nextSipDate: '', nInstallments: 0 }), isLoading: true, error: null }));
+        try {
+            const sipAmount = parseFloat(investForm.sipAmount);
+            const startDate = new Date(investForm.startDate + 'T00:00:00');
+            const today = new Date(); today.setHours(0, 0, 0, 0);
+            const res = await fetch(`https://api.mfapi.in/mf/${effectiveAmfiCode}`);
+            if (!res.ok) throw new Error('Failed to fetch NAV history');
+            const data = await res.json();
+            const navHistory: { date: string; nav: string }[] = data.data;
+            if (!navHistory?.length) throw new Error('No NAV data available');
+            let totalUnits = 0; let nInstallments = 0;
+            const sipDate = new Date(startDate);
+            while (sipDate <= today) {
+                const nav = findNavForDate(navHistory, new Date(sipDate));
+                if (nav > 0) { totalUnits += sipAmount / nav; nInstallments++; }
+                sipDate.setMonth(sipDate.getMonth() + 1);
+            }
+            const latestNav = parseFloat(navHistory[0].nav);
+            const currentValue = totalUnits * latestNav;
+            const totalInvested = nInstallments * sipAmount;
+            const pnl = currentValue - totalInvested;
+            const pnlPct = totalInvested > 0 ? (pnl / totalInvested) * 100 : 0;
+            const nextSip = new Date(startDate);
+            nextSip.setMonth(nextSip.getMonth() + nInstallments);
+            const nextSipDate = `${nextSip.getFullYear()}-${String(nextSip.getMonth() + 1).padStart(2, '0')}-${String(nextSip.getDate()).padStart(2, '0')}`;
+            setInvestSipCalc({ totalUnits, currentValue, totalInvested, latestNav, pnl, pnlPct, nextSipDate, nInstallments, isLoading: false, error: null });
+        } catch (err) {
+            setInvestSipCalc(prev => ({ ...(prev ?? { totalUnits: 0, currentValue: 0, totalInvested: 0, latestNav: 0, pnl: 0, pnlPct: 0, nextSipDate: '', nInstallments: 0 }), isLoading: false, error: err instanceof Error ? err.message : 'Calculation failed' }));
+        }
+    }, [investForm.investmentType, investForm.schemeCode, investForm.selectedFundCode, investForm.selectedIsin, investForm.startDate, investForm.sipAmount, resolveInvestAmfiCode]);
+
+    useEffect(() => {
+        if (investForm.investmentType !== 'Transfer') { setInvestSipCalc(null); return; }
+        const t = setTimeout(calculateInvestSIPValues, 600);
+        return () => clearTimeout(t);
+    }, [investForm.investmentType, investForm.schemeCode, investForm.selectedFundCode, investForm.selectedIsin, investForm.startDate, investForm.sipAmount, calculateInvestSIPValues]);
+
+    const calculateInvestLumpsumValues = useCallback(async () => {
+        const effectiveAmfiCode = await resolveInvestAmfiCode(investForm.schemeCode, investForm.selectedFundCode, investForm.selectedIsin);
+        if (investForm.investmentType !== 'Lumpsum' || !investForm.startDate || !investForm.amount || parseFloat(investForm.amount) <= 0) {
+            if (investForm.investmentType === 'Lumpsum' && !(effectiveAmfiCode > 0) && investForm.startDate)
+                setInvestLumpCalc({ units: 0, currentValue: 0, investedAmount: 0, navOnDate: 0, latestNav: 0, pnl: 0, pnlPct: 0, isLoading: false, error: 'Historical NAV calculation requires an AMFI-listed fund.' });
+            return;
+        }
+        if (!(effectiveAmfiCode > 0)) {
+            setInvestLumpCalc({ units: 0, currentValue: 0, investedAmount: 0, navOnDate: 0, latestNav: 0, pnl: 0, pnlPct: 0, isLoading: false, error: 'Historical NAV calculation requires an AMFI-listed fund.' });
+            return;
+        }
+        setInvestLumpCalc(prev => ({ ...(prev ?? { units: 0, currentValue: 0, investedAmount: 0, navOnDate: 0, latestNav: 0, pnl: 0, pnlPct: 0 }), isLoading: true, error: null }));
+        try {
+            const investedAmount = parseFloat(investForm.amount);
+            const investmentDate = new Date(investForm.startDate + 'T00:00:00');
+            const res = await fetch(`https://api.mfapi.in/mf/${effectiveAmfiCode}`);
+            if (!res.ok) throw new Error('Failed to fetch NAV history');
+            const data = await res.json();
+            const navHistory: { date: string; nav: string }[] = data.data;
+            if (!navHistory?.length) throw new Error('No NAV data available');
+            const navOnDate = findNavForDate(navHistory, investmentDate);
+            if (navOnDate <= 0) throw new Error('Could not find NAV for the investment date. Try an earlier date.');
+            const units = investedAmount / navOnDate;
+            const latestNav = parseFloat(navHistory[0].nav);
+            const currentValue = units * latestNav;
+            const pnl = currentValue - investedAmount;
+            const pnlPct = investedAmount > 0 ? (pnl / investedAmount) * 100 : 0;
+            setInvestLumpCalc({ units, currentValue, investedAmount, navOnDate, latestNav, pnl, pnlPct, isLoading: false, error: null });
+        } catch (err) {
+            setInvestLumpCalc(prev => ({ ...(prev ?? { units: 0, currentValue: 0, investedAmount: 0, navOnDate: 0, latestNav: 0, pnl: 0, pnlPct: 0 }), isLoading: false, error: err instanceof Error ? err.message : 'Calculation failed' }));
+        }
+    }, [investForm.investmentType, investForm.schemeCode, investForm.selectedFundCode, investForm.selectedIsin, investForm.startDate, investForm.amount, resolveInvestAmfiCode]);
+
+    useEffect(() => {
+        if (investForm.investmentType !== 'Lumpsum') { setInvestLumpCalc(null); return; }
+        const t = setTimeout(calculateInvestLumpsumValues, 600);
+        return () => clearTimeout(t);
+    }, [investForm.investmentType, investForm.schemeCode, investForm.selectedFundCode, investForm.selectedIsin, investForm.startDate, investForm.amount, calculateInvestLumpsumValues]);
+
+    const handleSelectInvestFund = (fund: MergedFundScheme) => {
+        setInvestForm(prev => ({
+            ...prev,
+            schemeCode: fund.schemeCode,
+            schemeName: fund.schemeName,
+            selectedIsin: fund.isin ?? '',
+            selectedNseCode: fund.nseCode ?? '',
+            selectedFundCode: resolveSchemeCode(fund),
+        }));
+        setInvestFundSearch(fund.schemeName);
+        setShowInvestFundDropdown(false);
+    };
+
+    const resetInvestForm = () => {
+        setInvestForm(defaultInvestForm);
+        setInvestFundSearch('');
+        setInvestFundResults([]);
+        setInvestSipCalc(null);
+        setInvestLumpCalc(null);
+    };
     const [notes, setNotes] = useState('');
     const [isSavingNote, setIsSavingNote] = useState(false);
     const [showPostTax, setShowPostTax] = useState(false);
@@ -141,6 +355,118 @@ export default function ClientDetailPage() {
         cashFlows.push({ amount: totalCurrent, date: new Date() });
         return calculateXIRR(cashFlows);
     }, [clientTransactions, totalCurrent]);
+
+    const handleAddInvestment = async () => {
+        const hasScheme = investForm.schemeCode > 0 || !!investForm.selectedNseCode;
+        if (!hasScheme) { alert('Please select a mutual fund'); return; }
+
+        const hasLumpsum = investForm.amount && parseFloat(investForm.amount) > 0;
+        const hasSIP = investForm.sipAmount && parseFloat(investForm.sipAmount) > 0;
+
+        if (investForm.investmentType === 'Transfer') {
+            if (!hasSIP) { alert('Please enter the Monthly SIP amount'); return; }
+            if (!investForm.startDate) { alert('Please enter the SIP Start Date'); return; }
+            if (investForm.schemeCode <= 0) { alert('Transfer mode requires an AMFI-listed fund'); return; }
+            if (!investSipCalc || investSipCalc.isLoading) { alert('Please wait for the SIP calculation to complete'); return; }
+            if (investSipCalc.error) { alert('SIP calculation failed: ' + investSipCalc.error); return; }
+            if (investSipCalc.nInstallments === 0) { alert('No installments found from the start date to today. The start date must be in the past.'); return; }
+        } else if (!hasLumpsum && !hasSIP) {
+            alert('Please enter at least a Lumpsum Amount or SIP Amount');
+            return;
+        }
+
+        setIsAddingInvestment(true);
+        try {
+            const supabase = getSupabaseClient();
+            const effectiveSchemeCode = investForm.selectedFundCode || (investForm.schemeCode > 0 ? investForm.schemeCode.toString() : investForm.selectedNseCode);
+            const isinValue = investForm.selectedIsin || null;
+            const nseCodeValue = investForm.selectedNseCode || null;
+            let currentNav = 10;
+
+            if (investForm.schemeCode > 0) {
+                try {
+                    const navData = await getSchemeLatestNAV(investForm.schemeCode);
+                    if (navData?.data?.[0]) currentNav = parseFloat(navData.data[0].nav);
+                } catch { /* use default */ }
+            }
+
+            await (supabase.from('mutual_funds') as any).upsert({
+                code: effectiveSchemeCode,
+                name: investForm.schemeName,
+                category: null,
+                type: null,
+                fund_house: null,
+                current_nav: currentNav,
+                last_updated: new Date().toISOString(),
+                ...(isinValue ? { isin_value: isinValue } : {}),
+                ...(nseCodeValue ? { nse_code: nseCodeValue } : {}),
+            });
+
+            const lumpsumAmount = parseFloat(investForm.amount) || 0;
+            const sipAmountInput = parseFloat(investForm.sipAmount) || 0;
+
+            if (investForm.investmentType === 'Transfer' && investSipCalc) {
+                const { totalUnits, latestNav: calcNav, totalInvested: calcInvested, nextSipDate } = investSipCalc;
+                const avgPrice = totalUnits > 0 ? calcInvested / totalUnits : calcNav;
+
+                await addHolding({ user_id: clientId, scheme_code: effectiveSchemeCode, units: totalUnits, average_price: avgPrice, current_nav: calcNav || currentNav });
+                await addTransaction({ user_id: clientId, scheme_code: effectiveSchemeCode, type: 'buy', amount: calcInvested, units: totalUnits, nav: avgPrice, status: 'completed', date: new Date().toISOString().split('T')[0] });
+
+                const sipPayload: any = { user_id: clientId, scheme_code: effectiveSchemeCode, amount: sipAmountInput, frequency: 'monthly', start_date: investForm.startDate, next_execution_date: nextSipDate, status: 'active' };
+                const stepUp = parseFloat(investForm.stepUpAmount);
+                if (stepUp > 0) { sipPayload.step_up_amount = stepUp; sipPayload.step_up_interval = investForm.stepUpInterval; }
+                await addSIP(sipPayload);
+
+            } else if (investForm.investmentType === 'Lumpsum' && investLumpCalc && !investLumpCalc.error) {
+                const { units: calcUnits, navOnDate, latestNav: calcLatestNav, investedAmount: calcInvested } = investLumpCalc;
+                await addHolding({ user_id: clientId, scheme_code: effectiveSchemeCode, units: calcUnits, average_price: navOnDate, current_nav: calcLatestNav });
+                await addTransaction({ user_id: clientId, scheme_code: effectiveSchemeCode, type: 'buy', amount: calcInvested, units: calcUnits, nav: navOnDate, status: 'completed', date: investForm.startDate || new Date().toISOString().split('T')[0] });
+
+            } else {
+                // SIP mode (or Lumpsum without AMFI code)
+                let sipFirstAmount = 0;
+                let nextExecutionDate = investForm.startDate ? new Date(investForm.startDate) : new Date();
+
+                if (sipAmountInput > 0) {
+                    const startDate = investForm.startDate ? new Date(investForm.startDate) : new Date();
+                    const today = new Date();
+                    startDate.setHours(0, 0, 0, 0); today.setHours(0, 0, 0, 0);
+                    if (startDate <= today) {
+                        sipFirstAmount = sipAmountInput;
+                        nextExecutionDate = new Date(startDate);
+                        nextExecutionDate.setMonth(nextExecutionDate.getMonth() + 1);
+                    }
+                }
+
+                const totalInitialAmount = lumpsumAmount + sipFirstAmount;
+                if (totalInitialAmount > 0) {
+                    const totalUnits = currentNav > 0 ? totalInitialAmount / currentNav : 0;
+                    await addHolding({ user_id: clientId, scheme_code: effectiveSchemeCode, units: totalUnits, average_price: currentNav, current_nav: currentNav });
+                    if (lumpsumAmount > 0) {
+                        await addTransaction({ user_id: clientId, scheme_code: effectiveSchemeCode, type: 'buy', amount: lumpsumAmount, units: currentNav > 0 ? lumpsumAmount / currentNav : 0, nav: currentNav, status: 'completed', date: investForm.startDate || new Date().toISOString().split('T')[0] });
+                    }
+                    if (sipFirstAmount > 0) {
+                        await addTransaction({ user_id: clientId, scheme_code: effectiveSchemeCode, type: 'sip', amount: sipFirstAmount, units: currentNav > 0 ? sipFirstAmount / currentNav : 0, nav: currentNav, status: 'completed', date: investForm.startDate || new Date().toISOString().split('T')[0] });
+                    }
+                }
+
+                if (sipAmountInput > 0) {
+                    const sipPayload: any = { user_id: clientId, scheme_code: effectiveSchemeCode, amount: sipAmountInput, frequency: 'monthly', start_date: investForm.startDate || new Date().toISOString(), next_execution_date: nextExecutionDate.toISOString().split('T')[0], status: 'active' };
+                    const stepUp = parseFloat(investForm.stepUpAmount);
+                    if (stepUp > 0) { sipPayload.step_up_amount = stepUp; sipPayload.step_up_interval = investForm.stepUpInterval; }
+                    await addSIP(sipPayload);
+                }
+            }
+
+            await Promise.all([refreshHoldings(), refreshTransactions(), refreshSIPs()]);
+            setShowAddInvestmentModal(false);
+            resetInvestForm();
+        } catch (err) {
+            alert(err instanceof Error ? err.message : 'Failed to add investment');
+        } finally {
+            setIsAddingInvestment(false);
+        }
+    };
 
     const handleSaveNote = async () => {
         setIsSavingNote(true);
@@ -332,6 +658,15 @@ export default function ClientDetailPage() {
 
                 {/* ── Tab: Investments ── */}
                 {activeTab === 'investments' && (
+                    <div>
+                    <div className="flex justify-end mb-3">
+                        <button
+                            onClick={() => setShowAddInvestmentModal(true)}
+                            className="flex items-center gap-2 px-4 py-2 min-h-[40px] rounded-xl bg-[var(--accent-mint)]/10 border border-[var(--accent-mint)]/20 text-[var(--accent-mint)] text-sm font-medium hover:bg-[var(--accent-mint)]/20 transition-colors cursor-pointer"
+                        >
+                            <Plus size={15} /> Add Investment
+                        </button>
+                    </div>
                     <div className="glass-card rounded-2xl overflow-hidden">
                         {clientHoldings.length === 0 ? (
                             <div className="p-10 text-center text-[var(--text-secondary)]">
@@ -470,6 +805,7 @@ export default function ClientDetailPage() {
                                 </div>
                             </>
                         )}
+                    </div>
                     </div>
                 )}
 
@@ -613,6 +949,243 @@ export default function ClientDetailPage() {
 
             {/* Sidebar */}
             <Sidebar />
+
+            {/* ── Add Investment Modal ─────────────────────────────────────────── */}
+            {showAddInvestmentModal && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+                    <div className="w-full sm:max-w-xl glass-card rounded-t-2xl sm:rounded-2xl overflow-hidden max-h-[90vh] flex flex-col">
+
+                        {/* Header */}
+                        <div className="p-4 md:p-5 border-b border-[var(--border-primary)] flex items-center justify-between shrink-0">
+                            <div className="flex items-center gap-3">
+                                <div className="w-9 h-9 rounded-xl bg-[var(--accent-mint)]/15 flex items-center justify-center">
+                                    <PiggyBank size={18} className="text-[var(--accent-mint)]" />
+                                </div>
+                                <div>
+                                    <h2 className="text-white text-base font-semibold">Add Investment</h2>
+                                    <p className="text-[var(--text-secondary)] text-xs">{client.name}</p>
+                                </div>
+                            </div>
+                            <button onClick={() => { setShowAddInvestmentModal(false); resetInvestForm(); }} className="p-2 rounded-lg bg-white/5 hover:bg-white/10 transition-colors">
+                                <X size={18} className="text-[var(--text-secondary)]" />
+                            </button>
+                        </div>
+
+                        {/* Body */}
+                        <div className="p-4 md:p-5 space-y-4 overflow-y-auto flex-1">
+
+                            {/* Fund Search */}
+                            <div className="relative" ref={investFundDropdownRef}>
+                                <label className="text-[var(--text-secondary)] text-xs mb-2 block">Select Mutual Fund *</label>
+                                <div className="relative">
+                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-secondary)]" size={16} />
+                                    <input
+                                        type="text"
+                                        placeholder="Search mutual funds..."
+                                        value={investFundSearch}
+                                        onChange={(e) => { setInvestFundSearch(e.target.value); setShowInvestFundDropdown(true); }}
+                                        onFocus={() => setShowInvestFundDropdown(true)}
+                                        className="w-full pl-10 pr-9 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white placeholder-[var(--text-secondary)] focus:outline-none focus:border-[var(--accent-mint)]/50 text-sm"
+                                    />
+                                    {investFundSearching && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--accent-mint)] animate-spin" size={16} />}
+                                    {!investFundSearching && investForm.schemeCode > 0 && <Check className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--accent-mint)]" size={16} />}
+                                </div>
+                                {showInvestFundDropdown && investFundResults.length > 0 && (
+                                    <div className="absolute z-10 w-full mt-1 bg-[#151A21] border border-white/10 rounded-xl shadow-xl max-h-48 overflow-y-auto">
+                                        {investFundResults.map((fund) => {
+                                            const key = fund.schemeCode > 0 ? `mfapi-${fund.schemeCode}` : `nse-${fund.nseCode}`;
+                                            const badge = fund.source === 'both'
+                                                ? { label: 'AMFI + NSE', cls: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30' }
+                                                : fund.source === 'nse'
+                                                    ? { label: 'NSE only', cls: 'bg-amber-500/15 text-amber-300 border-amber-500/30' }
+                                                    : { label: 'AMFI', cls: 'bg-sky-500/15 text-sky-300 border-sky-500/30' };
+                                            return (
+                                                <button key={key} onClick={() => handleSelectInvestFund(fund)} className="w-full text-left px-4 py-3 hover:bg-white/5 transition-colors border-b border-white/5 last:border-0">
+                                                    <div className="flex items-start justify-between gap-2">
+                                                        <p className="text-white text-sm flex-1">{fund.schemeName}</p>
+                                                        <span className={`shrink-0 text-[10px] px-2 py-0.5 rounded-full border ${badge.cls}`}>{badge.label}</span>
+                                                    </div>
+                                                    <p className="text-[var(--text-secondary)] text-xs">{fund.isin ? `ISIN: ${fund.isin}` : fund.nseCode ? `NSE: ${fund.nseCode}` : `Code: ${fund.schemeCode}`}</p>
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Investment Type */}
+                            <div>
+                                <label className="text-[var(--text-secondary)] text-xs mb-2 block">Investment Type *</label>
+                                <div className="grid grid-cols-3 gap-2">
+                                    {(['SIP', 'Lumpsum', 'Transfer'] as const).map((type) => {
+                                        const colors: Record<string, string> = { SIP: '#C4A265', Lumpsum: '#5B7FA4', Transfer: '#10B981' };
+                                        const active = investForm.investmentType === type;
+                                        return (
+                                            <button key={type} onClick={() => setInvestForm(prev => ({ ...prev, investmentType: type }))}
+                                                className={`p-3 rounded-xl border text-sm transition-all ${active ? `border-opacity-50 text-white` : 'bg-white/5 border-white/10 text-[var(--text-secondary)] hover:bg-white/10'}`}
+                                                style={active ? { backgroundColor: `${colors[type]}20`, borderColor: `${colors[type]}80`, color: colors[type] } : {}}>
+                                                <p className="font-medium">{type}</p>
+                                                <p className="text-[10px] opacity-70">{type === 'SIP' ? 'Monthly' : type === 'Lumpsum' ? 'One-time' : 'Existing SIP'}</p>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+
+                            {/* Amount fields — hidden for Transfer */}
+                            {investForm.investmentType !== 'Transfer' && (
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    <div>
+                                        <label className="text-[var(--text-secondary)] text-xs mb-1.5 block">
+                                            {investForm.investmentType === 'SIP' ? 'Initial Lumpsum (Optional)' : 'Investment Amount *'}
+                                        </label>
+                                        <input type="number" placeholder="₹ Amount" value={investForm.amount}
+                                            onChange={(e) => setInvestForm(prev => ({ ...prev, amount: e.target.value }))}
+                                            className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white placeholder-[var(--text-secondary)] focus:outline-none focus:border-[var(--accent-mint)]/50 text-sm" />
+                                    </div>
+                                    {investForm.investmentType === 'SIP' && (
+                                        <div>
+                                            <label className="text-[var(--text-secondary)] text-xs mb-1.5 block">Monthly SIP Amount</label>
+                                            <input type="number" placeholder="₹ Monthly" value={investForm.sipAmount}
+                                                onChange={(e) => setInvestForm(prev => ({ ...prev, sipAmount: e.target.value }))}
+                                                className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white placeholder-[var(--text-secondary)] focus:outline-none focus:border-[var(--accent-mint)]/50 text-sm" />
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
+                            {/* Transfer — SIP amount + start date */}
+                            {investForm.investmentType === 'Transfer' && (
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    <div>
+                                        <label className="text-[var(--text-secondary)] text-xs mb-1.5 block">Monthly SIP Amount (₹) *</label>
+                                        <input type="number" placeholder="e.g. 5000" value={investForm.sipAmount}
+                                            onChange={(e) => setInvestForm(prev => ({ ...prev, sipAmount: e.target.value }))}
+                                            className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white placeholder-[var(--text-secondary)] focus:outline-none focus:border-[#10B981]/50 text-sm" />
+                                    </div>
+                                    <div>
+                                        <label className="text-[var(--text-secondary)] text-xs mb-1.5 block">SIP Start Date *</label>
+                                        <input type="date" value={investForm.startDate}
+                                            onChange={(e) => setInvestForm(prev => ({ ...prev, startDate: e.target.value }))}
+                                            className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:border-[#10B981]/50 text-sm" />
+                                        <p className="text-[10px] text-[var(--text-secondary)] mt-1">Date of first SIP installment (must be in the past)</p>
+                                    </div>
+                                    {investSipCalc && !investSipCalc.isLoading && !investSipCalc.error && investSipCalc.nextSipDate && (
+                                        <div className="sm:col-span-2">
+                                            <label className="text-[var(--text-secondary)] text-xs mb-1.5 block">Next SIP Date (computed)</label>
+                                            <div className="px-3 py-2.5 bg-white/5 border border-[#10B981]/30 rounded-xl text-[#6EE7B7] text-sm font-medium">
+                                                {new Date(investSipCalc.nextSipDate + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
+                            {/* Transfer auto-calc summary */}
+                            {investForm.investmentType === 'Transfer' && (
+                                <div className="p-3 rounded-xl bg-[#10B981]/5 border border-[#10B981]/20">
+                                    <p className="text-[10px] text-[#10B981] mb-2 font-medium uppercase tracking-wider flex items-center gap-1.5">
+                                        <ArrowRightLeft size={11} /> SIP Calculation (Auto)
+                                        {investSipCalc?.isLoading && <Loader2 size={11} className="animate-spin ml-1" />}
+                                    </p>
+                                    {investSipCalc?.isLoading && <p className="text-[var(--text-secondary)] text-xs">Fetching NAV history...</p>}
+                                    {investSipCalc?.error && <p className="text-red-400 text-xs">{investSipCalc.error}</p>}
+                                    {!investSipCalc && <p className="text-[var(--text-secondary)] text-xs">Enter SIP amount and start date to auto-calculate.</p>}
+                                    {investSipCalc && !investSipCalc.isLoading && !investSipCalc.error && (
+                                        <>
+                                            <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs mb-2">
+                                                <span className="text-[var(--text-secondary)]">Installments</span><span className="text-white font-medium text-right">{investSipCalc.nInstallments} months</span>
+                                                <span className="text-[var(--text-secondary)]">Total Units</span><span className="text-white font-medium text-right">{investSipCalc.totalUnits.toFixed(4)}</span>
+                                                <span className="text-[var(--text-secondary)]">Current Value</span><span className="text-white font-medium text-right">₹{investSipCalc.currentValue.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</span>
+                                                <span className="text-[var(--text-secondary)]">Total Invested</span><span className="text-white font-medium text-right">₹{investSipCalc.totalInvested.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</span>
+                                            </div>
+                                            <p className={`text-[11px] font-semibold border-t border-white/10 pt-1.5 ${investSipCalc.pnl >= 0 ? 'text-[#6EE7B7]' : 'text-red-400'}`}>
+                                                P&L: {investSipCalc.pnl >= 0 ? '+' : ''}₹{investSipCalc.pnl.toLocaleString('en-IN', { maximumFractionDigits: 2 })} ({investSipCalc.pnl >= 0 ? '+' : ''}{investSipCalc.pnlPct.toFixed(2)}%)
+                                            </p>
+                                        </>
+                                    )}
+                                </div>
+                            )}
+
+                            {/* Step-up SIP */}
+                            {(investForm.investmentType === 'SIP' || investForm.investmentType === 'Transfer') && (
+                                <div className="p-3 rounded-xl bg-[var(--accent-purple)]/5 border border-[var(--accent-purple)]/20">
+                                    <p className="text-[10px] text-[var(--accent-purple)] mb-2 font-medium uppercase tracking-wider">Step-up SIP (Optional)</p>
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div>
+                                            <label className="text-[var(--text-secondary)] text-[10px] mb-1 block">Step-up Amount (₹)</label>
+                                            <input type="number" placeholder="e.g. 500" value={investForm.stepUpAmount}
+                                                onChange={(e) => setInvestForm(prev => ({ ...prev, stepUpAmount: e.target.value }))}
+                                                className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder-[var(--text-secondary)] focus:outline-none focus:border-[var(--accent-purple)]/50 text-sm" />
+                                        </div>
+                                        <div>
+                                            <label className="text-[var(--text-secondary)] text-[10px] mb-1 block">Step-up Interval</label>
+                                            <select value={investForm.stepUpInterval}
+                                                onChange={(e) => setInvestForm(prev => ({ ...prev, stepUpInterval: e.target.value as 'Yearly' | 'Half-Yearly' | 'Quarterly' }))}
+                                                className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:border-[var(--accent-purple)]/50 text-sm appearance-none">
+                                                <option value="Yearly" className="bg-[#151A21]">Yearly</option>
+                                                <option value="Half-Yearly" className="bg-[#151A21]">Half-Yearly</option>
+                                                <option value="Quarterly" className="bg-[#151A21]">Quarterly</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Start Date — SIP / Lumpsum */}
+                            {investForm.investmentType !== 'Transfer' && (
+                                <div>
+                                    <label className="text-[var(--text-secondary)] text-xs mb-1.5 block">
+                                        {investForm.investmentType === 'Lumpsum' ? 'Investment Date *' : 'Start Date *'}
+                                    </label>
+                                    <input type="date" value={investForm.startDate}
+                                        onChange={(e) => setInvestForm(prev => ({ ...prev, startDate: e.target.value }))}
+                                        className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:border-[var(--accent-mint)]/50 text-sm" />
+                                    {investForm.investmentType === 'Lumpsum' && <p className="text-[10px] text-[var(--text-secondary)] mt-1">Date the lumpsum was originally made (must be in the past)</p>}
+                                </div>
+                            )}
+
+                            {/* Lumpsum auto-calc summary */}
+                            {investForm.investmentType === 'Lumpsum' && (
+                                <div className="p-3 rounded-xl bg-[#5B7FA4]/5 border border-[#5B7FA4]/20">
+                                    <p className="text-[10px] text-[#5B7FA4] mb-2 font-medium uppercase tracking-wider flex items-center gap-1.5">
+                                        Lumpsum Calculation (Auto)
+                                        {investLumpCalc?.isLoading && <Loader2 size={11} className="animate-spin ml-1" />}
+                                    </p>
+                                    {investLumpCalc?.isLoading && <p className="text-[var(--text-secondary)] text-xs">Fetching NAV history...</p>}
+                                    {investLumpCalc?.error && <p className="text-red-400 text-xs">{investLumpCalc.error}</p>}
+                                    {!investLumpCalc && <p className="text-[var(--text-secondary)] text-xs">Enter the investment amount and date to auto-calculate.</p>}
+                                    {investLumpCalc && !investLumpCalc.isLoading && !investLumpCalc.error && (
+                                        <>
+                                            <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs mb-2">
+                                                <span className="text-[var(--text-secondary)]">NAV on Inv. Date</span><span className="text-white font-medium text-right">₹{investLumpCalc.navOnDate.toFixed(4)}</span>
+                                                <span className="text-[var(--text-secondary)]">Units Purchased</span><span className="text-white font-medium text-right">{investLumpCalc.units.toFixed(4)}</span>
+                                                <span className="text-[var(--text-secondary)]">Current Value</span><span className="text-white font-medium text-right">₹{investLumpCalc.currentValue.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</span>
+                                                <span className="text-[var(--text-secondary)]">Invested</span><span className="text-white font-medium text-right">₹{investLumpCalc.investedAmount.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</span>
+                                            </div>
+                                            <p className={`text-[11px] font-semibold border-t border-white/10 pt-1.5 ${investLumpCalc.pnl >= 0 ? 'text-[#6EE7B7]' : 'text-red-400'}`}>
+                                                P&L: {investLumpCalc.pnl >= 0 ? '+' : ''}₹{investLumpCalc.pnl.toLocaleString('en-IN', { maximumFractionDigits: 2 })} ({investLumpCalc.pnl >= 0 ? '+' : ''}{investLumpCalc.pnlPct.toFixed(2)}%)
+                                            </p>
+                                        </>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Footer */}
+                        <div className="p-4 md:p-5 border-t border-[var(--border-primary)] flex gap-3 shrink-0">
+                            <button onClick={() => { setShowAddInvestmentModal(false); resetInvestForm(); }}
+                                className="flex-1 py-2.5 rounded-xl bg-white/5 border border-white/10 text-[var(--text-secondary)] font-medium hover:bg-white/10 transition-colors text-sm">
+                                Cancel
+                            </button>
+                            <button onClick={handleAddInvestment} disabled={isAddingInvestment}
+                                className="flex-1 py-2.5 rounded-xl bg-[var(--accent-mint)] text-white font-medium hover:opacity-90 transition-all text-sm disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2">
+                                {isAddingInvestment ? <><Loader2 size={16} className="animate-spin" /> Adding...</> : 'Add Investment'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

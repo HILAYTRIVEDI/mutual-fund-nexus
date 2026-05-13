@@ -677,7 +677,7 @@ function ManageClientsContent() {
             aadharCard: client.aadharCard || client.aadhar || '',
             password: '',
             investmentType: 'SIP',
-            amount: '0',
+            amount: '',
             totalInvested: '',
             sipAmount: '',
             startDate: '',

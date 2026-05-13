@@ -15,10 +15,16 @@ import MonthlySIPCard from '@/components/MonthlySIPCard';
 import MarketIndicesTracker from '@/components/MarketIndicesTracker';
 import MarketSnapshot from '@/components/MarketSnapshot';
 import { useAuth } from '@/context/AuthContext';
+import { useHoldings } from '@/context/HoldingsContext';
+import { useTransactions } from '@/context/TransactionsContext';
+import { useSIPs } from '@/context/SIPContext';
 
 export default function Home() {
   const { user, isLoading } = useAuth();
   const router = useRouter();
+  const { refreshHoldings } = useHoldings();
+  const { refreshTransactions } = useTransactions();
+  const { refreshSIPs } = useSIPs();
 
   useEffect(() => {
     if (!isLoading && user?.role !== 'admin') {
@@ -26,11 +32,14 @@ export default function Home() {
     }
   }, [isLoading, user, router]);
 
+  // Refresh all data every time the dashboard is visited by an authenticated admin.
+  // Refresh functions are stable useCallback refs — omitting them is intentional.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
-    if (!isLoading && user?.role !== 'admin') {
-      router.replace('/client-dashboard');
+    if (!isLoading && user?.role === 'admin') {
+      Promise.all([refreshHoldings(), refreshTransactions(), refreshSIPs()]).catch(console.error);
     }
-  }, [isLoading, user, router]);
+  }, [isLoading, user]);
 
   if (isLoading || user?.role !== 'admin') {
     return (
