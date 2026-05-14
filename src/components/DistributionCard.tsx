@@ -48,7 +48,6 @@ function CustomTooltip({ active, payload }: { active?: boolean; payload?: Toolti
                 border: '1px solid var(--border-primary)',
                 borderRadius: '10px',
                 padding: '10px 14px',
-                boxShadow: '0 4px 16px rgba(0,0,0,0.18)',
                 maxWidth: '220px',
                 pointerEvents: 'none',
             }}

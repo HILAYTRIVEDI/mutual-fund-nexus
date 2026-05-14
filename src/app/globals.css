@@ -131,15 +131,6 @@ body {
   pointer-events: none;
 }
 
-/* Mint glow effect */
-.mint-glow {
-  box-shadow: 0 0 40px var(--glow-mint);
-}
-
-/* Purple glow effect */
-.purple-glow {
-  box-shadow: 0 0 40px var(--glow-purple);
-}
 
 /* Animated gradient for highlights */
 .animated-gradient {
@@ -188,13 +179,6 @@ select {
 }
 
 /* Light mode specific overrides */
-[data-theme="light"] .glass-card {
-  box-shadow: 0 4px 20px var(--shadow-color);
-}
-
-[data-theme="light"] .mint-glow {
-  box-shadow: 0 4px 20px var(--glow-mint);
-}
 
 /* Mobile Responsive Utilities */
 @media (max-width: 768px) {
@@ -282,12 +266,6 @@ body.menu-open {
   }
 }
 
-/* Mobile card shadows for better depth perception */
-@media (max-width: 768px) {
-  .glass-card {
-    box-shadow: 0 2px 10px var(--shadow-color);
-  }
-}
 
 /* Safe area insets for notched phones */
 @supports (padding: max(0px)) {

@@ -220,7 +220,6 @@ export default function AssetChartCard({ customChartData, customAumValues }: Ass
                                     border: '1px solid var(--border-primary)',
                                     borderRadius: '12px',
                                     color: 'var(--text-primary)',
-                                    boxShadow: '0 4px 20px rgba(196, 162, 101, 0.2)',
                                 }}
                                 formatter={(value) => {
                                     const val = typeof value === 'number' ? value : 0;

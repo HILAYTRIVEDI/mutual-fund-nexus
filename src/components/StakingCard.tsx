@@ -123,7 +123,6 @@ export default function StakingCard() {
                                     className="w-8 h-8 md:w-10 md:h-10 rounded-full flex items-center justify-center flex-shrink-0"
                                     style={{
                                         background: `${sip.color}30`,
-                                        boxShadow: `0 0 15px ${sip.color}20`
                                     }}
                                 >
                                     <PiggyBank size={14} className="md:w-[18px] md:h-[18px]" style={{ color: sip.color }} />
