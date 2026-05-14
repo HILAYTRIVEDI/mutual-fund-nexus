@@ -156,8 +156,8 @@ export default function MutualFundCard({ scheme, onClose }: MutualFundCardProps)
                                         borderRadius: '12px',
                                         color: '#fff',
                                     }}
-                                    formatter={(value: number | undefined) => {
-                                        const val = value ?? 0;
+                                    formatter={(value) => {
+                                        const val = typeof value === 'number' ? value : 0;
                                         return [`₹${val.toFixed(4)}`, 'NAV'];
                                     }}
                                     labelFormatter={(label) => `Date: ${label}`}
