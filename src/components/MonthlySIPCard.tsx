@@ -4,6 +4,7 @@ import { useSIPs } from '@/context/SIPContext';
 import { useTransactions } from '@/context/TransactionsContext';
 import { TrendingUp, Calendar, BarChart3, ArrowUpRight, Loader2 } from 'lucide-react';
 import { useMemo } from 'react';
+import PrivacyValue from './PrivacyValue';
 
 function formatCurrency(amount: number): string {
     if (amount >= 10000000) {
@@ -112,7 +113,7 @@ export default function MonthlySIPCard() {
             {/* Main Amount */}
             <div className="mb-4 md:mb-6 relative z-10">
                 <h2 className="text-2xl md:text-3xl font-bold text-[var(--text-primary)]">
-                    {formatCurrency(totalMonthlyAmount)}
+                    <PrivacyValue value={formatCurrency(totalMonthlyAmount)} />
                 </h2>
                 <p className="text-[var(--text-secondary)] text-xs mt-1">Total monthly SIP collection</p>
             </div>
@@ -131,7 +132,7 @@ export default function MonthlySIPCard() {
                         <ArrowUpRight size={14} className="text-[var(--accent-mint)]" />
                         <span className="text-[var(--text-secondary)] text-[10px] md:text-xs">Avg Amount</span>
                     </div>
-                    <p className="text-[var(--text-primary)] text-lg md:text-xl font-bold">{formatCurrency(avgSIPAmount)}</p>
+                    <p className="text-[var(--text-primary)] text-lg md:text-xl font-bold"><PrivacyValue value={formatCurrency(avgSIPAmount)} /></p>
                 </div>
             </div>
 
@@ -150,7 +151,7 @@ export default function MonthlySIPCard() {
                                 <span className="text-[var(--text-secondary)] text-xs">{month.monthName}</span>
                                 <div className="flex items-center gap-3">
                                     <span className="text-[var(--text-primary)] text-xs font-medium">
-                                        {formatCurrency(month.totalSIP)}
+                                        <PrivacyValue value={formatCurrency(month.totalSIP)} />
                                     </span>
                                     {month.growth !== 0 && (
                                         <span className={`text-[10px] px-1.5 py-0.5 rounded ${month.growth > 0

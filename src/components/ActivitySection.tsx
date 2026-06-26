@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { ArrowDownLeft, ArrowUpRight, ArrowLeftRight, Loader2, Activity } from 'lucide-react';
 import { useTransactions } from '@/context/TransactionsContext';
+import PrivacyValue from './PrivacyValue';
 
 function formatCurrency(amount: number): string {
     if (amount >= 100000) {
@@ -133,7 +134,7 @@ export default function ActivitySection() {
                                 <p
                                     className={`text-xs md:text-sm font-medium ${isPositive ? 'text-[var(--accent-mint)]' : 'text-[var(--accent-red)]'}`}
                                 >
-                                    {isPositive ? '+' : '-'}{formatCurrency(tx.amount)}
+                                    <PrivacyValue value={`${isPositive ? '+' : '-'}${formatCurrency(tx.amount)}`} />
                                 </p>
                                 <p className="text-[var(--text-secondary)] text-[10px] md:text-xs">
                                     {formatDate(tx.date)}

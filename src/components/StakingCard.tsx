@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { Calendar, PiggyBank, Clock, Loader2 } from 'lucide-react';
 import { useSIPs } from '@/context/SIPContext';
 import { useAuth } from '@/context/AuthContext';
+import PrivacyValue from './PrivacyValue';
 
 function formatCurrency(amount: number): string {
     if (amount >= 100000) {
@@ -137,7 +138,7 @@ export default function StakingCard() {
                                 </div>
                             </div>
                             <div className="text-right flex-shrink-0 ml-2">
-                                <p className="text-[var(--text-primary)] font-semibold text-xs md:text-sm">{formatCurrency(sip.amount)}</p>
+                                <p className="text-[var(--text-primary)] font-semibold text-xs md:text-sm"><PrivacyValue value={formatCurrency(sip.amount)} /></p>
                                 <div className="flex items-center justify-end gap-1 text-[10px] md:text-xs">
                                     <Clock size={8} className="md:w-2.5 md:h-2.5 text-[var(--text-secondary)]" />
                                     <span className={`${sip.daysUntil <= 3 ? 'text-[var(--accent-mint)]' : 'text-[var(--text-secondary)]'}`}>

@@ -3,6 +3,7 @@
 import { useState, useMemo } from 'react';
 import { Search, TrendingUp, TrendingDown, PiggyBank, BarChart3, ArrowUpDown, Calculator } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
+import PrivacyValue from '@/components/PrivacyValue';
 import { useSettings } from '@/context/SettingsContext';
 import { useHoldings } from '@/context/HoldingsContext';
 import { useTransactions } from '@/context/TransactionsContext';
@@ -248,18 +249,18 @@ export default function PortfolioPage() {
                 <div className="flex lg:grid lg:grid-cols-4 gap-3 md:gap-4 mb-4 md:mb-6 overflow-x-auto pb-2 lg:pb-0 -mx-4 px-4 lg:mx-0 lg:px-0">
                     <div className="glass-card rounded-2xl p-3 md:p-4 gradient-border flex-shrink-0 min-w-[140px] lg:min-w-0">
                         <p className="text-[var(--text-secondary)] text-[10px] md:text-xs mb-1">Total Invested</p>
-                        <p className="text-[var(--text-primary)] text-lg md:text-xl font-bold ">{formatCurrency(totalInvested)}</p>
+                        <p className="text-[var(--text-primary)] text-lg md:text-xl font-bold "><PrivacyValue value={formatCurrency(totalInvested)} /></p>
                     </div>
                     <div className="glass-card rounded-2xl p-3 md:p-4 gradient-border flex-shrink-0 min-w-[140px] lg:min-w-0">
                         <p className="text-[var(--text-secondary)] text-[10px] md:text-xs mb-1">Current Value</p>
-                        <p className="text-[var(--text-primary)] text-lg md:text-xl font-bold ">{formatCurrency(totalCurrent)}</p>
+                        <p className="text-[var(--text-primary)] text-lg md:text-xl font-bold "><PrivacyValue value={formatCurrency(totalCurrent)} /></p>
                     </div>
                     <div className="glass-card rounded-2xl p-3 md:p-4 gradient-border flex-shrink-0 min-w-[140px] lg:min-w-0">
                         <p className="text-[var(--text-secondary)] text-[10px] md:text-xs mb-1">
                             {showPostTax ? 'Returns (Post-Tax)' : 'Total Returns'}
                         </p>
                         <p className={`text-lg md:text-xl font-bold  ${totalAdjustedReturns >= 0 ? 'text-[var(--accent-mint)]' : 'text-[var(--accent-red)]'}`}>
-                            {totalAdjustedReturns >= 0 ? '+' : ''}{formatCurrency(totalAdjustedReturns)}
+                            <PrivacyValue value={`${totalAdjustedReturns >= 0 ? '+' : ''}${formatCurrency(totalAdjustedReturns)}`} />
                         </p>
                     </div>
                     <div className="glass-card rounded-2xl p-3 md:p-4 gradient-border flex-shrink-0 min-w-[140px] lg:min-w-0">
@@ -270,7 +271,7 @@ export default function PortfolioPage() {
                             </button>
                         </div>
                         <p className={`text-lg md:text-xl font-bold  ${showXirr ? (portfolioXirr >= 0 ? 'text-[var(--accent-mint)]' : 'text-[var(--accent-red)]') : (parseFloat(totalReturnsPercentage) >= 0 ? 'text-[var(--accent-mint)]' : 'text-[var(--accent-red)]')}`}>
-                            {showXirr ? `${portfolioXirr > 0 ? '+' : ''}${portfolioXirr.toFixed(2)}% (XIRR)` : `${parseFloat(totalReturnsPercentage) >= 0 ? '+' : ''}${totalReturnsPercentage}%`}
+                            <PrivacyValue value={showXirr ? `${portfolioXirr > 0 ? '+' : ''}${portfolioXirr.toFixed(2)}% (XIRR)` : `${parseFloat(totalReturnsPercentage) >= 0 ? '+' : ''}${totalReturnsPercentage}%`} />
                         </p>
                     </div>
                 </div>
@@ -390,23 +391,23 @@ export default function PortfolioPage() {
                                         <div className="grid grid-cols-2 gap-3 text-xs">
                                             <div>
                                                 <p className="text-[var(--text-secondary)] mb-1">Invested</p>
-                                                <p className="text-[var(--text-primary)] font-medium">{formatCurrency(holding.investedValue)}</p>
+                                                <p className="text-[var(--text-primary)] font-medium"><PrivacyValue value={formatCurrency(holding.investedValue)} /></p>
                                             </div>
                                             <div className="text-right">
                                                 <p className="text-[var(--text-secondary)] mb-1">Current</p>
-                                                <p className="text-[var(--text-primary)] font-medium">{formatCurrency(holding.currentValue)}</p>
+                                                <p className="text-[var(--text-primary)] font-medium"><PrivacyValue value={formatCurrency(holding.currentValue)} /></p>
                                             </div>
                                             <div>
                                                 <p className="text-[var(--text-secondary)] mb-1">{showPostTax ? 'Net Returns' : 'Returns'}</p>
                                                 <div className={`flex items-center gap-1 ${calculateReturns(holding).returnsPercentage >= 0 ? 'text-[var(--accent-mint)]' : 'text-[var(--accent-red)]'}`}>
                                                     {calculateReturns(holding).returnsPercentage >= 0 ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
-                                                    <span className="font-medium">{calculateReturns(holding).returnsPercentage >= 0 ? '+' : ''}{calculateReturns(holding).returnsPercentage.toFixed(2)}%</span>
+                                                    <span className="font-medium"><PrivacyValue value={`${calculateReturns(holding).returnsPercentage >= 0 ? '+' : ''}${calculateReturns(holding).returnsPercentage.toFixed(2)}%`} /></span>
                                                 </div>
                                             </div>
                                             <div className="text-right">
                                                 <p className="text-[var(--text-secondary)] mb-1">Allocation</p>
                                                 <div className="flex items-center justify-end gap-2">
-                                                    <span className="text-[var(--text-primary)] font-medium">{holding.allocation}%</span>
+                                                    <span className="text-[var(--text-primary)] font-medium"><PrivacyValue value={`${holding.allocation}%`} /></span>
                                                     <div className="w-12 h-1.5 bg-[var(--bg-hover)] rounded-full overflow-hidden">
                                                         <div
                                                             className="h-full rounded-full"
@@ -420,12 +421,12 @@ export default function PortfolioPage() {
                                             </div>
                                             <div>
                                                 <p className="text-[var(--text-secondary)] mb-1">Units</p>
-                                                <p className="text-[var(--text-primary)] font-medium">{holding.units.toLocaleString()}</p>
+                                                <p className="text-[var(--text-primary)] font-medium"><PrivacyValue value={holding.units.toLocaleString()} /></p>
                                             </div>
                                             <div className="text-right">
                                                 <p className="text-[var(--text-secondary)] mb-1">Live NAV</p>
                                                 <p className="text-[var(--text-primary)] font-medium flex items-center justify-end gap-1">
-                                                    ₹{holding.currentNav.toFixed(2)}
+                                                    <PrivacyValue value={`₹${holding.currentNav.toFixed(2)}`} />
                                                     {holding.isStaleNav && (
                                                         <span className="text-[10px] bg-red-500/10 text-red-500 px-1 rounded">stale</span>
                                                     )}
@@ -459,15 +460,15 @@ export default function PortfolioPage() {
 
                                         {/* Invested */}
                                         <div className="col-span-2 flex flex-col items-end justify-center">
-                                            <p className="text-[var(--text-primary)] text-sm">{formatCurrency(holding.investedValue)}</p>
-                                            <p className="text-[var(--text-secondary)] text-xs">{holding.units.toLocaleString()} units</p>
+                                            <p className="text-[var(--text-primary)] text-sm"><PrivacyValue value={formatCurrency(holding.investedValue)} /></p>
+                                            <p className="text-[var(--text-secondary)] text-xs"><PrivacyValue value={`${holding.units.toLocaleString()} units`} /></p>
                                         </div>
 
                                         {/* Current Value */}
                                         <div className="col-span-2 flex flex-col items-end justify-center">
-                                            <p className="text-[var(--text-primary)] text-sm font-medium">{formatCurrency(holding.currentValue)}</p>
+                                            <p className="text-[var(--text-primary)] text-sm font-medium"><PrivacyValue value={formatCurrency(holding.currentValue)} /></p>
                                             <p className="text-[var(--text-secondary)] text-xs flex items-center gap-1">
-                                                NAV: ₹{holding.currentNav.toFixed(2)}
+                                                <PrivacyValue value={`NAV: ₹${holding.currentNav.toFixed(2)}`} />
                                                 {holding.isStaleNav && (
                                                     <span className="text-[10px] bg-red-500/10 text-red-500 px-1 rounded" title="Using average price as NAV is unavailable">stale</span>
                                                 )}
@@ -478,10 +479,10 @@ export default function PortfolioPage() {
                                         <div className="col-span-1 flex flex-col items-end justify-center">
                                             <div className={`flex items-center gap-1 ${calculateReturns(holding).returnsPercentage >= 0 ? 'text-[var(--accent-mint)]' : 'text-[var(--accent-red)]'}`}>
                                                 {calculateReturns(holding).returnsPercentage >= 0 ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
-                                                <span className="text-sm font-medium">{calculateReturns(holding).returnsPercentage >= 0 ? '+' : ''}{calculateReturns(holding).returnsPercentage.toFixed(2)}%</span>
+                                                <span className="text-sm font-medium"><PrivacyValue value={`${calculateReturns(holding).returnsPercentage >= 0 ? '+' : ''}${calculateReturns(holding).returnsPercentage.toFixed(2)}%`} /></span>
                                             </div>
                                             <p className={`text-xs ${calculateReturns(holding).returns >= 0 ? 'text-[var(--accent-mint)]' : 'text-[var(--accent-red)]'}`}>
-                                                {calculateReturns(holding).returns >= 0 ? '+' : ''}{formatCurrency(calculateReturns(holding).returns)}
+                                                <PrivacyValue value={`${calculateReturns(holding).returns >= 0 ? '+' : ''}${formatCurrency(calculateReturns(holding).returns)}`} />
                                             </p>
                                             {showPostTax && (
                                                 <span className="text-[10px] text-[var(--text-secondary)] mt-0.5">
@@ -493,14 +494,14 @@ export default function PortfolioPage() {
                                         {/* XIRR */}
                                         <div className="col-span-1 flex flex-col items-end justify-center">
                                             <div className={`flex items-center gap-1 ${holding.xirr >= 0 ? 'text-[var(--accent-mint)]' : 'text-[var(--accent-red)]'}`}>
-                                                <span className="text-sm font-medium">{holding.xirr >= 0 ? '+' : ''}{holding.xirr.toFixed(2)}%</span>
+                                                <span className="text-sm font-medium"><PrivacyValue value={`${holding.xirr >= 0 ? '+' : ''}${holding.xirr.toFixed(2)}%`} /></span>
                                             </div>
                                             <p className="text-[10px] text-[var(--text-secondary)]">XIRR</p>
                                         </div>
 
                                         {/* Allocation */}
                                         <div className="col-span-2 flex flex-col items-end justify-center">
-                                            <p className="text-[var(--text-primary)] text-sm font-medium">{holding.allocation}%</p>
+                                            <p className="text-[var(--text-primary)] text-sm font-medium"><PrivacyValue value={`${holding.allocation}%`} /></p>
                                             <div className="w-16 h-1.5 bg-[var(--bg-hover)] rounded-full mt-1 overflow-hidden">
                                                 <div
                                                     className="h-full rounded-full"

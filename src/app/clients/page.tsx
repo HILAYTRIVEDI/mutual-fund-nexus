@@ -5,6 +5,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Search, Filter, TrendingUp, TrendingDown, Users, ChevronDown, X, Calendar, Download, Loader2 } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
+import PrivacyValue from '@/components/PrivacyValue';
 import { useClientContext } from '@/context/ClientContext';
 import { useHoldings } from '@/context/HoldingsContext';
 import { useSIPs } from '@/context/SIPContext';
@@ -294,12 +295,12 @@ function ClientsPageContent() {
                     </div>
                     <div className="glass-card rounded-2xl p-3 md:p-4 gradient-border flex-shrink-0 min-w-[140px] lg:min-w-0">
                         <p className="text-[#9CA3AF] text-[10px] md:text-xs">Total AUM</p>
-                        <p className="text-white text-lg md:text-xl font-bold ">{formatCurrency(totalAUM)}</p>
+                        <p className="text-white text-lg md:text-xl font-bold "><PrivacyValue value={formatCurrency(totalAUM)} /></p>
                     </div>
                     <div className="glass-card rounded-2xl p-3 md:p-4 gradient-border flex-shrink-0 min-w-[140px] lg:min-w-0">
                         <p className="text-[#9CA3AF] text-[10px] md:text-xs">Total P&L</p>
                         <p className={`text-lg md:text-xl font-bold  ${totalPnL >= 0 ? 'text-[#C4A265]' : 'text-[#EF4444]'}`}>
-                            {totalPnL >= 0 ? '+' : ''}{formatCurrency(totalPnL)}
+                            <PrivacyValue value={`${totalPnL >= 0 ? '+' : ''}${formatCurrency(totalPnL)}`} />
                         </p>
                     </div>
                     <div className="glass-card rounded-2xl p-3 md:p-4 gradient-border flex-shrink-0 min-w-[140px] lg:min-w-0">
@@ -475,13 +476,13 @@ function ClientsPageContent() {
                                         <div className="flex items-center justify-between text-xs">
                                             <div>
                                                 <p className="text-[#9CA3AF] mb-1">Current Value</p>
-                                                <p className="text-white font-medium">{formatCurrency(client.currentValue)}</p>
+                                                <p className="text-white font-medium"><PrivacyValue value={formatCurrency(client.currentValue)} /></p>
                                             </div>
                                             <div className={`text-right flex items-center gap-1 ${client.pnl >= 0 ? 'text-[#C4A265]' : 'text-[#EF4444]'}`}>
                                                 {client.pnl >= 0 ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
                                                 <div>
-                                                    <p className="font-medium">{client.pnlPercentage >= 0 ? '+' : ''}{client.pnlPercentage.toFixed(2)}%</p>
-                                                    <p className="text-[10px]">{formatCurrency(Math.abs(client.pnl))}</p>
+                                                    <p className="font-medium"><PrivacyValue value={`${client.pnlPercentage >= 0 ? '+' : ''}${client.pnlPercentage.toFixed(2)}%`} /></p>
+                                                    <p className="text-[10px]"><PrivacyValue value={formatCurrency(Math.abs(client.pnl))} /></p>
                                                 </div>
                                             </div>
                                         </div>
@@ -513,9 +514,9 @@ function ClientsPageContent() {
                                         {/* Investment Amount */}
                                         <div className="col-span-2 flex items-center justify-end">
                                             <div className="text-right">
-                                                <p className="text-white text-sm font-medium">{formatCurrency(client.investmentAmount)}</p>
+                                                <p className="text-white text-sm font-medium"><PrivacyValue value={formatCurrency(client.investmentAmount)} /></p>
                                                 {client.sipAmount > 0 && (
-                                                    <p className="text-[#9CA3AF] text-xs">{formatCurrency(client.sipAmount)}/mo</p>
+                                                    <p className="text-[#9CA3AF] text-xs"><PrivacyValue value={`${formatCurrency(client.sipAmount)}/mo`} /></p>
                                                 )}
                                             </div>
                                         </div>
@@ -542,7 +543,7 @@ function ClientsPageContent() {
 
                                         {/* Current Value */}
                                         <div className="col-span-2 flex items-center justify-end">
-                                            <p className="text-white text-sm font-medium">{formatCurrency(client.currentValue)}</p>
+                                            <p className="text-white text-sm font-medium"><PrivacyValue value={formatCurrency(client.currentValue)} /></p>
                                         </div>
 
                                         {/* P&L */}
@@ -551,10 +552,10 @@ function ClientsPageContent() {
                                                 {client.pnl >= 0 ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
                                                 <div className="text-right">
                                                     <span className="text-sm font-medium block">
-                                                        {client.pnlPercentage >= 0 ? '+' : ''}{client.pnlPercentage.toFixed(2)}%
+                                                        <PrivacyValue value={`${client.pnlPercentage >= 0 ? '+' : ''}${client.pnlPercentage.toFixed(2)}%`} />
                                                     </span>
                                                     <span className="text-xs">
-                                                        {formatCurrency(Math.abs(client.pnl))}
+                                                        <PrivacyValue value={formatCurrency(Math.abs(client.pnl))} />
                                                     </span>
                                                 </div>
                                             </div>

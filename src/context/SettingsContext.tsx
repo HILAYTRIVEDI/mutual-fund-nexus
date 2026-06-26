@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 
 const STORAGE_KEY = 'mf_nexus_tax_settings';
+const PRIVACY_STORAGE_KEY = 'mf_nexus_privacy_mode';
 const DEFAULTS = { ltcgTax: 12.5, stcgTax: 20 };
 
 function loadFromStorage(): { ltcgTax: number; stcgTax: number } {
@@ -25,7 +26,9 @@ function loadFromStorage(): { ltcgTax: number; stcgTax: number } {
 interface SettingsContextType {
     ltcgTax: number;
     stcgTax: number;
+    privacyMode: boolean;
     updateSettings: (settings: { ltcgTax: number; stcgTax: number }) => void;
+    togglePrivacyMode: () => void;
 }
 
 const SettingsContext = createContext<SettingsContextType | undefined>(undefined);
@@ -33,12 +36,18 @@ const SettingsContext = createContext<SettingsContextType | undefined>(undefined
 export function SettingsProvider({ children }: { children: ReactNode }) {
     const [ltcgTax, setLtcgTax] = useState<number>(DEFAULTS.ltcgTax);
     const [stcgTax, setStcgTax] = useState<number>(DEFAULTS.stcgTax);
+    const [privacyMode, setPrivacyMode] = useState<boolean>(false);
 
     // Hydrate from localStorage after mount (avoids SSR mismatch)
     useEffect(() => {
         const saved = loadFromStorage();
         setLtcgTax(saved.ltcgTax);
         setStcgTax(saved.stcgTax);
+        try {
+            setPrivacyMode(localStorage.getItem(PRIVACY_STORAGE_KEY) === 'true');
+        } catch {
+            // ignore
+        }
     }, []);
 
     const updateSettings = (settings: { ltcgTax: number; stcgTax: number }) => {
@@ -51,8 +60,20 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
         }
     };
 
+    const togglePrivacyMode = () => {
+        setPrivacyMode(prev => {
+            const next = !prev;
+            try {
+                localStorage.setItem(PRIVACY_STORAGE_KEY, String(next));
+            } catch {
+                // ignore
+            }
+            return next;
+        });
+    };
+
     return (
-        <SettingsContext.Provider value={{ ltcgTax, stcgTax, updateSettings }}>
+        <SettingsContext.Provider value={{ ltcgTax, stcgTax, privacyMode, updateSettings, togglePrivacyMode }}>
             {children}
         </SettingsContext.Provider>
     );

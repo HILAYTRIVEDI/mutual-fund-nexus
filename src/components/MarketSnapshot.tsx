@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { PiggyBank, TrendingUp, TrendingDown, Loader2 } from 'lucide-react';
 import { useHoldings, HoldingWithValue } from '@/context/HoldingsContext';
 import { useMemo } from 'react';
+import PrivacyValue from './PrivacyValue';
 
 const COLORS = ['#C4A265', '#3B82F6', '#5B7FA4', '#F59E0B', '#EC4899', '#10B981'];
 
@@ -99,19 +100,19 @@ export default function MarketSnapshot() {
                                                 }`}
                                         >
                                             {fund.isPositive ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
-                                            {fund.returns}
+                                            <PrivacyValue value={fund.returns} />
                                         </div>
                                     </div>
                                     <div className="col-span-2 flex items-center justify-end">
-                                        <span className="text-[var(--text-primary)] text-sm">{fund.currentValue}</span>
+                                        <span className="text-[var(--text-primary)] text-sm"><PrivacyValue value={fund.currentValue} /></span>
                                     </div>
                                     <div className="col-span-2 flex items-center justify-end">
                                         <span className={`text-sm font-medium ${fund.isPositive ? 'text-[var(--accent-mint)]' : 'text-[var(--accent-red)]'}`}>
-                                            {fund.returns}
+                                            <PrivacyValue value={fund.returns} />
                                         </span>
                                     </div>
                                     <div className="col-span-2 flex items-center justify-end">
-                                        <span className="text-[var(--text-primary)] text-sm font-medium">{fund.nav}</span>
+                                        <span className="text-[var(--text-primary)] text-sm font-medium"><PrivacyValue value={fund.nav} /></span>
                                     </div>
                                 </div>
 
@@ -137,23 +138,23 @@ export default function MarketSnapshot() {
                                                 }`}
                                         >
                                             {fund.isPositive ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
-                                            {fund.returns}
+                                            <PrivacyValue value={fund.returns} />
                                         </div>
                                     </div>
                                     <div className="flex items-center justify-between pl-11 text-xs">
                                         <div className="flex flex-col">
                                             <span className="text-[var(--text-secondary)]">Value</span>
-                                            <span className="text-[var(--text-primary)] font-medium">{fund.currentValue}</span>
+                                            <span className="text-[var(--text-primary)] font-medium"><PrivacyValue value={fund.currentValue} /></span>
                                         </div>
                                         <div className="flex flex-col items-center">
                                             <span className="text-[var(--text-secondary)]">Gain/Loss</span>
                                             <span className={`font-medium ${fund.isPositive ? 'text-[var(--accent-mint)]' : 'text-[var(--accent-red)]'}`}>
-                                                {fund.returns}
+                                                <PrivacyValue value={fund.returns} />
                                             </span>
                                         </div>
                                         <div className="flex flex-col items-end">
                                             <span className="text-[var(--text-secondary)]">NAV</span>
-                                            <span className="text-[var(--text-primary)] font-medium">{fund.nav}</span>
+                                            <span className="text-[var(--text-primary)] font-medium"><PrivacyValue value={fund.nav} /></span>
                                         </div>
                                     </div>
                                 </div>

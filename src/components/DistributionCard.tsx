@@ -1,8 +1,9 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useCallback } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import { useHoldings } from '@/context/HoldingsContext';
+import { useSettings } from '@/context/SettingsContext';
 import { Loader2, PieChart as PieChartIcon } from 'lucide-react';
 
 // Distinct color palette for individual funds
@@ -35,10 +36,10 @@ interface TooltipPayloadItem {
     payload: DistributionData;
 }
 
-function CustomTooltip({ active, payload }: { active?: boolean; payload?: TooltipPayloadItem[] }) {
+function CustomTooltip({ active, payload, privacyMode }: { active?: boolean; payload?: TooltipPayloadItem[]; privacyMode?: boolean }) {
     if (!active || !payload?.length) return null;
     const item = payload[0].payload;
-    const formatted = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(item.amount ?? 0);
+    const formatted = privacyMode ? '•••••' : new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(item.amount ?? 0);
     return (
         <div
             role="tooltip"
@@ -69,7 +70,7 @@ function CustomTooltip({ active, payload }: { active?: boolean; payload?: Toolti
                 </span>
             </div>
             <div style={{ paddingLeft: '18px', color: 'var(--text-secondary)', fontSize: '11px', lineHeight: 1.6 }}>
-                <div><strong style={{ color: 'var(--text-primary)' }}>{item.value}%</strong> of portfolio</div>
+                <div><strong style={{ color: 'var(--text-primary)' }}>{privacyMode ? '••' : item.value}%</strong> of portfolio</div>
                 {item.amount ? <div>{formatted}</div> : null}
             </div>
         </div>
@@ -90,9 +91,15 @@ interface DistributionCardProps {
 
 export default function DistributionCard({ customData }: DistributionCardProps = {}) {
     const { holdings, totalCurrentValue, isLoading: ctxLoading, error: ctxError } = useHoldings();
+    const { privacyMode } = useSettings();
 
     const isLoading = customData ? false : ctxLoading;
     const error = customData ? null : ctxError;
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const tooltipContent = useCallback((props: any) => (
+        <CustomTooltip {...props} privacyMode={privacyMode} />
+    ), [privacyMode]);
 
     const chartData: DistributionData[] = useMemo(() => {
         if (customData) return customData;
@@ -202,7 +209,7 @@ export default function DistributionCard({ customData }: DistributionCardProps =
                             ))}
                         </Pie>
                         <Tooltip
-                            content={<CustomTooltip />}
+                            content={tooltipContent}
                             allowEscapeViewBox={{ x: true, y: true }}
                             position={{ x: 4, y: 4 }}
                             wrapperStyle={{ zIndex: 9999, pointerEvents: 'none' }}

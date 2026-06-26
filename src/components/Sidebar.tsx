@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
+import { useSettings } from '@/context/SettingsContext';
 import {
     LayoutDashboard,
     Users,
@@ -19,6 +20,8 @@ import {
     Menu,
     X,
     Calculator,
+    Eye,
+    EyeOff,
 } from 'lucide-react';
 
 const menuItems = [
@@ -38,6 +41,7 @@ export default function Sidebar() {
     const pathname = usePathname();
     const [isOpen, setIsOpen] = useState(false);
     const { user, logout, isLoading } = useAuth();
+    const { privacyMode, togglePrivacyMode } = useSettings();
 
     // Close sidebar on route change
     useEffect(() => {
@@ -119,6 +123,17 @@ export default function Sidebar() {
                         </div>
                     </div>
                 )}
+                <button
+                    onClick={togglePrivacyMode}
+                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 mb-1 ${
+                        privacyMode
+                            ? 'bg-[var(--accent-gold)]/10 text-[var(--accent-gold)] border border-[var(--accent-gold)]/20'
+                            : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]'
+                    }`}
+                >
+                    {privacyMode ? <EyeOff size={20} /> : <Eye size={20} />}
+                    <span className="font-medium">{privacyMode ? 'Show Values' : 'Hide Values'}</span>
+                </button>
                 <button
                     onClick={logout}
                     className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] transition-all duration-200"

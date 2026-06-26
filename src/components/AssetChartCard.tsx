@@ -11,7 +11,9 @@ import {
 } from 'recharts';
 import { useState, useMemo } from 'react';
 import { useHoldings } from '@/context/HoldingsContext';
+import { useSettings } from '@/context/SettingsContext';
 import { Loader2, TrendingUp } from 'lucide-react';
+import PrivacyValue from './PrivacyValue';
 
 const timeFilters = ['1M', '3M', '6M', '1Y'] as const;
 type TimeFilter = typeof timeFilters[number];
@@ -88,6 +90,7 @@ interface AssetChartCardProps {
 export default function AssetChartCard({ customChartData, customAumValues }: AssetChartCardProps = {}) {
     const [activeFilter, setActiveFilter] = useState<TimeFilter>('1Y');
     const { totalCurrentValue: ctxTotalCurrentValue, totalGainLoss: ctxTotalGainLoss, totalInvested: ctxTotalInvested, isLoading: ctxLoading, error: ctxError } = useHoldings();
+    const { privacyMode } = useSettings();
 
     const totalCurrentValue = customAumValues?.currentValue ?? ctxTotalCurrentValue;
     const totalGainLoss = customAumValues?.gainLoss ?? ctxTotalGainLoss;
@@ -140,7 +143,7 @@ export default function AssetChartCard({ customChartData, customAumValues }: Ass
                 <div>
                     <div className="flex items-baseline gap-2 md:gap-3">
                         <h2 className="text-2xl md:text-3xl font-bold text-[var(--text-primary)]">
-                            {formatAUM(totalCurrentValue)}
+                            <PrivacyValue value={formatAUM(totalCurrentValue)} />
                         </h2>
                         <span className="text-[var(--text-secondary)] text-sm md:text-lg">INR</span>
                     </div>
@@ -154,7 +157,7 @@ export default function AssetChartCard({ customChartData, customAumValues }: Ass
                     <span className={`text-xs md:text-sm font-medium ${
                         parseFloat(gainLossPercentage) >= 0 ? 'text-[var(--accent-mint)]' : 'text-[var(--accent-red)]'
                     }`}>
-                        {parseFloat(gainLossPercentage) >= 0 ? '+' : ''}{gainLossPercentage}%
+                        <PrivacyValue value={`${parseFloat(gainLossPercentage) >= 0 ? '+' : ''}${gainLossPercentage}%`} />
                     </span>
                 </div>
             </div>
@@ -206,6 +209,7 @@ export default function AssetChartCard({ customChartData, customAumValues }: Ass
                                 tickLine={false}
                                 tick={{ fill: 'var(--text-secondary)', fontSize: 10 }}
                                 tickFormatter={(value) => {
+                                    if (privacyMode) return '••••';
                                     if (value >= 10000000) return `₹${(value / 10000000).toFixed(1)}Cr`;
                                     if (value >= 100000) return `₹${(value / 100000).toFixed(0)}L`;
                                     if (value >= 1000) return `₹${(value / 1000).toFixed(0)}K`;
@@ -222,6 +226,7 @@ export default function AssetChartCard({ customChartData, customAumValues }: Ass
                                     color: 'var(--text-primary)',
                                 }}
                                 formatter={(value) => {
+                                    if (privacyMode) return ['•••••', 'Value'];
                                     const val = typeof value === 'number' ? value : 0;
                                     return [formatAUM(val), 'Value'];
                                 }}

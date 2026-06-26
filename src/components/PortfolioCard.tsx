@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { PiggyBank, TrendingUp, TrendingDown, Loader2 } from 'lucide-react';
 import { useHoldings } from '@/context/HoldingsContext';
+import PrivacyValue from './PrivacyValue';
 
 function formatCurrency(amount: number): string {
     if (amount >= 10000000) {
@@ -96,7 +97,7 @@ export default function PortfolioCard() {
                                         {holding.mutual_fund?.name || holding.scheme_code || 'Fund'}
                                     </p>
                                     <p className="text-[var(--text-secondary)] text-xs ">
-                                        {holding.units.toFixed(2)} units
+                                        <PrivacyValue value={`${holding.units.toFixed(2)} units`} />
                                     </p>
                                 </div>
                                 <div
@@ -106,7 +107,7 @@ export default function PortfolioCard() {
                                         }`}
                                 >
                                     {change >= 0 ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
-                                    {change >= 0 ? '+' : ''}{change.toFixed(1)}%
+                                    <PrivacyValue value={`${change >= 0 ? '+' : ''}${change.toFixed(1)}%`} />
                                 </div>
                             </div>
 
@@ -115,18 +116,18 @@ export default function PortfolioCard() {
                                 <div>
                                     <p className="text-[var(--text-secondary)] text-xs">Value</p>
                                     <p className="text-[var(--text-primary)] font-semibold text-sm">
-                                        {formatCurrency(holding.current_value)}
+                                        <PrivacyValue value={formatCurrency(holding.current_value)} />
                                     </p>
                                 </div>
                                 <div>
                                     <p className="text-[var(--text-secondary)] text-xs">Invested</p>
                                     <p className="text-[var(--text-primary)] text-sm">
-                                        {formatCurrency(holding.invested_amount)}
+                                        <PrivacyValue value={formatCurrency(holding.invested_amount)} />
                                     </p>
                                 </div>
                                 <div>
                                     <p className="text-[var(--text-secondary)] text-xs">NAV</p>
-                                    <p className="text-[var(--accent-gold)] text-sm">₹{holding.current_nav.toFixed(2)}</p>
+                                    <p className="text-[var(--accent-gold)] text-sm"><PrivacyValue value={`₹${holding.current_nav.toFixed(2)}`} /></p>
                                 </div>
                             </div>
                         </div>

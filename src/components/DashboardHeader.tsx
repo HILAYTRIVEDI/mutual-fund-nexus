@@ -5,6 +5,7 @@ import { TrendingUp, Users, PiggyBank, ArrowUpRight, ArrowDownRight } from 'luci
 import GlobalSearch from './GlobalSearch';
 import NotificationBell from './NotificationBell';
 import ThemeToggle from './ThemeToggle';
+import PrivacyValue from './PrivacyValue';
 import { useClientContext } from '@/context/ClientContext';
 import { useHoldings } from '@/context/HoldingsContext';
 import { useSIPs } from '@/context/SIPContext';
@@ -134,10 +135,10 @@ export default function DashboardHeader({ title, subtitle }: DashboardHeaderProp
                                 <div>
                                     <p className="text-[var(--text-secondary)] text-[10px] md:text-xs whitespace-nowrap">{stat.label}</p>
                                     <div className="flex items-center gap-1">
-                                        <span className="text-[var(--text-primary)] font-semibold text-xs md:text-sm">{stat.value}</span>
+                                        <span className="text-[var(--text-primary)] font-semibold text-xs md:text-sm"><PrivacyValue value={stat.value} /></span>
                                         {stat.change && (
                                             <span className={`text-[10px] md:text-xs ${stat.isPositive ? 'text-[var(--accent-mint)]' : 'text-[var(--accent-red)]'}`}>
-                                                {stat.change}
+                                                <PrivacyValue value={stat.change} />
                                             </span>
                                         )}
                                     </div>
