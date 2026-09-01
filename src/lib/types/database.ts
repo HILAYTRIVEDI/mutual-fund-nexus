@@ -98,7 +98,7 @@ export interface SIP {
   frequency: 'monthly' | 'quarterly' | 'weekly';
   start_date: string;
   next_execution_date: string | null;
-  status: 'active' | 'paused' | 'cancelled';
+  status: 'active' | 'paused' | 'skipped' | 'cancelled';
   step_up_amount?: number;
   step_up_interval?: 'Yearly' | 'Half-Yearly' | 'Quarterly';
   created_at: string;
@@ -168,4 +168,3 @@ export type HoldingInsert = Database['public']['Tables']['holdings']['Insert'];
 export type TransactionInsert = Database['public']['Tables']['transactions']['Insert'];
 export type SIPInsert = Database['public']['Tables']['sips']['Insert'];
 export type NotificationInsert = Database['public']['Tables']['notifications']['Insert'];
-

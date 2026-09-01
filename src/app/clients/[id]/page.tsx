@@ -61,8 +61,8 @@ export default function ClientDetailPage() {
     const { ltcgTax, stcgTax } = useSettings();
     const { clients, deleteClient, updateClient, isLoading: clientsLoading } = useClientContext();
     const { holdings, addHolding, deleteHolding, refreshHoldings } = useHoldings();
-    const { sips, addSIP, cancelSIP, refreshSIPs } = useSIPs();
-    const { transactions, addTransaction, refreshTransactions } = useTransactions();
+    const { sips, addSIP, cancelSIP, removeSIP, refreshSIPs } = useSIPs();
+    const { transactions, addTransaction, deleteTransaction, refreshTransactions } = useTransactions();
 
     const [activeTab, setActiveTab] = useState<'investments' | 'transactions' | 'notes'>('investments');
 
@@ -263,6 +263,7 @@ export default function ClientDetailPage() {
     const client = clients.find(c => c.id === clientId);
     const clientHoldings = holdings.filter(h => h.user_id === clientId);
     const clientSIPs = sips.filter(s => s.user_id === clientId);
+    const visibleClientSIPs = clientSIPs.filter(s => s.status !== 'cancelled');
     const clientTransactions = transactions.filter(t => t.user_id === clientId);
 
     useEffect(() => {
@@ -293,6 +294,27 @@ export default function ClientDetailPage() {
             const matchingSips = clientSIPs.filter(s => s.scheme_code === schemeCode && s.status === 'active');
             for (const sip of matchingSips) await cancelSIP(sip.id);
         }
+    };
+
+    const handleRemoveSIP = async (sipId: string, fundName: string) => {
+        if (!confirm(`Remove SIP for "${fundName}"? Past records will remain unchanged.`)) return;
+
+        const result = await removeSIP(sipId);
+        if (!result.success) {
+            alert('Failed to remove SIP: ' + (result.error || 'Unknown error'));
+        }
+    };
+
+    const handleDeleteSIPTransaction = async (transactionId: string, fundName: string) => {
+        if (!confirm(`Remove this SIP transaction for "${fundName}"? The holding units and invested amount will be recalculated.`)) return;
+
+        const result = await deleteTransaction(transactionId);
+        if (!result.success) {
+            alert('Failed to remove SIP transaction: ' + (result.error || 'Unknown error'));
+            return;
+        }
+
+        await Promise.all([refreshHoldings(), refreshTransactions()]);
     };
 
     const getHoldingReturns = (holding: typeof clientHoldings[0]) => {
@@ -806,6 +828,59 @@ export default function ClientDetailPage() {
                             </>
                         )}
                     </div>
+                    {visibleClientSIPs.length > 0 && (
+                        <div className="glass-card rounded-2xl overflow-hidden mt-4">
+                            <div className="px-5 py-3 bg-[var(--bg-hover)] border-b border-[var(--border-primary)] flex items-center justify-between gap-3">
+                                <div>
+                                    <h3 className="text-[var(--text-primary)] text-sm font-semibold">SIP Plans</h3>
+                                    <p className="text-[var(--text-secondary)] text-xs">Active, paused, and skipped SIPs</p>
+                                </div>
+                                <span className="text-[var(--text-secondary)] text-xs px-2 py-1 rounded-lg bg-[var(--bg-primary)] border border-[var(--border-primary)]">
+                                    {visibleClientSIPs.length}
+                                </span>
+                            </div>
+                            <div className="divide-y divide-[var(--border-primary)]">
+                                {visibleClientSIPs.map((sip) => {
+                                    const fundName = sip.scheme_name || sip.scheme_code || 'Unknown Fund';
+                                    const statusClass = sip.status === 'active'
+                                        ? 'bg-[var(--accent-mint)]/10 text-[var(--accent-mint)]'
+                                        : sip.status === 'paused'
+                                            ? 'bg-[var(--accent-yellow)]/10 text-[var(--accent-yellow)]'
+                                            : 'bg-[var(--accent-red)]/10 text-[var(--accent-red)]';
+
+                                    return (
+                                        <div key={sip.id} className="p-4 md:px-5 md:py-4 flex items-center justify-between gap-3">
+                                            <div className="min-w-0 flex items-center gap-3">
+                                                <div className="w-9 h-9 shrink-0 rounded-full bg-[var(--accent-blue)]/10 flex items-center justify-center">
+                                                    <Calendar size={16} className="text-[var(--accent-blue)]" />
+                                                </div>
+                                                <div className="min-w-0">
+                                                    <p className="text-[var(--text-primary)] text-sm font-medium leading-snug">{fundName}</p>
+                                                    <p className="text-[var(--text-secondary)] text-xs mt-0.5">
+                                                        {formatCurrency(sip.amount)} / {sip.frequency}
+                                                        {sip.next_execution_date ? ` - Next ${formatDate(sip.next_execution_date)}` : ''}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center gap-2 shrink-0">
+                                                <span className={`px-2 py-1 rounded-md text-xs font-medium capitalize ${statusClass}`}>
+                                                    {sip.status}
+                                                </span>
+                                                <button
+                                                    onClick={() => handleRemoveSIP(sip.id, fundName)}
+                                                    aria-label="Remove SIP"
+                                                    title="Remove SIP"
+                                                    className="p-2 min-h-[36px] min-w-[36px] rounded-lg text-[var(--text-secondary)] hover:text-[var(--accent-red)] hover:bg-[var(--accent-red)]/10 transition-colors cursor-pointer"
+                                                >
+                                                    <Trash2 size={14} />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
                     </div>
                 )}
 
@@ -876,6 +951,16 @@ export default function ClientDetailPage() {
                                                             'bg-[var(--accent-red)]'
                                                         }`} />
                                                         <span className="text-[var(--text-secondary)] text-xs capitalize">{tx.status}</span>
+                                                        {tx.type === 'sip' && (
+                                                            <button
+                                                                onClick={() => handleDeleteSIPTransaction(tx.id, fundName)}
+                                                                aria-label="Remove SIP transaction"
+                                                                title="Remove SIP transaction"
+                                                                className="ml-auto p-2 min-h-[36px] min-w-[36px] rounded-lg text-[var(--text-secondary)] hover:text-[var(--accent-red)] hover:bg-[var(--accent-red)]/10 transition-colors cursor-pointer"
+                                                            >
+                                                                <Trash2 size={14} />
+                                                            </button>
+                                                        )}
                                                     </div>
                                                 </div>
 
@@ -903,12 +988,22 @@ export default function ClientDetailPage() {
                                                     <div className="col-span-1 flex items-center justify-end">
                                                         <p className="text-[var(--text-primary)] text-sm">{tx.units.toFixed(3)}</p>
                                                     </div>
-                                                    <div className="col-span-1 flex items-center justify-center">
+                                                    <div className="col-span-1 flex items-center justify-center gap-2">
                                                         <span className={`w-2 h-2 rounded-full ${
                                                             tx.status === 'completed' ? 'bg-[var(--accent-mint)]' :
                                                             tx.status === 'pending' ? 'bg-[var(--accent-yellow)]' :
                                                             'bg-[var(--accent-red)]'
                                                         }`} title={tx.status} />
+                                                        {tx.type === 'sip' && (
+                                                            <button
+                                                                onClick={() => handleDeleteSIPTransaction(tx.id, fundName)}
+                                                                aria-label="Remove SIP transaction"
+                                                                title="Remove SIP transaction"
+                                                                className="p-1.5 rounded-lg text-[var(--text-secondary)] hover:text-[var(--accent-red)] hover:bg-[var(--accent-red)]/10 transition-colors cursor-pointer"
+                                                            >
+                                                                <Trash2 size={14} />
+                                                            </button>
+                                                        )}
                                                     </div>
                                                 </div>
                                             </div>

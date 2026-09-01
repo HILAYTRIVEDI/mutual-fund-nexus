@@ -12,6 +12,7 @@ interface TransactionsContextType {
     getClientTransactions: (clientId: string) => Transaction[];
     getRecentTransactions: (limit?: number) => Transaction[];
     addTransaction: (transaction: TransactionInsert) => Promise<{ success: boolean; error?: string }>;
+    deleteTransaction: (id: string) => Promise<{ success: boolean; error?: string }>;
     refreshTransactions: () => Promise<void>;
 }
 
@@ -107,6 +108,107 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
         }
     };
 
+    const reconcileHolding = async (userId: string, schemeCode: string) => {
+        type ReconcileTransaction = { units: number | null; amount: number | null };
+
+        const { data: completedTxs, error: txFetchError } = await (supabase
+            .from('transactions') as any)
+            .select('units, amount')
+            .eq('user_id', userId)
+            .eq('scheme_code', schemeCode)
+            .eq('status', 'completed')
+            .in('type', ['buy', 'sip']) as { data: ReconcileTransaction[] | null; error: any };
+
+        if (txFetchError) {
+            throw txFetchError;
+        }
+
+        const { data: existingHolding, error: holdingFetchError } = await (supabase
+            .from('holdings') as any)
+            .select('id')
+            .eq('user_id', userId)
+            .eq('scheme_code', schemeCode)
+            .maybeSingle();
+
+        if (holdingFetchError) {
+            throw holdingFetchError;
+        }
+
+        if (!completedTxs || completedTxs.length === 0) {
+            if (existingHolding?.id) {
+                const { error: deleteHoldingError } = await supabase
+                    .from('holdings')
+                    .delete()
+                    .eq('id', existingHolding.id);
+
+                if (deleteHoldingError) {
+                    throw deleteHoldingError;
+                }
+            }
+            return;
+        }
+
+        const totalUnits = completedTxs.reduce((sum, tx) => sum + (tx.units || 0), 0);
+        const totalAmount = completedTxs.reduce((sum, tx) => sum + (tx.amount || 0), 0);
+        const averagePrice = totalUnits > 0 ? totalAmount / totalUnits : 0;
+
+        if (existingHolding?.id) {
+            const { error: updateHoldingError } = await (supabase
+                .from('holdings') as any)
+                .update({ units: totalUnits, average_price: averagePrice })
+                .eq('id', existingHolding.id);
+
+            if (updateHoldingError) {
+                throw updateHoldingError;
+            }
+        }
+    };
+
+    const deleteTransaction = async (id: string): Promise<{ success: boolean; error?: string }> => {
+        try {
+            type RemovableTransaction = {
+                id: string;
+                user_id: string;
+                scheme_code: string | null;
+                type: Transaction['type'];
+                status: Transaction['status'];
+            };
+
+            const { data: transaction, error: fetchError } = await (supabase
+                .from('transactions') as any)
+                .select('id, user_id, scheme_code, type, status')
+                .eq('id', id)
+                .single() as { data: RemovableTransaction | null; error: any };
+
+            if (fetchError) {
+                throw fetchError;
+            }
+
+            if (transaction?.type !== 'sip') {
+                return { success: false, error: 'Only SIP transactions can be removed from this screen' };
+            }
+
+            const { error: deleteError } = await supabase
+                .from('transactions')
+                .delete()
+                .eq('id', id);
+
+            if (deleteError) {
+                throw deleteError;
+            }
+
+            if (transaction.scheme_code && transaction.status === 'completed') {
+                await reconcileHolding(transaction.user_id, transaction.scheme_code);
+            }
+
+            await fetchTransactions();
+            return { success: true };
+        } catch (err) {
+            console.error('[TransactionsContext] Error deleting transaction:', err);
+            return { success: false, error: err instanceof Error ? err.message : 'Failed to delete transaction' };
+        }
+    };
+
     return (
         <TransactionsContext.Provider value={{
             transactions,
@@ -115,6 +217,7 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
             getClientTransactions,
             getRecentTransactions,
             addTransaction,
+            deleteTransaction,
             refreshTransactions: fetchTransactions,
         }}>
             {children}

@@ -24,6 +24,7 @@ interface SIPContextType {
     updateSIP: (id: string, updates: Partial<SIP>) => Promise<{ success: boolean; error?: string }>;
     pauseSIP: (id: string) => Promise<{ success: boolean; error?: string }>;
     cancelSIP: (id: string) => Promise<{ success: boolean; error?: string }>;
+    removeSIP: (id: string) => Promise<{ success: boolean; error?: string }>;
     refreshSIPs: () => Promise<void>;
 }
 
@@ -180,6 +181,10 @@ export function SIPProvider({ children }: { children: ReactNode }) {
         return updateSIP(id, { status: 'cancelled' });
     };
 
+    const removeSIP = async (id: string) => {
+        return cancelSIP(id);
+    };
+
     return (
         <SIPContext.Provider value={{
             sips,
@@ -193,6 +198,7 @@ export function SIPProvider({ children }: { children: ReactNode }) {
             updateSIP,
             pauseSIP,
             cancelSIP,
+            removeSIP,
             refreshSIPs: fetchSIPs,
         }}>
             {children}

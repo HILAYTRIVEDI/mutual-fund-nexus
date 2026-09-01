@@ -145,7 +145,7 @@ CREATE TABLE public.sips (
   frequency text CHECK (frequency IN ('monthly', 'quarterly', 'weekly')) DEFAULT 'monthly',
   start_date date NOT NULL,
   next_execution_date date,
-  status text CHECK (status IN ('active', 'paused', 'cancelled')) DEFAULT 'active',
+  status text CHECK (status IN ('active', 'paused', 'skipped', 'cancelled')) DEFAULT 'active',
   step_up_amount numeric DEFAULT 0,
   step_up_interval text CHECK (step_up_interval IN ('Yearly', 'Half-Yearly', 'Quarterly')),
   created_at timestamptz DEFAULT now(),
