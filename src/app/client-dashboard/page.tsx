@@ -9,7 +9,6 @@ import ThemeToggle from '@/components/ThemeToggle';
 import { TrendingUp, TrendingDown, PiggyBank, Calendar, Wallet, Target, Calculator, Loader2, ArrowRight } from 'lucide-react';
 import { useState, useMemo } from 'react';
 import DistributionCard from '@/components/DistributionCard';
-import MarketIndicesTracker from '@/components/MarketIndicesTracker';
 import Link from 'next/link';
 
 const COLORS = ['#C4A265', '#3B82F6', '#5B7FA4', '#F59E0B', '#EC4899', '#10B981', '#6366F1'];
@@ -251,11 +250,6 @@ export default function ClientDashboard() {
                             </div>
                         </div>
                     )}
-                </div>
-
-                {/* Live Market Indices */}
-                <div className="mt-6">
-                    <MarketIndicesTracker />
                 </div>
             </main>
 

@@ -12,7 +12,6 @@ import ActivitySection from '@/components/ActivitySection';
 import StakingCard from '@/components/StakingCard';
 
 import MonthlySIPCard from '@/components/MonthlySIPCard';
-import MarketIndicesTracker from '@/components/MarketIndicesTracker';
 import MarketSnapshot from '@/components/MarketSnapshot';
 import { useAuth } from '@/context/AuthContext';
 import { useHoldings } from '@/context/HoldingsContext';
@@ -81,9 +80,6 @@ export default function Home() {
 
           {/* Row 5: Upcoming SIPs (Full Width) */}
           <StakingCard />
-
-          {/* Row 6: Live Market Indices */}
-          <MarketIndicesTracker />
 
         </div>
       </main>

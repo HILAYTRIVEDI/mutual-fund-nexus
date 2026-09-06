@@ -8,12 +8,13 @@ import Sidebar from '@/components/Sidebar';
 import { useSettings } from '@/context/SettingsContext';
 import { useClientContext } from '@/context/ClientContext';
 import { useHoldings } from '@/context/HoldingsContext';
-import { useSIPs } from '@/context/SIPContext';
+import { useSIPs, type SIPWithDetails } from '@/context/SIPContext';
 import { useTransactions } from '@/context/TransactionsContext';
 import { useAuth } from '@/context/AuthContext';
 import { calculateXIRR } from '@/lib/utils/finance';
 import { searchSchemesMerged, type MergedFundScheme, getSchemeLatestNAV, resolveSchemeCode } from '@/lib/mfapi';
 import { getSupabaseClient } from '@/lib/supabase';
+import type { SIP } from '@/lib/types/database';
 
 function formatCurrency(amount: number): string {
     if (amount >= 10000000) return `₹${(amount / 10000000).toFixed(2)} Cr`;
@@ -61,7 +62,7 @@ export default function ClientDetailPage() {
     const { ltcgTax, stcgTax } = useSettings();
     const { clients, deleteClient, updateClient, isLoading: clientsLoading } = useClientContext();
     const { holdings, addHolding, deleteHolding, refreshHoldings } = useHoldings();
-    const { sips, addSIP, cancelSIP, removeSIP, refreshSIPs } = useSIPs();
+    const { sips, addSIP, updateSIP, cancelSIP, removeSIP, refreshSIPs } = useSIPs();
     const { transactions, addTransaction, deleteTransaction, refreshTransactions } = useTransactions();
 
     const [activeTab, setActiveTab] = useState<'investments' | 'transactions' | 'notes'>('investments');
@@ -89,6 +90,17 @@ export default function ClientDetailPage() {
     const [investFundResults, setInvestFundResults] = useState<MergedFundScheme[]>([]);
     const [investFundSearching, setInvestFundSearching] = useState(false);
     const [showInvestFundDropdown, setShowInvestFundDropdown] = useState(false);
+    const [editingSIP, setEditingSIP] = useState<SIPWithDetails | null>(null);
+    const [isSavingSIP, setIsSavingSIP] = useState(false);
+    const [sipEditForm, setSipEditForm] = useState({
+        amount: '',
+        frequency: 'monthly' as SIP['frequency'],
+        startDate: '',
+        nextExecutionDate: '',
+        status: 'active' as SIP['status'],
+        stepUpAmount: '',
+        stepUpInterval: 'Yearly' as NonNullable<SIP['step_up_interval']>,
+    });
 
     type SipCalc = { totalUnits: number; currentValue: number; totalInvested: number; latestNav: number; pnl: number; pnlPct: number; nextSipDate: string; nInstallments: number; isLoading: boolean; error: string | null };
     type LumpCalc = { units: number; currentValue: number; investedAmount: number; navOnDate: number; latestNav: number; pnl: number; pnlPct: number; isLoading: boolean; error: string | null };
@@ -303,6 +315,61 @@ export default function ClientDetailPage() {
         if (!result.success) {
             alert('Failed to remove SIP: ' + (result.error || 'Unknown error'));
         }
+    };
+
+    const openEditSIP = (sip: SIPWithDetails) => {
+        setEditingSIP(sip);
+        setSipEditForm({
+            amount: sip.amount ? String(sip.amount) : '',
+            frequency: sip.frequency,
+            startDate: sip.start_date?.slice(0, 10) || '',
+            nextExecutionDate: sip.next_execution_date?.slice(0, 10) || '',
+            status: sip.status,
+            stepUpAmount: sip.step_up_amount ? String(sip.step_up_amount) : '',
+            stepUpInterval: sip.step_up_interval || 'Yearly',
+        });
+    };
+
+    const closeEditSIP = () => {
+        setEditingSIP(null);
+        setIsSavingSIP(false);
+    };
+
+    const handleSaveSIP = async () => {
+        if (!editingSIP) return;
+
+        const amount = parseFloat(sipEditForm.amount);
+        const stepUpAmount = parseFloat(sipEditForm.stepUpAmount);
+
+        if (!amount || amount <= 0) {
+            alert('Please enter a valid SIP amount');
+            return;
+        }
+        if (!sipEditForm.startDate) {
+            alert('Please enter the SIP start date');
+            return;
+        }
+
+        setIsSavingSIP(true);
+        const updates: Partial<SIP> = {
+            amount,
+            frequency: sipEditForm.frequency,
+            start_date: sipEditForm.startDate,
+            next_execution_date: sipEditForm.nextExecutionDate || null,
+            status: sipEditForm.status,
+            step_up_amount: stepUpAmount > 0 ? stepUpAmount : 0,
+            step_up_interval: stepUpAmount > 0 ? sipEditForm.stepUpInterval : null,
+        } as Partial<SIP>;
+
+        const result = await updateSIP(editingSIP.id, updates);
+        setIsSavingSIP(false);
+
+        if (!result.success) {
+            alert('Failed to update SIP: ' + (result.error || 'Unknown error'));
+            return;
+        }
+
+        setEditingSIP(null);
     };
 
     const handleDeleteSIPTransaction = async (transactionId: string, fundName: string) => {
@@ -860,12 +927,25 @@ export default function ClientDetailPage() {
                                                         {formatCurrency(sip.amount)} / {sip.frequency}
                                                         {sip.next_execution_date ? ` - Next ${formatDate(sip.next_execution_date)}` : ''}
                                                     </p>
+                                                    {(sip.step_up_amount || 0) > 0 && (
+                                                        <p className="text-[var(--accent-purple)] text-xs mt-0.5">
+                                                            Step-up {formatCurrency(sip.step_up_amount || 0)} / {sip.step_up_interval || 'Yearly'}
+                                                        </p>
+                                                    )}
                                                 </div>
                                             </div>
                                             <div className="flex items-center gap-2 shrink-0">
                                                 <span className={`px-2 py-1 rounded-md text-xs font-medium capitalize ${statusClass}`}>
                                                     {sip.status}
                                                 </span>
+                                                <button
+                                                    onClick={() => openEditSIP(sip)}
+                                                    aria-label="Edit SIP"
+                                                    title="Edit SIP"
+                                                    className="p-2 min-h-[36px] min-w-[36px] rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors cursor-pointer"
+                                                >
+                                                    <Edit size={14} />
+                                                </button>
                                                 <button
                                                     onClick={() => handleRemoveSIP(sip.id, fundName)}
                                                     aria-label="Remove SIP"
@@ -1044,6 +1124,140 @@ export default function ClientDetailPage() {
 
             {/* Sidebar */}
             <Sidebar />
+
+            {/* ── Edit SIP Modal ─────────────────────────────────────────── */}
+            {editingSIP && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+                    <div className="w-full sm:max-w-lg glass-card rounded-t-2xl sm:rounded-2xl overflow-hidden max-h-[90vh] flex flex-col">
+                        <div className="p-4 md:p-5 border-b border-[var(--border-primary)] flex items-center justify-between shrink-0">
+                            <div className="flex items-center gap-3 min-w-0">
+                                <div className="w-9 h-9 rounded-xl bg-[var(--accent-blue)]/15 flex items-center justify-center shrink-0">
+                                    <Calendar size={18} className="text-[var(--accent-blue)]" />
+                                </div>
+                                <div className="min-w-0">
+                                    <h2 className="text-[var(--text-primary)] text-base font-semibold">Edit SIP</h2>
+                                    <p className="text-[var(--text-secondary)] text-xs truncate">
+                                        {editingSIP.scheme_name || editingSIP.scheme_code || 'SIP plan'}
+                                    </p>
+                                </div>
+                            </div>
+                            <button onClick={closeEditSIP} className="p-2 rounded-lg bg-white/5 hover:bg-white/10 transition-colors">
+                                <X size={18} className="text-[var(--text-secondary)]" />
+                            </button>
+                        </div>
+
+                        <div className="p-4 md:p-5 space-y-4 overflow-y-auto flex-1">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <div>
+                                    <label className="text-[var(--text-secondary)] text-xs mb-1.5 block">SIP Amount *</label>
+                                    <input
+                                        type="number"
+                                        min="1"
+                                        value={sipEditForm.amount}
+                                        onChange={(e) => setSipEditForm(prev => ({ ...prev, amount: e.target.value }))}
+                                        className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white placeholder-[var(--text-secondary)] focus:outline-none focus:border-[var(--accent-mint)]/50 text-sm"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="text-[var(--text-secondary)] text-xs mb-1.5 block">Frequency</label>
+                                    <select
+                                        value={sipEditForm.frequency}
+                                        onChange={(e) => setSipEditForm(prev => ({ ...prev, frequency: e.target.value as SIP['frequency'] }))}
+                                        className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:border-[var(--accent-mint)]/50 text-sm appearance-none"
+                                    >
+                                        <option value="monthly" className="bg-[#151A21]">Monthly</option>
+                                        <option value="quarterly" className="bg-[#151A21]">Quarterly</option>
+                                        <option value="weekly" className="bg-[#151A21]">Weekly</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <div>
+                                    <label className="text-[var(--text-secondary)] text-xs mb-1.5 block">Start Date *</label>
+                                    <input
+                                        type="date"
+                                        value={sipEditForm.startDate}
+                                        onChange={(e) => setSipEditForm(prev => ({ ...prev, startDate: e.target.value }))}
+                                        className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:border-[var(--accent-mint)]/50 text-sm"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="text-[var(--text-secondary)] text-xs mb-1.5 block">Next Execution Date</label>
+                                    <input
+                                        type="date"
+                                        value={sipEditForm.nextExecutionDate}
+                                        onChange={(e) => setSipEditForm(prev => ({ ...prev, nextExecutionDate: e.target.value }))}
+                                        className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:border-[var(--accent-mint)]/50 text-sm"
+                                    />
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="text-[var(--text-secondary)] text-xs mb-1.5 block">Status</label>
+                                <select
+                                    value={sipEditForm.status}
+                                    onChange={(e) => setSipEditForm(prev => ({ ...prev, status: e.target.value as SIP['status'] }))}
+                                    className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:border-[var(--accent-mint)]/50 text-sm appearance-none"
+                                >
+                                    <option value="active" className="bg-[#151A21]">Active</option>
+                                    <option value="paused" className="bg-[#151A21]">Paused</option>
+                                    <option value="skipped" className="bg-[#151A21]">Skipped</option>
+                                    <option value="cancelled" className="bg-[#151A21]">Cancelled</option>
+                                </select>
+                            </div>
+
+                            <div className="p-3 rounded-xl bg-[var(--accent-purple)]/5 border border-[var(--accent-purple)]/20">
+                                <p className="text-[10px] text-[var(--accent-purple)] mb-2 font-medium uppercase tracking-wider flex items-center gap-1">
+                                    <TrendingUp size={12} />
+                                    Step-up SIP
+                                </p>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    <div>
+                                        <label className="text-[var(--text-secondary)] text-[10px] mb-1 block">Step-up Amount (₹)</label>
+                                        <input
+                                            type="number"
+                                            min="0"
+                                            placeholder="0"
+                                            value={sipEditForm.stepUpAmount}
+                                            onChange={(e) => setSipEditForm(prev => ({ ...prev, stepUpAmount: e.target.value }))}
+                                            className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder-[var(--text-secondary)] focus:outline-none focus:border-[var(--accent-purple)]/50 text-sm"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="text-[var(--text-secondary)] text-[10px] mb-1 block">Step-up Interval</label>
+                                        <select
+                                            value={sipEditForm.stepUpInterval}
+                                            onChange={(e) => setSipEditForm(prev => ({ ...prev, stepUpInterval: e.target.value as NonNullable<SIP['step_up_interval']> }))}
+                                            className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:border-[var(--accent-purple)]/50 text-sm appearance-none"
+                                        >
+                                            <option value="Yearly" className="bg-[#151A21]">Yearly</option>
+                                            <option value="Half-Yearly" className="bg-[#151A21]">Half-Yearly</option>
+                                            <option value="Quarterly" className="bg-[#151A21]">Quarterly</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="p-4 md:p-5 border-t border-[var(--border-primary)] flex gap-3 shrink-0">
+                            <button
+                                onClick={closeEditSIP}
+                                className="flex-1 py-2.5 rounded-xl bg-white/5 border border-white/10 text-[var(--text-secondary)] font-medium hover:bg-white/10 transition-colors text-sm"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleSaveSIP}
+                                disabled={isSavingSIP}
+                                className="flex-1 py-2.5 rounded-xl bg-[var(--accent-mint)] text-white font-medium hover:opacity-90 transition-all text-sm disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                            >
+                                {isSavingSIP ? <><Loader2 size={16} className="animate-spin" /> Saving...</> : 'Save SIP'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* ── Add Investment Modal ─────────────────────────────────────────── */}
             {showAddInvestmentModal && (
