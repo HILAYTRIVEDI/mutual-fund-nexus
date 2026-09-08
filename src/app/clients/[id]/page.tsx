@@ -14,7 +14,7 @@ import { useAuth } from '@/context/AuthContext';
 import { calculateXIRR } from '@/lib/utils/finance';
 import { searchSchemesMerged, type MergedFundScheme, getSchemeLatestNAV, resolveSchemeCode } from '@/lib/mfapi';
 import { getSupabaseClient } from '@/lib/supabase';
-import type { SIP } from '@/lib/types/database';
+import type { SIP, Transaction } from '@/lib/types/database';
 
 function formatCurrency(amount: number): string {
     if (amount >= 10000000) return `₹${(amount / 10000000).toFixed(2)} Cr`;
@@ -24,6 +24,14 @@ function formatCurrency(amount: number): string {
 
 function formatDate(dateStr: string): string {
     return new Date(dateStr).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+}
+
+function isSameInvestmentAmount(a: number, b: number): boolean {
+    return Math.abs(a - b) < 0.01;
+}
+
+function getTransactionTime(transaction: Pick<Transaction, 'date' | 'created_at'>): number {
+    return new Date(transaction.date || transaction.created_at).getTime();
 }
 
 // Finds NAV on or after targetDate from MFAPI history (dates in DD-MM-YYYY, sorted descending)
@@ -430,6 +438,41 @@ export default function ClientDetailPage() {
         };
     };
 
+    const getFundInvestmentSplit = (holding: typeof clientHoldings[0]) => {
+        const fundSips = clientSIPs.filter(sip => (
+            sip.status === 'active' &&
+            sip.scheme_code === holding.scheme_code
+        ));
+        const fundTransactions = clientTransactions.filter(tx => (
+            tx.scheme_code === holding.scheme_code &&
+            tx.status === 'completed'
+        ));
+        const sipTransactions = fundTransactions.filter(tx => tx.type === 'sip');
+        const buyTransactions = fundTransactions
+            .filter(tx => tx.type === 'buy')
+            .sort((a, b) => getTransactionTime(a) - getTransactionTime(b));
+        const sipLinkedBuyTransactions = sipTransactions.length === 0
+            ? fundSips.reduce<Transaction[]>((matched, sip) => {
+                const match = buyTransactions.find(tx => (
+                    !matched.some(m => m.id === tx.id) &&
+                    isSameInvestmentAmount(sip.amount, tx.amount)
+                ));
+
+                return match ? [...matched, match] : matched;
+            }, [])
+            : [];
+
+        return {
+            sipInvested: [...sipTransactions, ...sipLinkedBuyTransactions].reduce((sum, tx) => sum + tx.amount, 0),
+            lumpsumInvested: buyTransactions
+                .filter(tx => !sipLinkedBuyTransactions.some(sipTx => sipTx.id === tx.id))
+                .reduce((sum, tx) => sum + tx.amount, 0),
+            monthlySip: fundSips
+                .filter(sip => sip.frequency === 'monthly')
+                .reduce((sum, sip) => sum + sip.amount, 0),
+        };
+    };
+
     const totalInvested = clientHoldings.reduce((sum, h) => sum + (h.invested_amount || h.units * h.average_price), 0);
     const totalCurrent = clientHoldings.reduce((sum, h) => sum + getHoldingReturns(h).currentValue, 0);
     const totalReturns = clientHoldings.reduce((sum, h) => sum + getHoldingReturns(h).returnAmount, 0);
@@ -778,7 +821,8 @@ export default function ClientDetailPage() {
                                 <div className="divide-y divide-[var(--border-primary)]">
                                     {clientHoldings.map((holding) => {
                                         const returns = getHoldingReturns(holding);
-                                        const fundName = (holding as any).mutual_fund?.name || holding.scheme_code || 'Unknown Fund';
+                                        const split = getFundInvestmentSplit(holding);
+                                        const fundName = holding.mutual_fund?.name || holding.scheme_code || 'Unknown Fund';
                                         const returnPositive = returns.returnPercentage >= 0;
 
                                         return (
@@ -798,6 +842,19 @@ export default function ClientDetailPage() {
                                                                         <span className="ml-1 text-[10px] bg-red-500/10 text-red-400 px-1 rounded">stale</span>
                                                                     )}
                                                                 </p>
+                                                                <div className="flex flex-wrap gap-1.5 mt-2">
+                                                                    <span className="px-2 py-1 rounded-md bg-[var(--accent-mint)]/10 text-[var(--accent-mint)] text-[10px] font-medium">
+                                                                        SIP {formatCurrency(split.sipInvested)}
+                                                                    </span>
+                                                                    <span className="px-2 py-1 rounded-md bg-[var(--accent-blue)]/10 text-[var(--accent-blue)] text-[10px] font-medium">
+                                                                        Lumpsum {formatCurrency(split.lumpsumInvested)}
+                                                                    </span>
+                                                                    {split.monthlySip > 0 && (
+                                                                        <span className="px-2 py-1 rounded-md bg-[var(--accent-gold)]/10 text-[var(--accent-gold)] text-[10px] font-medium">
+                                                                            {formatCurrency(split.monthlySip)}/mo
+                                                                        </span>
+                                                                    )}
+                                                                </div>
                                                             </div>
                                                         </div>
                                                         <button
@@ -853,6 +910,19 @@ export default function ClientDetailPage() {
                                                                     <span className="text-[10px] bg-red-500/10 text-red-400 px-1 rounded">stale</span>
                                                                 )}
                                                             </p>
+                                                            <div className="flex flex-wrap gap-1.5 mt-2">
+                                                                <span className="px-2 py-1 rounded-md bg-[var(--accent-mint)]/10 text-[var(--accent-mint)] text-[10px] font-medium">
+                                                                    SIP {formatCurrency(split.sipInvested)}
+                                                                </span>
+                                                                <span className="px-2 py-1 rounded-md bg-[var(--accent-blue)]/10 text-[var(--accent-blue)] text-[10px] font-medium">
+                                                                    Lumpsum {formatCurrency(split.lumpsumInvested)}
+                                                                </span>
+                                                                {split.monthlySip > 0 && (
+                                                                    <span className="px-2 py-1 rounded-md bg-[var(--accent-gold)]/10 text-[var(--accent-gold)] text-[10px] font-medium">
+                                                                        {formatCurrency(split.monthlySip)}/mo
+                                                                    </span>
+                                                                )}
+                                                            </div>
                                                         </div>
                                                     </div>
                                                     <div className="col-span-2 flex items-center justify-end">
