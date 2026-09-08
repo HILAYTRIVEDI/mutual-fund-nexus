@@ -499,7 +499,7 @@ export default function ClientDetailPage() {
                 const avgPrice = totalUnits > 0 ? calcInvested / totalUnits : calcNav;
 
                 await addHolding({ user_id: clientId, scheme_code: effectiveSchemeCode, units: totalUnits, average_price: avgPrice, current_nav: calcNav || currentNav });
-                await addTransaction({ user_id: clientId, scheme_code: effectiveSchemeCode, type: 'buy', amount: calcInvested, units: totalUnits, nav: avgPrice, status: 'completed', date: new Date().toISOString().split('T')[0] });
+                await addTransaction({ user_id: clientId, scheme_code: effectiveSchemeCode, type: 'sip', amount: calcInvested, units: totalUnits, nav: avgPrice, status: 'completed', date: new Date().toISOString().split('T')[0] });
 
                 const sipPayload: any = { user_id: clientId, scheme_code: effectiveSchemeCode, amount: sipAmountInput, frequency: 'monthly', start_date: investForm.startDate, next_execution_date: nextSipDate, status: 'active' };
                 const stepUp = parseFloat(investForm.stepUpAmount);

@@ -32,6 +32,10 @@ function formatCurrency(amount: number): string {
     return `₹${amount.toLocaleString('en-IN')}`;
 }
 
+function isSameInvestmentAmount(a: number, b: number): boolean {
+    return Math.abs(a - b) < 0.01;
+}
+
 function ClientsPageContent() {
     const searchParams = useSearchParams();
     const { clients, isLoading: clientsLoading } = useClientContext();
@@ -59,9 +63,26 @@ function ClientsPageContent() {
             const totalInvested = clientHoldings.reduce((sum, h) => sum + h.invested_amount, 0);
             const totalCurrentValue = clientHoldings.reduce((sum, h) => sum + h.current_value, 0);
 
-            // Calculate ratios based on transactions
-            let sipInvestedRaw = clientTxs.filter(t => t.type === 'sip').reduce((s, t) => s + t.amount, 0);
-            let lumpInvestedRaw = clientTxs.filter(t => t.type === 'buy').reduce((s, t) => s + t.amount, 0);
+            const activeSips = clientSips.filter(s => s.status === 'active');
+
+            // Calculate ratios based on transactions. A first SIP installment can be
+            // stored as a buy in older records, so match those back to the SIP plan.
+            const sipTransactions = clientTxs.filter(t => t.type === 'sip');
+            const sipLinkedBuyTransactions = sipTransactions.length === 0
+                ? clientTxs.filter(t => (
+                    t.type === 'buy' &&
+                    activeSips.some(s => (
+                        s.scheme_code === t.scheme_code &&
+                        isSameInvestmentAmount(s.amount, t.amount)
+                    ))
+                ))
+                : [];
+
+            const sipInvestedRaw = [...sipTransactions, ...sipLinkedBuyTransactions]
+                .reduce((s, t) => s + t.amount, 0);
+            let lumpInvestedRaw = clientTxs
+                .filter(t => t.type === 'buy' && !sipLinkedBuyTransactions.some(sipTx => sipTx.id === t.id))
+                .reduce((s, t) => s + t.amount, 0);
 
             // Fallback for migrated data (no tx)
             if (sipInvestedRaw === 0 && lumpInvestedRaw === 0 && totalInvested > 0) {
@@ -72,9 +93,7 @@ function ClientsPageContent() {
             const sipRatio = totalRaw > 0 ? sipInvestedRaw / totalRaw : 0;
             const lumpRatio = totalRaw > 0 ? lumpInvestedRaw / totalRaw : 0;
 
-            const totalSipAmount = clientSips
-                .filter(s => s.status === 'active')
-                .reduce((sum, s) => sum + s.amount, 0);
+            const totalSipAmount = activeSips.reduce((sum, s) => sum + s.amount, 0);
 
             // Shared Data
             const topHolding = [...clientHoldings].sort((a, b) => b.current_value - a.current_value)[0];
@@ -88,7 +107,7 @@ function ClientsPageContent() {
             // Only split into SIP/Lumpsum if they actually have a current balance, 
             // OR if they have no balance but an active SIP is set up.
             const hasActiveBalance = totalInvested > 0;
-            const hasActiveSIPRecord = clientSips.some(s => s.status === 'active');
+            const hasActiveSIPRecord = activeSips.length > 0;
 
             // Add SIP Entry if applicable
             if ((sipInvestedRaw > 0 && hasActiveBalance) || hasActiveSIPRecord) {
