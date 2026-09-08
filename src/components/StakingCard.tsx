@@ -21,11 +21,11 @@ function formatDate(dateStr: string): string {
 const colors = ['#C4A265', '#5B7FA4', '#D4B87A', '#7A9DBF', '#8B7355'];
 
 export default function StakingCard() {
-    const { upcomingSIPs, activeSIPs, isLoading, error } = useSIPs();
+    const { activeSIPs, totalMonthlyAmount, isLoading, error } = useSIPs();
     const { user } = useAuth();
     const sipLink = user?.role === 'client' ? '/portfolio' : '/clients?type=SIP';
     
-    // Get next 4 upcoming SIPs
+    // Show every active SIP so the upcoming total matches the full monthly SIP schedule.
     const displaySIPs = activeSIPs
         .filter(sip => sip.next_execution_date)
         .sort((a, b) => {
@@ -33,14 +33,13 @@ export default function StakingCard() {
             const dateB = new Date(b.next_execution_date!).getTime();
             return dateA - dateB;
         })
-        .slice(0, 4)
         .map((sip, index) => ({
             ...sip,
             color: colors[index % colors.length],
             daysUntil: sip.days_until_next ?? 0
         }));
 
-    const totalUpcoming = displaySIPs.reduce((sum, sip) => sum + sip.amount, 0);
+    const totalUpcoming = totalMonthlyAmount;
 
     if (isLoading) {
         return (
