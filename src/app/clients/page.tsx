@@ -59,7 +59,7 @@ function ClientsPageContent() {
     );
 
     const clientDisplayData = useMemo(() => {
-        return clients.flatMap(client => {
+        return clients.map(client => {
             const clientHoldings = getClientHoldings(client.id);
             const clientSips = getClientSIPs(client.id);
             const clientTxs = getClientTransactions(client.id);
@@ -111,87 +111,31 @@ function ClientsPageContent() {
             const dates = clientHoldings.map(h => new Date(h.created_at).getTime());
             const startDate = dates.length > 0 ? new Date(Math.min(...dates)).toISOString() : client.created_at;
 
-            const entries = [];
-
-            // Only split into SIP/Lumpsum if they actually have a current balance, 
-            // OR if they have no balance but an active SIP is set up.
             const hasActiveBalance = totalInvested > 0;
             const hasActiveSIPRecord = activeSips.length > 0;
+            const hasSipInvestment = (sipInvestedRaw > 0 && hasActiveBalance) || hasActiveSIPRecord;
+            const hasLumpsumInvestment = lumpInvestedRaw > 0 && hasActiveBalance;
+            const investmentType = [
+                hasSipInvestment ? 'SIP' : null,
+                hasLumpsumInvestment ? 'Lumpsum' : null,
+            ].filter(Boolean).join(' + ') || '-';
 
-            // Add SIP Entry if applicable
-            if ((sipInvestedRaw > 0 && hasActiveBalance) || hasActiveSIPRecord) {
-                // Determine metrics (Pro-rated)
-                const invested = totalInvested * sipRatio;
-                const current = totalCurrentValue * sipRatio;
-                const pnl = current - invested;
-                const pnlPercentage = invested > 0 ? (pnl / invested) * 100 : 0;
+            const pnl = totalCurrentValue - totalInvested;
 
-                entries.push({
-                    ...client,
-                    uniqueKey: `${client.id}-SIP`,
-                    portfolio: portfolioName,
-                    fundHouse: fundHouse || 'Unknown',
-                    investmentAmount: invested,
-                    currentValue: current,
-                    investmentType: 'SIP', 
-                    startDate,
-                    pnl,
-                    pnlPercentage,
-                    sipAmount: totalSipAmount
-                });
-            }
-
-            // Add Lumpsum Entry if applicable
-            if (lumpInvestedRaw > 0 && hasActiveBalance) {
-                 const invested = totalInvested * lumpRatio;
-                 const current = totalCurrentValue * lumpRatio;
-                 const pnl = current - invested;
-                 const pnlPercentage = invested > 0 ? (pnl / invested) * 100 : 0;
-
-                 entries.push({
-                    ...client,
-                    uniqueKey: `${client.id}-Lumpsum`,
-                    portfolio: portfolioName,
-                    fundHouse: fundHouse || 'Unknown',
-                    investmentAmount: invested,
-                    currentValue: current,
-                    investmentType: 'Lumpsum', 
-                    startDate,
-                    pnl,
-                    pnlPercentage,
-                    sipAmount: 0
-                 });
-            }
-
-            // Default if no entries
-            if (entries.length === 0) {
-                 entries.push({
-                    ...client,
-                    uniqueKey: `${client.id}-Default`,
-                    portfolio: portfolioName,
-                    fundHouse: fundHouse || 'Unknown',
-                    investmentAmount: totalInvested,
-                    currentValue: totalCurrentValue,
-                    investmentType: '-',
-                    startDate,
-                    pnl: totalCurrentValue - totalInvested,
-                    pnlPercentage: totalInvested > 0 ? ((totalCurrentValue - totalInvested) / totalInvested) * 100 : 0,
-                    sipAmount: 0 // Default to 0? Or totalSipAmount if they have SIPs but no transactions?
-                                 // If they have active SIPs but no transactions, they fall into 'Default' if sipInvestedRaw==0.
-                                 // Actually earlier fallback sets lumpInvestedRaw.
-                                 // What if active SIPs exist but no tx and no holdings? (New client).
-                                 // Then sipInvestedRaw=0, lumpInvestedRaw=0. totalInvested=0.
-                                 // Fallback doesn't trigger.
-                                 // entries empty.
-                                 // Default entry added.
-                                 // Should show sipAmount if they have active SIPs?
-                                 // Yes.
-                 });
-                 // Fix: Update Default entry sipAmount
-                 entries[0].sipAmount = totalSipAmount; 
-            }
-
-            return entries;
+            return {
+                ...client,
+                portfolio: portfolioName,
+                fundHouse: fundHouse || 'Unknown',
+                investmentAmount: totalInvested,
+                currentValue: totalCurrentValue,
+                investmentType,
+                startDate,
+                pnl,
+                pnlPercentage: totalInvested > 0 ? (pnl / totalInvested) * 100 : 0,
+                sipAmount: totalSipAmount,
+                sipInvested: totalInvested * sipRatio,
+                lumpsumInvested: totalInvested * lumpRatio,
+            };
         });
     }, [clients, getClientHoldings, getClientSIPs, getClientTransactions]);
 
@@ -492,7 +436,7 @@ function ClientsPageContent() {
                                                 </div>
                                             </div>
                                             <span
-                                                className={`px-2 py-1 rounded-md text-xs font-medium flex-shrink-0 ${client.investmentType === 'SIP'
+                                                className={`px-2 py-1 rounded-md text-xs font-medium flex-shrink-0 ${client.investmentType.includes('SIP')
                                                     ? 'bg-[#C4A265]/10 text-[#C4A265]'
                                                     : 'bg-[#5B7FA4]/10 text-[#5B7FA4]'
                                                     }`}
@@ -560,7 +504,7 @@ function ClientsPageContent() {
                                         {/* Type */}
                                         <div className="col-span-1 flex items-center justify-center">
                                             <span
-                                                className={`px-2 py-1 rounded-md text-xs font-medium ${client.investmentType === 'SIP'
+                                                className={`px-2 py-1 rounded-md text-xs font-medium ${client.investmentType.includes('SIP')
                                                     ? 'bg-[#C4A265]/10 text-[#C4A265]'
                                                     : 'bg-[#5B7FA4]/10 text-[#5B7FA4]'
                                                     }`}
