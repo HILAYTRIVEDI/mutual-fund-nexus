@@ -109,11 +109,11 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
     };
 
     const reconcileHolding = async (userId: string, schemeCode: string) => {
-        type ReconcileTransaction = { units: number | null; amount: number | null };
+        type ReconcileTransaction = { type: Transaction['type']; units: number | null; amount: number | null };
 
         const { data: completedTxs, error: txFetchError } = await (supabase
             .from('transactions') as any)
-            .select('units, amount')
+            .select('type, units, amount')
             .eq('user_id', userId)
             .eq('scheme_code', schemeCode)
             .eq('status', 'completed')
@@ -148,8 +148,14 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
             return;
         }
 
-        const totalUnits = completedTxs.reduce((sum, tx) => sum + (tx.units || 0), 0);
-        const totalAmount = completedTxs.reduce((sum, tx) => sum + (tx.amount || 0), 0);
+        const totalUnits = completedTxs.reduce((sum, tx) => {
+            const direction = tx.type === 'sell' ? -1 : 1;
+            return sum + direction * (tx.units || 0);
+        }, 0);
+        const totalAmount = completedTxs.reduce((sum, tx) => {
+            const direction = tx.type === 'sell' ? -1 : 1;
+            return sum + direction * (tx.amount || 0);
+        }, 0);
         const averagePrice = totalUnits > 0 ? totalAmount / totalUnits : 0;
 
         if (existingHolding?.id) {
@@ -184,8 +190,8 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
                 throw fetchError;
             }
 
-            if (transaction?.type !== 'sip') {
-                return { success: false, error: 'Only SIP transactions can be removed from this screen' };
+            if (!transaction) {
+                return { success: false, error: 'Transaction not found' };
             }
 
             const { error: deleteError } = await supabase

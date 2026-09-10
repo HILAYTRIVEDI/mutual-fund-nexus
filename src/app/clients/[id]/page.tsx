@@ -359,11 +359,21 @@ export default function ClientDetailPage() {
         }
 
         setIsSavingSIP(true);
+        const nextExecutionDate = sipEditForm.nextExecutionDate || null;
+        const stepUpChanged = stepUpAmount > 0 && (
+            (editingSIP.step_up_amount || 0) !== stepUpAmount ||
+            (editingSIP.step_up_interval || null) !== sipEditForm.stepUpInterval
+        );
+        const currentAnchorDate = editingSIP.start_date?.slice(0, 10) || '';
+        const stepUpNeedsAnchor = stepUpAmount > 0 && !!nextExecutionDate && currentAnchorDate !== nextExecutionDate;
+        const shouldApplyStepUpNow = stepUpChanged || stepUpNeedsAnchor;
+        const nextAmount = shouldApplyStepUpNow ? amount + stepUpAmount : amount;
+
         const updates: Partial<SIP> = {
-            amount,
+            amount: nextAmount,
             frequency: sipEditForm.frequency,
-            start_date: sipEditForm.startDate,
-            next_execution_date: sipEditForm.nextExecutionDate || null,
+            start_date: shouldApplyStepUpNow && nextExecutionDate ? nextExecutionDate : sipEditForm.startDate,
+            next_execution_date: nextExecutionDate,
             status: sipEditForm.status,
             step_up_amount: stepUpAmount > 0 ? stepUpAmount : 0,
             step_up_interval: stepUpAmount > 0 ? sipEditForm.stepUpInterval : null,
@@ -380,16 +390,21 @@ export default function ClientDetailPage() {
         setEditingSIP(null);
     };
 
-    const handleDeleteSIPTransaction = async (transactionId: string, fundName: string) => {
-        if (!confirm(`Remove this SIP transaction for "${fundName}"? The holding units and invested amount will be recalculated.`)) return;
+    const handleDeleteTransaction = async (transaction: Transaction, fundName: string) => {
+        const isFailed = transaction.status === 'failed';
+        const message = isFailed
+            ? `Remove this failed transaction for "${fundName}"?`
+            : `Remove this transaction for "${fundName}"? If it affected holdings, the client totals will be recalculated.`;
 
-        const result = await deleteTransaction(transactionId);
+        if (!confirm(message)) return;
+
+        const result = await deleteTransaction(transaction.id);
         if (!result.success) {
-            alert('Failed to remove SIP transaction: ' + (result.error || 'Unknown error'));
+            alert('Failed to remove transaction: ' + (result.error || 'Unknown error'));
             return;
         }
 
-        await Promise.all([refreshHoldings(), refreshTransactions()]);
+        await Promise.all([refreshHoldings(), refreshTransactions(), refreshSIPs()]);
     };
 
     const getHoldingReturns = (holding: typeof clientHoldings[0]) => {
@@ -1048,11 +1063,11 @@ export default function ClientDetailPage() {
                                 <div className="hidden md:grid grid-cols-12 gap-3 px-5 py-3 bg-[var(--bg-hover)] border-b border-[var(--border-primary)]">
                                     <div className="col-span-2 text-[var(--text-secondary)] text-xs font-semibold uppercase">Date</div>
                                     <div className="col-span-1 text-[var(--text-secondary)] text-xs font-semibold uppercase">Type</div>
-                                    <div className="col-span-4 text-[var(--text-secondary)] text-xs font-semibold uppercase">Fund</div>
+                                    <div className="col-span-3 text-[var(--text-secondary)] text-xs font-semibold uppercase">Fund</div>
                                     <div className="col-span-2 text-[var(--text-secondary)] text-xs font-semibold uppercase text-right">Amount</div>
                                     <div className="col-span-1 text-[var(--text-secondary)] text-xs font-semibold uppercase text-right">NAV</div>
                                     <div className="col-span-1 text-[var(--text-secondary)] text-xs font-semibold uppercase text-right">Units</div>
-                                    <div className="col-span-1 text-[var(--text-secondary)] text-xs font-semibold uppercase text-center">Status</div>
+                                    <div className="col-span-2 text-[var(--text-secondary)] text-xs font-semibold uppercase text-center">Status</div>
                                 </div>
 
                                 <div className="divide-y divide-[var(--border-primary)]">
@@ -1066,7 +1081,6 @@ export default function ClientDetailPage() {
                                             sell: 'bg-[var(--accent-red)]/10 text-[var(--accent-red)]',
                                             switch: 'bg-[var(--accent-purple)]/10 text-[var(--accent-purple)]',
                                         };
-
                                         return (
                                             <div key={tx.id}>
                                                 {/* ── Mobile card ── */}
@@ -1094,23 +1108,24 @@ export default function ClientDetailPage() {
                                                             <p className="text-[var(--text-primary)]">{tx.units.toFixed(3)}</p>
                                                         </div>
                                                     </div>
-                                                    <div className="flex items-center gap-1.5">
-                                                        <span className={`w-2 h-2 rounded-full shrink-0 ${
-                                                            tx.status === 'completed' ? 'bg-[var(--accent-mint)]' :
-                                                            tx.status === 'pending' ? 'bg-[var(--accent-yellow)]' :
-                                                            'bg-[var(--accent-red)]'
-                                                        }`} />
-                                                        <span className="text-[var(--text-secondary)] text-xs capitalize">{tx.status}</span>
-                                                        {tx.type === 'sip' && (
-                                                            <button
-                                                                onClick={() => handleDeleteSIPTransaction(tx.id, fundName)}
-                                                                aria-label="Remove SIP transaction"
-                                                                title="Remove SIP transaction"
-                                                                className="ml-auto p-2 min-h-[36px] min-w-[36px] rounded-lg text-[var(--text-secondary)] hover:text-[var(--accent-red)] hover:bg-[var(--accent-red)]/10 transition-colors cursor-pointer"
-                                                            >
-                                                                <Trash2 size={14} />
-                                                            </button>
-                                                        )}
+                                                    <div className="flex items-center gap-2">
+                                                        <div className="flex items-center gap-1.5">
+                                                            <span className={`w-2 h-2 rounded-full shrink-0 ${
+                                                                tx.status === 'completed' ? 'bg-[var(--accent-mint)]' :
+                                                                tx.status === 'pending' ? 'bg-[var(--accent-yellow)]' :
+                                                                'bg-[var(--accent-red)]'
+                                                            }`} />
+                                                            <span className="text-[var(--text-secondary)] text-xs capitalize">{tx.status}</span>
+                                                        </div>
+                                                        <button
+                                                            onClick={() => handleDeleteTransaction(tx, fundName)}
+                                                            aria-label="Remove transaction"
+                                                            title="Remove transaction"
+                                                            className="ml-auto inline-flex items-center gap-1.5 px-3 py-2 min-h-[36px] rounded-lg bg-[var(--accent-red)]/10 border border-[var(--accent-red)]/20 text-[var(--accent-red)] text-xs font-medium hover:bg-[var(--accent-red)]/20 transition-colors cursor-pointer"
+                                                        >
+                                                            <Trash2 size={14} />
+                                                            Remove
+                                                        </button>
                                                     </div>
                                                 </div>
 
@@ -1124,7 +1139,7 @@ export default function ClientDetailPage() {
                                                             {tx.type.toUpperCase()}
                                                         </span>
                                                     </div>
-                                                    <div className="col-span-4 flex items-center">
+                                                    <div className="col-span-3 flex items-center">
                                                         <p className="text-[var(--text-primary)] text-sm ">{fundName}</p>
                                                     </div>
                                                     <div className="col-span-2 flex items-center justify-end">
@@ -1138,22 +1153,24 @@ export default function ClientDetailPage() {
                                                     <div className="col-span-1 flex items-center justify-end">
                                                         <p className="text-[var(--text-primary)] text-sm">{tx.units.toFixed(3)}</p>
                                                     </div>
-                                                    <div className="col-span-1 flex items-center justify-center gap-2">
-                                                        <span className={`w-2 h-2 rounded-full ${
-                                                            tx.status === 'completed' ? 'bg-[var(--accent-mint)]' :
-                                                            tx.status === 'pending' ? 'bg-[var(--accent-yellow)]' :
-                                                            'bg-[var(--accent-red)]'
-                                                        }`} title={tx.status} />
-                                                        {tx.type === 'sip' && (
-                                                            <button
-                                                                onClick={() => handleDeleteSIPTransaction(tx.id, fundName)}
-                                                                aria-label="Remove SIP transaction"
-                                                                title="Remove SIP transaction"
-                                                                className="p-1.5 rounded-lg text-[var(--text-secondary)] hover:text-[var(--accent-red)] hover:bg-[var(--accent-red)]/10 transition-colors cursor-pointer"
-                                                            >
-                                                                <Trash2 size={14} />
-                                                            </button>
-                                                        )}
+                                                    <div className="col-span-2 flex items-center justify-center gap-2">
+                                                        <div className="flex items-center gap-1.5 min-w-0">
+                                                            <span className={`w-2 h-2 rounded-full shrink-0 ${
+                                                                tx.status === 'completed' ? 'bg-[var(--accent-mint)]' :
+                                                                tx.status === 'pending' ? 'bg-[var(--accent-yellow)]' :
+                                                                'bg-[var(--accent-red)]'
+                                                            }`} title={tx.status} />
+                                                            <span className="text-[var(--text-secondary)] text-xs capitalize truncate">{tx.status}</span>
+                                                        </div>
+                                                        <button
+                                                            onClick={() => handleDeleteTransaction(tx, fundName)}
+                                                            aria-label="Remove transaction"
+                                                            title="Remove transaction"
+                                                            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[var(--accent-red)]/10 border border-[var(--accent-red)]/20 text-[var(--accent-red)] text-xs font-medium hover:bg-[var(--accent-red)]/20 transition-colors cursor-pointer"
+                                                        >
+                                                            <Trash2 size={14} />
+                                                            Remove
+                                                        </button>
                                                     </div>
                                                 </div>
                                             </div>
