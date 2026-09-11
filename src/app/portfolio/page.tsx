@@ -7,6 +7,7 @@ import PrivacyValue from '@/components/PrivacyValue';
 import { useSettings } from '@/context/SettingsContext';
 import { useHoldings } from '@/context/HoldingsContext';
 import { useTransactions } from '@/context/TransactionsContext';
+import { useSIPs } from '@/context/SIPContext';
 import { calculateXIRR } from '@/lib/utils/finance';
 import { Loader2 } from 'lucide-react';
 
@@ -27,6 +28,11 @@ interface PortfolioHolding {
     color: string;
     investedDate: string;
     isStaleNav: boolean;
+    sipInvested: number;
+    lumpsumInvested: number;
+    sipCurrentValue: number;
+    lumpsumCurrentValue: number;
+    monthlySip: number;
 }
 
 const colors = ['#C4A265', '#3B82F6', '#5B7FA4', '#F59E0B', '#EC4899', '#6366F1'];
@@ -49,6 +55,7 @@ export default function PortfolioPage() {
     const { ltcgTax, stcgTax } = useSettings();
     const { holdings, isLoading } = useHoldings();
     const { transactions, isLoading: txLoading } = useTransactions();
+    const { sips, isLoading: sipLoading } = useSIPs();
     const [searchQuery, setSearchQuery] = useState('');
     const [sortKey, setSortKey] = useState<SortKey>('allocation');
     const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
@@ -99,6 +106,22 @@ export default function PortfolioPage() {
                 }, new Date(buyTxs[0].date || buyTxs[0].created_at)).toISOString()
                 : (h.created_at || new Date().toISOString());
 
+            const fundSips = sips.filter(sip => (
+                sip.status === 'active' &&
+                sip.scheme_code === h.scheme_code &&
+                sip.user_id === h.user_id
+            ));
+            const completedFundTxs = fundTxs.filter(t => t.status === 'completed');
+            const sipTransactions = completedFundTxs.filter(t => t.type === 'sip');
+            const buyTransactions = completedFundTxs.filter(t => t.type === 'buy');
+            const sipInvested = sipTransactions.reduce((sum, tx) => sum + tx.amount, 0);
+            const sipUnits = sipTransactions.reduce((sum, tx) => sum + tx.units, 0);
+            const lumpsumInvested = buyTransactions.reduce((sum, tx) => sum + tx.amount, 0);
+            const lumpsumUnits = buyTransactions.reduce((sum, tx) => sum + tx.units, 0);
+            const monthlySip = fundSips
+                .filter(sip => sip.frequency === 'monthly')
+                .reduce((sum, sip) => sum + sip.amount, 0);
+
             return {
                 id: h.id,
                 fundName: fundName,
@@ -116,9 +139,14 @@ export default function PortfolioPage() {
                 allocation: parseFloat(allocation.toFixed(2)),
                 color: getRandomColor(index),
                 investedDate: earliestTxDate,
+                sipInvested,
+                lumpsumInvested,
+                sipCurrentValue: sipUnits * currentNav,
+                lumpsumCurrentValue: lumpsumUnits * currentNav,
+                monthlySip,
             };
         });
-    }, [holdings, transactions]);
+    }, [holdings, transactions, sips]);
 
     const portfolioXirr = useMemo(() => {
         const currentTotal = holdingsData.reduce((sum, h) => sum + h.currentValue, 0);
@@ -168,7 +196,7 @@ export default function PortfolioPage() {
         return result;
     }, [searchQuery, sortKey, sortDirection, holdingsData]);
 
-    if (isLoading || txLoading) {
+    if (isLoading || txLoading || sipLoading) {
         return (
              <div className="min-h-screen bg-[var(--bg-primary)] text-[var(--text-primary)] p-4 md:p-6 flex flex-col md:flex-row gap-4 md:gap-6 transition-colors duration-300">
                 <main className="flex-1 min-w-0 flex items-center justify-center">
@@ -385,6 +413,23 @@ export default function PortfolioPage() {
                                                         </span>
                                                     )}
                                                 </div>
+                                                <div className="grid grid-cols-2 gap-2 mt-3">
+                                                    <div className="rounded-lg bg-[var(--accent-blue)]/10 border border-[var(--accent-blue)]/15 px-2 py-2">
+                                                        <p className="text-[10px] font-medium text-[var(--accent-blue)]">Lumpsum</p>
+                                                        <p className="text-[11px] text-[var(--text-primary)] mt-1">Inv <PrivacyValue value={formatCurrency(holding.lumpsumInvested)} /></p>
+                                                        <p className="text-[11px] text-[var(--text-secondary)]">Mkt <PrivacyValue value={formatCurrency(holding.lumpsumCurrentValue)} /></p>
+                                                    </div>
+                                                    <div className="rounded-lg bg-[var(--accent-mint)]/10 border border-[var(--accent-mint)]/15 px-2 py-2">
+                                                        <p className="text-[10px] font-medium text-[var(--accent-mint)]">SIP</p>
+                                                        <p className="text-[11px] text-[var(--text-primary)] mt-1">Inv <PrivacyValue value={formatCurrency(holding.sipInvested)} /></p>
+                                                        <p className="text-[11px] text-[var(--text-secondary)]">Mkt <PrivacyValue value={formatCurrency(holding.sipCurrentValue)} /></p>
+                                                    </div>
+                                                    {holding.monthlySip > 0 && (
+                                                        <span className="col-span-2 justify-self-start px-2 py-1 rounded-md bg-[var(--accent-gold)]/10 text-[var(--accent-gold)] text-[10px] font-medium">
+                                                            <PrivacyValue value={`${formatCurrency(holding.monthlySip)}/mo`} />
+                                                        </span>
+                                                    )}
+                                                </div>
                                             </div>
                                         </div>
 
@@ -462,6 +507,23 @@ export default function PortfolioPage() {
                                         <div className="col-span-2 flex flex-col items-end justify-center">
                                             <p className="text-[var(--text-primary)] text-sm"><PrivacyValue value={formatCurrency(holding.investedValue)} /></p>
                                             <p className="text-[var(--text-secondary)] text-xs"><PrivacyValue value={`${holding.units.toLocaleString()} units`} /></p>
+                                            <div className="grid grid-cols-1 gap-1.5 mt-2 text-right">
+                                                <div className="rounded-lg bg-[var(--accent-blue)]/10 border border-[var(--accent-blue)]/15 px-2 py-1.5">
+                                                    <p className="text-[10px] font-medium text-[var(--accent-blue)]">Lumpsum</p>
+                                                    <p className="text-[10px] text-[var(--text-primary)]">Inv <PrivacyValue value={formatCurrency(holding.lumpsumInvested)} /></p>
+                                                    <p className="text-[10px] text-[var(--text-secondary)]">Mkt <PrivacyValue value={formatCurrency(holding.lumpsumCurrentValue)} /></p>
+                                                </div>
+                                                <div className="rounded-lg bg-[var(--accent-mint)]/10 border border-[var(--accent-mint)]/15 px-2 py-1.5">
+                                                    <p className="text-[10px] font-medium text-[var(--accent-mint)]">SIP</p>
+                                                    <p className="text-[10px] text-[var(--text-primary)]">Inv <PrivacyValue value={formatCurrency(holding.sipInvested)} /></p>
+                                                    <p className="text-[10px] text-[var(--text-secondary)]">Mkt <PrivacyValue value={formatCurrency(holding.sipCurrentValue)} /></p>
+                                                </div>
+                                                {holding.monthlySip > 0 && (
+                                                    <span className="px-2 py-1 rounded-md bg-[var(--accent-gold)]/10 text-[var(--accent-gold)] text-[10px] font-medium">
+                                                        <PrivacyValue value={`${formatCurrency(holding.monthlySip)}/mo`} />
+                                                    </span>
+                                                )}
+                                            </div>
                                         </div>
 
                                         {/* Current Value */}

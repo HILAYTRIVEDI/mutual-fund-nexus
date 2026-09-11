@@ -26,14 +26,6 @@ function formatDate(dateStr: string): string {
     return new Date(dateStr).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
-function isSameInvestmentAmount(a: number, b: number): boolean {
-    return Math.abs(a - b) < 0.01;
-}
-
-function getTransactionTime(transaction: Pick<Transaction, 'date' | 'created_at'>): number {
-    return new Date(transaction.date || transaction.created_at).getTime();
-}
-
 // Finds NAV on or after targetDate from MFAPI history (dates in DD-MM-YYYY, sorted descending)
 function findNavForDate(navHistory: { date: string; nav: string }[], targetDate: Date): number {
     const targetTs = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate()).getTime();
@@ -463,28 +455,22 @@ export default function ClientDetailPage() {
             tx.status === 'completed'
         ));
         const sipTransactions = fundTransactions.filter(tx => tx.type === 'sip');
-        const buyTransactions = fundTransactions
-            .filter(tx => tx.type === 'buy')
-            .sort((a, b) => getTransactionTime(a) - getTransactionTime(b));
-        const sipLinkedBuyTransactions = sipTransactions.length === 0
-            ? fundSips.reduce<Transaction[]>((matched, sip) => {
-                const match = buyTransactions.find(tx => (
-                    !matched.some(m => m.id === tx.id) &&
-                    isSameInvestmentAmount(sip.amount, tx.amount)
-                ));
-
-                return match ? [...matched, match] : matched;
-            }, [])
-            : [];
+        const buyTransactions = fundTransactions.filter(tx => tx.type === 'buy');
+        const sipInvested = sipTransactions.reduce((sum, tx) => sum + tx.amount, 0);
+        const sipUnits = sipTransactions.reduce((sum, tx) => sum + tx.units, 0);
+        const lumpsumInvested = buyTransactions.reduce((sum, tx) => sum + tx.amount, 0);
+        const lumpsumUnits = buyTransactions.reduce((sum, tx) => sum + tx.units, 0);
+        const monthlySip = fundSips
+                .filter(sip => sip.frequency === 'monthly')
+                .reduce((sum, sip) => sum + sip.amount, 0);
+        const currentNav = holding.current_nav || holding.average_price;
 
         return {
-            sipInvested: [...sipTransactions, ...sipLinkedBuyTransactions].reduce((sum, tx) => sum + tx.amount, 0),
-            lumpsumInvested: buyTransactions
-                .filter(tx => !sipLinkedBuyTransactions.some(sipTx => sipTx.id === tx.id))
-                .reduce((sum, tx) => sum + tx.amount, 0),
-            monthlySip: fundSips
-                .filter(sip => sip.frequency === 'monthly')
-                .reduce((sum, sip) => sum + sip.amount, 0),
+            sipInvested,
+            lumpsumInvested,
+            sipCurrentValue: sipUnits * currentNav,
+            lumpsumCurrentValue: lumpsumUnits * currentNav,
+            monthlySip,
         };
     };
 
@@ -857,15 +843,19 @@ export default function ClientDetailPage() {
                                                                         <span className="ml-1 text-[10px] bg-red-500/10 text-red-400 px-1 rounded">stale</span>
                                                                     )}
                                                                 </p>
-                                                                <div className="flex flex-wrap gap-1.5 mt-2">
-                                                                    <span className="px-2 py-1 rounded-md bg-[var(--accent-mint)]/10 text-[var(--accent-mint)] text-[10px] font-medium">
-                                                                        SIP {formatCurrency(split.sipInvested)}
-                                                                    </span>
-                                                                    <span className="px-2 py-1 rounded-md bg-[var(--accent-blue)]/10 text-[var(--accent-blue)] text-[10px] font-medium">
-                                                                        Lumpsum {formatCurrency(split.lumpsumInvested)}
-                                                                    </span>
+                                                                <div className="grid grid-cols-2 gap-2 mt-3">
+                                                                    <div className="rounded-lg bg-[var(--accent-blue)]/10 border border-[var(--accent-blue)]/15 px-2 py-2">
+                                                                        <p className="text-[10px] font-medium text-[var(--accent-blue)]">Lumpsum</p>
+                                                                        <p className="text-[11px] text-[var(--text-primary)] mt-1">Inv {formatCurrency(split.lumpsumInvested)}</p>
+                                                                        <p className="text-[11px] text-[var(--text-secondary)]">Mkt {formatCurrency(split.lumpsumCurrentValue)}</p>
+                                                                    </div>
+                                                                    <div className="rounded-lg bg-[var(--accent-mint)]/10 border border-[var(--accent-mint)]/15 px-2 py-2">
+                                                                        <p className="text-[10px] font-medium text-[var(--accent-mint)]">SIP</p>
+                                                                        <p className="text-[11px] text-[var(--text-primary)] mt-1">Inv {formatCurrency(split.sipInvested)}</p>
+                                                                        <p className="text-[11px] text-[var(--text-secondary)]">Mkt {formatCurrency(split.sipCurrentValue)}</p>
+                                                                    </div>
                                                                     {split.monthlySip > 0 && (
-                                                                        <span className="px-2 py-1 rounded-md bg-[var(--accent-gold)]/10 text-[var(--accent-gold)] text-[10px] font-medium">
+                                                                        <span className="col-span-2 justify-self-start px-2 py-1 rounded-md bg-[var(--accent-gold)]/10 text-[var(--accent-gold)] text-[10px] font-medium">
                                                                             {formatCurrency(split.monthlySip)}/mo
                                                                         </span>
                                                                     )}
@@ -925,15 +915,19 @@ export default function ClientDetailPage() {
                                                                     <span className="text-[10px] bg-red-500/10 text-red-400 px-1 rounded">stale</span>
                                                                 )}
                                                             </p>
-                                                            <div className="flex flex-wrap gap-1.5 mt-2">
-                                                                <span className="px-2 py-1 rounded-md bg-[var(--accent-mint)]/10 text-[var(--accent-mint)] text-[10px] font-medium">
-                                                                    SIP {formatCurrency(split.sipInvested)}
-                                                                </span>
-                                                                <span className="px-2 py-1 rounded-md bg-[var(--accent-blue)]/10 text-[var(--accent-blue)] text-[10px] font-medium">
-                                                                    Lumpsum {formatCurrency(split.lumpsumInvested)}
-                                                                </span>
+                                                            <div className="grid grid-cols-2 gap-1.5 mt-2">
+                                                                <div className="rounded-lg bg-[var(--accent-blue)]/10 border border-[var(--accent-blue)]/15 px-2 py-1.5">
+                                                                    <p className="text-[10px] font-medium text-[var(--accent-blue)]">Lumpsum</p>
+                                                                    <p className="text-[10px] text-[var(--text-primary)]">Inv {formatCurrency(split.lumpsumInvested)}</p>
+                                                                    <p className="text-[10px] text-[var(--text-secondary)]">Mkt {formatCurrency(split.lumpsumCurrentValue)}</p>
+                                                                </div>
+                                                                <div className="rounded-lg bg-[var(--accent-mint)]/10 border border-[var(--accent-mint)]/15 px-2 py-1.5">
+                                                                    <p className="text-[10px] font-medium text-[var(--accent-mint)]">SIP</p>
+                                                                    <p className="text-[10px] text-[var(--text-primary)]">Inv {formatCurrency(split.sipInvested)}</p>
+                                                                    <p className="text-[10px] text-[var(--text-secondary)]">Mkt {formatCurrency(split.sipCurrentValue)}</p>
+                                                                </div>
                                                                 {split.monthlySip > 0 && (
-                                                                    <span className="px-2 py-1 rounded-md bg-[var(--accent-gold)]/10 text-[var(--accent-gold)] text-[10px] font-medium">
+                                                                    <span className="col-span-2 justify-self-start px-2 py-1 rounded-md bg-[var(--accent-gold)]/10 text-[var(--accent-gold)] text-[10px] font-medium">
                                                                         {formatCurrency(split.monthlySip)}/mo
                                                                     </span>
                                                                 )}

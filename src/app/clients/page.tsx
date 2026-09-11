@@ -32,14 +32,6 @@ function formatCurrency(amount: number): string {
     return `₹${amount.toLocaleString('en-IN')}`;
 }
 
-function isSameInvestmentAmount(a: number, b: number): boolean {
-    return Math.abs(a - b) < 0.01;
-}
-
-function getTransactionTime(transaction: { date?: string; created_at: string }): number {
-    return new Date(transaction.date || transaction.created_at).getTime();
-}
-
 function ClientsPageContent() {
     const searchParams = useSearchParams();
     const { clients, isLoading: clientsLoading } = useClientContext();
@@ -69,28 +61,12 @@ function ClientsPageContent() {
 
             const activeSips = clientSips.filter(s => s.status === 'active');
 
-            // Calculate ratios based on transactions. A first SIP installment can be
-            // stored as a buy in older records, so match those back to the SIP plan.
-            const sipTransactions = clientTxs.filter(t => t.type === 'sip');
-            const unmatchedBuyTransactions = clientTxs
-                .filter(t => t.type === 'buy')
-                .sort((a, b) => getTransactionTime(a) - getTransactionTime(b));
-            const sipLinkedBuyTransactions = sipTransactions.length === 0
-                ? activeSips.reduce<typeof clientTxs>((matched, sip) => {
-                    const match = unmatchedBuyTransactions.find(t => (
-                        !matched.some(m => m.id === t.id) &&
-                        sip.scheme_code === t.scheme_code &&
-                        isSameInvestmentAmount(sip.amount, t.amount)
-                    ));
-
-                    return match ? [...matched, match] : matched;
-                }, [])
-                : [];
-
-            const sipInvestedRaw = [...sipTransactions, ...sipLinkedBuyTransactions]
+            const completedTxs = clientTxs.filter(t => t.status === 'completed');
+            const sipInvestedRaw = completedTxs
+                .filter(t => t.type === 'sip')
                 .reduce((s, t) => s + t.amount, 0);
             let lumpInvestedRaw = clientTxs
-                .filter(t => t.type === 'buy' && !sipLinkedBuyTransactions.some(sipTx => sipTx.id === t.id))
+                .filter(t => t.status === 'completed' && t.type === 'buy')
                 .reduce((s, t) => s + t.amount, 0);
 
             // Fallback for migrated data (no tx)
