@@ -102,6 +102,13 @@ function ManageClientsContent() {
     const [showFundDropdown, setShowFundDropdown] = useState(false);
     const fundDropdownRef = useRef<HTMLDivElement>(null);
 
+    type SipInstallment = {
+        date: string;
+        amount: number;
+        units: number;
+        nav: number;
+    };
+
     // SIP auto-calculation for Transfer mode
     const [sipCalculation, setSipCalculation] = useState<{
         totalUnits: number;
@@ -112,6 +119,7 @@ function ManageClientsContent() {
         pnlPct: number;
         nextSipDate: string;
         nInstallments: number;
+        installments: SipInstallment[];
         isLoading: boolean;
         error: string | null;
     } | null>(null);
@@ -221,16 +229,16 @@ function ManageClientsContent() {
             parseFloat(formData.sipAmount) <= 0
         ) {
             if (formData.investmentType === 'Transfer' && !(effectiveAmfiCode > 0) && formData.startDate) {
-                setSipCalculation({ totalUnits: 0, currentValue: 0, totalInvested: 0, latestNav: 0, pnl: 0, pnlPct: 0, nextSipDate: '', nInstallments: 0, isLoading: false, error: 'Historical NAV calculation requires an AMFI-listed fund (not NSE-only).' });
+                setSipCalculation({ totalUnits: 0, currentValue: 0, totalInvested: 0, latestNav: 0, pnl: 0, pnlPct: 0, nextSipDate: '', nInstallments: 0, installments: [], isLoading: false, error: 'Historical NAV calculation requires an AMFI-listed fund (not NSE-only).' });
             }
             return;
         }
         if (!(effectiveAmfiCode > 0)) {
-            setSipCalculation({ totalUnits: 0, currentValue: 0, totalInvested: 0, latestNav: 0, pnl: 0, pnlPct: 0, nextSipDate: '', nInstallments: 0, isLoading: false, error: 'Historical NAV calculation requires an AMFI-listed fund (not NSE-only).' });
+            setSipCalculation({ totalUnits: 0, currentValue: 0, totalInvested: 0, latestNav: 0, pnl: 0, pnlPct: 0, nextSipDate: '', nInstallments: 0, installments: [], isLoading: false, error: 'Historical NAV calculation requires an AMFI-listed fund (not NSE-only).' });
             return;
         }
 
-        setSipCalculation(prev => ({ ...(prev ?? { totalUnits: 0, currentValue: 0, totalInvested: 0, latestNav: 0, pnl: 0, pnlPct: 0, nextSipDate: '', nInstallments: 0 }), isLoading: true, error: null }));
+        setSipCalculation(prev => ({ ...(prev ?? { totalUnits: 0, currentValue: 0, totalInvested: 0, latestNav: 0, pnl: 0, pnlPct: 0, nextSipDate: '', nInstallments: 0, installments: [] }), isLoading: true, error: null }));
 
         try {
             const sipAmount = parseFloat(formData.sipAmount);
@@ -246,13 +254,17 @@ function ManageClientsContent() {
 
             let totalUnits = 0;
             let nInstallments = 0;
+            const installments: SipInstallment[] = [];
             const sipDate = new Date(startDate);
 
             while (sipDate <= today) {
                 const nav = findNavForDate(navHistory, new Date(sipDate));
                 if (nav > 0) {
-                    totalUnits += sipAmount / nav;
+                    const units = sipAmount / nav;
+                    const date = `${sipDate.getFullYear()}-${String(sipDate.getMonth() + 1).padStart(2, '0')}-${String(sipDate.getDate()).padStart(2, '0')}`;
+                    totalUnits += units;
                     nInstallments++;
+                    installments.push({ date, amount: sipAmount, units, nav });
                 }
                 sipDate.setMonth(sipDate.getMonth() + 1);
             }
@@ -268,9 +280,9 @@ function ManageClientsContent() {
             nextSip.setMonth(nextSip.getMonth() + nInstallments);
             const nextSipDate = `${nextSip.getFullYear()}-${String(nextSip.getMonth() + 1).padStart(2, '0')}-${String(nextSip.getDate()).padStart(2, '0')}`;
 
-            setSipCalculation({ totalUnits, currentValue, totalInvested, latestNav, pnl, pnlPct, nextSipDate, nInstallments, isLoading: false, error: null });
+            setSipCalculation({ totalUnits, currentValue, totalInvested, latestNav, pnl, pnlPct, nextSipDate, nInstallments, installments, isLoading: false, error: null });
         } catch (err) {
-            setSipCalculation(prev => ({ ...(prev ?? { totalUnits: 0, currentValue: 0, totalInvested: 0, latestNav: 0, pnl: 0, pnlPct: 0, nextSipDate: '', nInstallments: 0 }), isLoading: false, error: err instanceof Error ? err.message : 'Calculation failed' }));
+            setSipCalculation(prev => ({ ...(prev ?? { totalUnits: 0, currentValue: 0, totalInvested: 0, latestNav: 0, pnl: 0, pnlPct: 0, nextSipDate: '', nInstallments: 0, installments: [] }), isLoading: false, error: err instanceof Error ? err.message : 'Calculation failed' }));
         }
     }, [formData.investmentType, formData.schemeCode, formData.selectedFundCode, formData.selectedIsin, formData.startDate, formData.sipAmount, resolveAmfiCode]);
 
@@ -521,16 +533,18 @@ function ManageClientsContent() {
                         current_nav: navForHolding,
                     });
 
-                    await addTransaction({
-                        user_id: targetClientId,
-                        scheme_code: effectiveSchemeCode,
-                        type: 'buy',
-                        amount: calcInvested,
-                        units: totalUnits,
-                        nav: avgPrice,
-                        status: 'completed',
-                        date: new Date().toISOString().split('T')[0],
-                    });
+                    for (const installment of sipCalculation.installments) {
+                        await addTransaction({
+                            user_id: targetClientId,
+                            scheme_code: effectiveSchemeCode,
+                            type: 'sip',
+                            amount: installment.amount,
+                            units: installment.units,
+                            nav: installment.nav,
+                            status: 'completed',
+                            date: installment.date,
+                        });
+                    }
 
                     const sipPayload: any = {
                         user_id: targetClientId,

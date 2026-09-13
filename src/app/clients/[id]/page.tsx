@@ -102,7 +102,8 @@ export default function ClientDetailPage() {
         stepUpInterval: 'Yearly' as NonNullable<SIP['step_up_interval']>,
     });
 
-    type SipCalc = { totalUnits: number; currentValue: number; totalInvested: number; latestNav: number; pnl: number; pnlPct: number; nextSipDate: string; nInstallments: number; isLoading: boolean; error: string | null };
+    type SipInstallment = { date: string; amount: number; units: number; nav: number };
+    type SipCalc = { totalUnits: number; currentValue: number; totalInvested: number; latestNav: number; pnl: number; pnlPct: number; nextSipDate: string; nInstallments: number; installments: SipInstallment[]; isLoading: boolean; error: string | null };
     type LumpCalc = { units: number; currentValue: number; investedAmount: number; navOnDate: number; latestNav: number; pnl: number; pnlPct: number; isLoading: boolean; error: string | null };
 
     const [investSipCalc, setInvestSipCalc] = useState<SipCalc | null>(null);
@@ -165,14 +166,14 @@ export default function ClientDetailPage() {
         const effectiveAmfiCode = await resolveInvestAmfiCode(investForm.schemeCode, investForm.selectedFundCode, investForm.selectedIsin);
         if (investForm.investmentType !== 'Transfer' || !investForm.startDate || !investForm.sipAmount || parseFloat(investForm.sipAmount) <= 0) {
             if (investForm.investmentType === 'Transfer' && !(effectiveAmfiCode > 0) && investForm.startDate)
-                setInvestSipCalc({ totalUnits: 0, currentValue: 0, totalInvested: 0, latestNav: 0, pnl: 0, pnlPct: 0, nextSipDate: '', nInstallments: 0, isLoading: false, error: 'Historical NAV calculation requires an AMFI-listed fund.' });
+                setInvestSipCalc({ totalUnits: 0, currentValue: 0, totalInvested: 0, latestNav: 0, pnl: 0, pnlPct: 0, nextSipDate: '', nInstallments: 0, installments: [], isLoading: false, error: 'Historical NAV calculation requires an AMFI-listed fund.' });
             return;
         }
         if (!(effectiveAmfiCode > 0)) {
-            setInvestSipCalc({ totalUnits: 0, currentValue: 0, totalInvested: 0, latestNav: 0, pnl: 0, pnlPct: 0, nextSipDate: '', nInstallments: 0, isLoading: false, error: 'Historical NAV calculation requires an AMFI-listed fund.' });
+            setInvestSipCalc({ totalUnits: 0, currentValue: 0, totalInvested: 0, latestNav: 0, pnl: 0, pnlPct: 0, nextSipDate: '', nInstallments: 0, installments: [], isLoading: false, error: 'Historical NAV calculation requires an AMFI-listed fund.' });
             return;
         }
-        setInvestSipCalc(prev => ({ ...(prev ?? { totalUnits: 0, currentValue: 0, totalInvested: 0, latestNav: 0, pnl: 0, pnlPct: 0, nextSipDate: '', nInstallments: 0 }), isLoading: true, error: null }));
+        setInvestSipCalc(prev => ({ ...(prev ?? { totalUnits: 0, currentValue: 0, totalInvested: 0, latestNav: 0, pnl: 0, pnlPct: 0, nextSipDate: '', nInstallments: 0, installments: [] }), isLoading: true, error: null }));
         try {
             const sipAmount = parseFloat(investForm.sipAmount);
             const startDate = new Date(investForm.startDate + 'T00:00:00');
@@ -183,10 +184,17 @@ export default function ClientDetailPage() {
             const navHistory: { date: string; nav: string }[] = data.data;
             if (!navHistory?.length) throw new Error('No NAV data available');
             let totalUnits = 0; let nInstallments = 0;
+            const installments: SipInstallment[] = [];
             const sipDate = new Date(startDate);
             while (sipDate <= today) {
                 const nav = findNavForDate(navHistory, new Date(sipDate));
-                if (nav > 0) { totalUnits += sipAmount / nav; nInstallments++; }
+                if (nav > 0) {
+                    const units = sipAmount / nav;
+                    const date = `${sipDate.getFullYear()}-${String(sipDate.getMonth() + 1).padStart(2, '0')}-${String(sipDate.getDate()).padStart(2, '0')}`;
+                    totalUnits += units;
+                    nInstallments++;
+                    installments.push({ date, amount: sipAmount, units, nav });
+                }
                 sipDate.setMonth(sipDate.getMonth() + 1);
             }
             const latestNav = parseFloat(navHistory[0].nav);
@@ -197,9 +205,9 @@ export default function ClientDetailPage() {
             const nextSip = new Date(startDate);
             nextSip.setMonth(nextSip.getMonth() + nInstallments);
             const nextSipDate = `${nextSip.getFullYear()}-${String(nextSip.getMonth() + 1).padStart(2, '0')}-${String(nextSip.getDate()).padStart(2, '0')}`;
-            setInvestSipCalc({ totalUnits, currentValue, totalInvested, latestNav, pnl, pnlPct, nextSipDate, nInstallments, isLoading: false, error: null });
+            setInvestSipCalc({ totalUnits, currentValue, totalInvested, latestNav, pnl, pnlPct, nextSipDate, nInstallments, installments, isLoading: false, error: null });
         } catch (err) {
-            setInvestSipCalc(prev => ({ ...(prev ?? { totalUnits: 0, currentValue: 0, totalInvested: 0, latestNav: 0, pnl: 0, pnlPct: 0, nextSipDate: '', nInstallments: 0 }), isLoading: false, error: err instanceof Error ? err.message : 'Calculation failed' }));
+            setInvestSipCalc(prev => ({ ...(prev ?? { totalUnits: 0, currentValue: 0, totalInvested: 0, latestNav: 0, pnl: 0, pnlPct: 0, nextSipDate: '', nInstallments: 0, installments: [] }), isLoading: false, error: err instanceof Error ? err.message : 'Calculation failed' }));
         }
     }, [investForm.investmentType, investForm.schemeCode, investForm.selectedFundCode, investForm.selectedIsin, investForm.startDate, investForm.sipAmount, resolveInvestAmfiCode]);
 
@@ -543,7 +551,18 @@ export default function ClientDetailPage() {
                 const avgPrice = totalUnits > 0 ? calcInvested / totalUnits : calcNav;
 
                 await addHolding({ user_id: clientId, scheme_code: effectiveSchemeCode, units: totalUnits, average_price: avgPrice, current_nav: calcNav || currentNav });
-                await addTransaction({ user_id: clientId, scheme_code: effectiveSchemeCode, type: 'sip', amount: calcInvested, units: totalUnits, nav: avgPrice, status: 'completed', date: new Date().toISOString().split('T')[0] });
+                for (const installment of investSipCalc.installments) {
+                    await addTransaction({
+                        user_id: clientId,
+                        scheme_code: effectiveSchemeCode,
+                        type: 'sip',
+                        amount: installment.amount,
+                        units: installment.units,
+                        nav: installment.nav,
+                        status: 'completed',
+                        date: installment.date,
+                    });
+                }
 
                 const sipPayload: any = { user_id: clientId, scheme_code: effectiveSchemeCode, amount: sipAmountInput, frequency: 'monthly', start_date: investForm.startDate, next_execution_date: nextSipDate, status: 'active' };
                 const stepUp = parseFloat(investForm.stepUpAmount);
