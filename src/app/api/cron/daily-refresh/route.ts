@@ -1,26 +1,21 @@
 /**
  * POST /api/cron/daily-refresh
  *
- * Daily maintenance job — run after Indian market close (3:30 PM IST).
+ * Daily maintenance job — run after AMFI publishes NAVs (scheduled 10 PM IST).
  *
  * What it does:
- *   1. NAV update   — NSE MASTER_DOWNLOAD → MFAPI fallback → writes mutual_funds.current_nav
+ *   1. NAV update   — AMFI NAVAll.txt → NSE MASTER_DOWNLOAD → MFAPI fallback → writes mutual_funds.current_nav
  *   2. Holdings     — mirrors fresh NAV into holdings.current_nav for every holding
  *   3. Allotments   — syncs any PENDING transactions that have an nse_order_id
  *
  * Protect with CRON_SECRET env var so only your scheduler can trigger it.
  *
  * Trigger options:
- *   A) Vercel Cron (vercel.json):
- *        { "crons": [{ "path": "/api/cron/daily-refresh", "schedule": "0 10 * * 1-5" }] }
- *        (10:00 UTC = 3:30 PM IST, weekdays only)
- *        Vercel sends Authorization: Bearer <CRON_SECRET> automatically.
- *
- *   B) External scheduler (GitHub Actions, crontab, etc.):
+ *   A) GitHub Actions (.github/workflows/daily-nav-refresh.yml) — 16:30 UTC weekdays:
  *        curl -X POST https://your-app.com/api/cron/daily-refresh \
  *             -H "Authorization: Bearer <CRON_SECRET>"
  *
- *   C) Manual (one-off):
+ *   B) Manual (one-off):
  *        Same curl as above.
  */
 
@@ -29,6 +24,8 @@ import { createClient } from '@supabase/supabase-js';
 import { getMasterNAV, getFullSchemeMaster, getAllotmentStatement } from '@/lib/nseinvest';
 
 const MFAPI_BASE = 'https://api.mfapi.in';
+// Official AMFI daily NAV file (www.amfiindia.com redirects here)
+const AMFI_NAV_URL = 'https://portal.amfiindia.com/spages/NAVAll.txt';
 
 const supabaseAdmin = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -47,6 +44,29 @@ async function fetchMfapiNav(numericCode: number): Promise<number | null> {
     } catch {
         return null;
     }
+}
+
+/**
+ * Downloads AMFI NAVAll.txt and returns scheme_code → NAV.
+ * Row format: Scheme Code;ISIN Growth;ISIN Reinvest;Scheme Name;Net Asset Value;Date
+ */
+async function fetchAmfiNavMap(): Promise<Map<string, number>> {
+    const res = await fetch(AMFI_NAV_URL, {
+        cache: 'no-store',
+        redirect: 'follow',
+        signal: AbortSignal.timeout(30000),
+    });
+    if (!res.ok) throw new Error(`AMFI fetch failed: ${res.status}`);
+
+    const text = await res.text();
+    const map = new Map<string, number>();
+    for (const line of text.split('\n')) {
+        const parts = line.trim().split(';');
+        if (parts.length < 6 || !/^\d+$/.test(parts[0])) continue;
+        const nav = parseFloat(parts[parts.length - 2]);
+        if (!isNaN(nav) && nav > 0) map.set(parts[0], nav);
+    }
+    return map;
 }
 
 // Vercel Cron sends GET requests with `Authorization: Bearer <CRON_SECRET>` automatically.
@@ -70,6 +90,7 @@ async function runDailyRefresh(req: NextRequest) {
     const log: string[] = [];
     const summary = {
         nav_updated: 0,
+        nav_amfi: 0,
         nav_mfapi_fallback: 0,
         nav_failed: 0,
         holdings_updated: 0,
@@ -90,15 +111,36 @@ async function runDailyRefresh(req: NextRequest) {
         }
 
         const funds = allFunds ?? [];
-        const fundsWithNseCode = funds.filter(f => f.nse_code);
-        const fundsWithoutNseCode = funds.filter(f => !f.nse_code);
+        log.push(`Total funds: ${funds.length}`);
 
-        log.push(`Total funds: ${funds.length} (${fundsWithNseCode.length} with NSE code, ${fundsWithoutNseCode.length} without)`);
-
-        // ─────────────────────────────────────────────
-        // STEP 2A: Update NAV via NSE MASTER_DOWNLOAD
-        // ─────────────────────────────────────────────
         const freshNavMap = new Map<string, number>(); // db_code → fresh NAV
+
+        // ─────────────────────────────────────────────
+        // STEP 2A: Primary source — AMFI NAVAll.txt
+        // ─────────────────────────────────────────────
+        try {
+            const amfiNavMap = await fetchAmfiNavMap();
+            log.push(`AMFI NAVAll.txt returned ${amfiNavMap.size} schemes`);
+            for (const fund of funds) {
+                const nav = amfiNavMap.get(String(fund.code));
+                if (nav != null) {
+                    freshNavMap.set(fund.code as string, nav);
+                    summary.nav_amfi++;
+                }
+            }
+        } catch (err) {
+            const msg = err instanceof Error ? err.message : String(err);
+            log.push(`AMFI fetch failed: ${msg}`);
+            summary.errors.push(`AMFI: ${msg}`);
+        }
+
+        const unresolved = funds.filter(f => !freshNavMap.has(f.code as string));
+        const fundsWithNseCode = unresolved.filter(f => f.nse_code);
+        const fundsWithoutNseCode = unresolved.filter(f => !f.nse_code);
+
+        // ─────────────────────────────────────────────
+        // STEP 2B: NSE MASTER_DOWNLOAD for funds AMFI didn't cover
+        // ─────────────────────────────────────────────
         const nseFailedDbCodes: string[] = [];
 
         if (fundsWithNseCode.length > 0) {
@@ -128,7 +170,7 @@ async function runDailyRefresh(req: NextRequest) {
         }
 
         // ─────────────────────────────────────────────
-        // STEP 2B: MFAPI fallback for NSE failures + funds without nse_code
+        // STEP 2C: MFAPI fallback for NSE failures + funds without nse_code
         // ─────────────────────────────────────────────
         const mfapiCandidates = [
             ...nseFailedDbCodes,
@@ -153,7 +195,7 @@ async function runDailyRefresh(req: NextRequest) {
         }
 
         // ─────────────────────────────────────────────
-        // STEP 2C: Write fresh NAVs to mutual_funds
+        // STEP 2D: Write fresh NAVs to mutual_funds
         // ─────────────────────────────────────────────
         const now = new Date().toISOString();
         for (const [dbCode, nav] of freshNavMap) {
@@ -177,7 +219,7 @@ async function runDailyRefresh(req: NextRequest) {
             }
         }
 
-        log.push(`NAV: ${summary.nav_updated} updated (${summary.nav_mfapi_fallback} via MFAPI), ${summary.nav_failed} unchanged`);
+        log.push(`NAV: ${summary.nav_updated} updated (${summary.nav_amfi} via AMFI, ${summary.nav_mfapi_fallback} via MFAPI), ${summary.nav_failed} unchanged`);
 
         // ─────────────────────────────────────────────
         // STEP 3: Mirror fresh NAV into holdings.current_nav
