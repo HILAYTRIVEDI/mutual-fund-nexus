@@ -5,6 +5,7 @@
  *
  * What it does:
  *   1. NAV update   — AMFI NAVAll.txt → NSE MASTER_DOWNLOAD → MFAPI fallback → writes mutual_funds.current_nav
+ *                     and mutual_funds.nav_date (the date the NAV applies to, from the source)
  *   2. Holdings     — mirrors fresh NAV into holdings.current_nav for every holding
  *   3. Allotments   — syncs any PENDING transactions that have an nse_order_id
  *
@@ -32,7 +33,28 @@ const supabaseAdmin = createClient(
     process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-async function fetchMfapiNav(numericCode: number): Promise<number | null> {
+interface NavPoint {
+    nav: number;
+    date: string | null; // YYYY-MM-DD
+}
+
+const MONTHS: Record<string, string> = {
+    jan: '01', feb: '02', mar: '03', apr: '04', may: '05', jun: '06',
+    jul: '07', aug: '08', sep: '09', oct: '10', nov: '11', dec: '12',
+};
+
+/** Normalises DD-Mon-YYYY (AMFI), DD-MM-YYYY (MFAPI) or YYYY-MM-DD to YYYY-MM-DD. */
+function toIsoDate(raw: string | null | undefined): string | null {
+    if (!raw) return null;
+    const v = raw.trim();
+    if (/^\d{4}-\d{2}-\d{2}/.test(v)) return v.slice(0, 10);
+    const m = v.match(/^(\d{1,2})[-/](\w{2,3})[-/](\d{4})$/);
+    if (!m) return null;
+    const mm = /^\d+$/.test(m[2]) ? m[2].padStart(2, '0') : MONTHS[m[2].toLowerCase()];
+    return mm ? `${m[3]}-${mm}-${m[1].padStart(2, '0')}` : null;
+}
+
+async function fetchMfapiNav(numericCode: number): Promise<NavPoint | null> {
     try {
         const res = await fetch(`${MFAPI_BASE}/mf/${numericCode}/latest`, {
             signal: AbortSignal.timeout(8000),
@@ -40,7 +62,7 @@ async function fetchMfapiNav(numericCode: number): Promise<number | null> {
         if (!res.ok) return null;
         const json = await res.json();
         const nav = json?.data?.[0]?.nav;
-        return nav ? parseFloat(nav) : null;
+        return nav ? { nav: parseFloat(nav), date: toIsoDate(json.data[0].date) } : null;
     } catch {
         return null;
     }
@@ -50,7 +72,7 @@ async function fetchMfapiNav(numericCode: number): Promise<number | null> {
  * Downloads AMFI NAVAll.txt and returns scheme_code → NAV.
  * Row format: Scheme Code;ISIN Growth;ISIN Reinvest;Scheme Name;Net Asset Value;Date
  */
-async function fetchAmfiNavMap(): Promise<Map<string, number>> {
+async function fetchAmfiNavMap(): Promise<Map<string, NavPoint>> {
     const res = await fetch(AMFI_NAV_URL, {
         cache: 'no-store',
         redirect: 'follow',
@@ -59,12 +81,12 @@ async function fetchAmfiNavMap(): Promise<Map<string, number>> {
     if (!res.ok) throw new Error(`AMFI fetch failed: ${res.status}`);
 
     const text = await res.text();
-    const map = new Map<string, number>();
+    const map = new Map<string, NavPoint>();
     for (const line of text.split('\n')) {
         const parts = line.trim().split(';');
         if (parts.length < 6 || !/^\d+$/.test(parts[0])) continue;
         const nav = parseFloat(parts[parts.length - 2]);
-        if (!isNaN(nav) && nav > 0) map.set(parts[0], nav);
+        if (!isNaN(nav) && nav > 0) map.set(parts[0], { nav, date: toIsoDate(parts[parts.length - 1]) });
     }
     return map;
 }
@@ -113,7 +135,7 @@ async function runDailyRefresh(req: NextRequest) {
         const funds = allFunds ?? [];
         log.push(`Total funds: ${funds.length}`);
 
-        const freshNavMap = new Map<string, number>(); // db_code → fresh NAV
+        const freshNavMap = new Map<string, NavPoint>(); // db_code → fresh NAV + its date
 
         // ─────────────────────────────────────────────
         // STEP 2A: Primary source — AMFI NAVAll.txt
@@ -122,9 +144,9 @@ async function runDailyRefresh(req: NextRequest) {
             const amfiNavMap = await fetchAmfiNavMap();
             log.push(`AMFI NAVAll.txt returned ${amfiNavMap.size} schemes`);
             for (const fund of funds) {
-                const nav = amfiNavMap.get(String(fund.code));
-                if (nav != null) {
-                    freshNavMap.set(fund.code as string, nav);
+                const point = amfiNavMap.get(String(fund.code));
+                if (point) {
+                    freshNavMap.set(fund.code as string, point);
                     summary.nav_amfi++;
                 }
             }
@@ -157,11 +179,11 @@ async function runDailyRefresh(req: NextRequest) {
             }
 
             if (nseRecords.length > 0) {
-                const nseNavByNseCode = new Map(nseRecords.map(r => [r.scheme_code, r.nav]));
+                const nseByNseCode = new Map(nseRecords.map(r => [r.scheme_code, r]));
                 for (const fund of fundsWithNseCode) {
-                    const nav = nseNavByNseCode.get(fund.nse_code as string);
-                    if (nav != null) {
-                        freshNavMap.set(fund.code as string, nav);
+                    const rec = nseByNseCode.get(fund.nse_code as string);
+                    if (rec?.nav != null) {
+                        freshNavMap.set(fund.code as string, { nav: rec.nav, date: toIsoDate(rec.nav_date) });
                     } else {
                         nseFailedDbCodes.push(fund.code as string);
                     }
@@ -184,9 +206,9 @@ async function runDailyRefresh(req: NextRequest) {
                     if (freshNavMap.has(dbCode)) return; // already resolved
                     const numericCode = parseInt(dbCode, 10);
                     if (!isNaN(numericCode)) {
-                        const nav = await fetchMfapiNav(numericCode);
-                        if (nav !== null) {
-                            freshNavMap.set(dbCode, nav);
+                        const point = await fetchMfapiNav(numericCode);
+                        if (point !== null) {
+                            freshNavMap.set(dbCode, point);
                             summary.nav_mfapi_fallback++;
                         }
                     }
@@ -198,11 +220,22 @@ async function runDailyRefresh(req: NextRequest) {
         // STEP 2D: Write fresh NAVs to mutual_funds
         // ─────────────────────────────────────────────
         const now = new Date().toISOString();
-        for (const [dbCode, nav] of freshNavMap) {
-            const { error: updateErr } = await supabaseAdmin
+        // Until the nav_date migration is applied, fall back to writing without it
+        let navDateColumn = true;
+        for (const [dbCode, { nav, date }] of freshNavMap) {
+            let { error: updateErr } = await supabaseAdmin
                 .from('mutual_funds')
-                .update({ current_nav: nav, last_updated: now })
+                .update({ current_nav: nav, last_updated: now, ...(navDateColumn ? { nav_date: date } : {}) })
                 .eq('code', dbCode);
+
+            if (updateErr && navDateColumn && updateErr.message.includes('nav_date')) {
+                navDateColumn = false;
+                log.push('mutual_funds.nav_date column missing — run migration 20260924000000_add_nav_date_to_mutual_funds.sql');
+                ({ error: updateErr } = await supabaseAdmin
+                    .from('mutual_funds')
+                    .update({ current_nav: nav, last_updated: now })
+                    .eq('code', dbCode));
+            }
 
             if (updateErr) {
                 summary.errors.push(`mutual_funds update ${dbCode}: ${updateErr.message}`);
@@ -224,7 +257,7 @@ async function runDailyRefresh(req: NextRequest) {
         // ─────────────────────────────────────────────
         // STEP 3: Mirror fresh NAV into holdings.current_nav
         // ─────────────────────────────────────────────
-        for (const [dbCode, nav] of freshNavMap) {
+        for (const [dbCode, { nav }] of freshNavMap) {
             const { error: holdingsErr, count } = await supabaseAdmin
                 .from('holdings')
                 .update({ current_nav: nav }, { count: 'exact' })
