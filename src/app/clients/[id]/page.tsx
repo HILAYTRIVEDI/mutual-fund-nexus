@@ -14,6 +14,7 @@ import { useAuth } from '@/context/AuthContext';
 import { calculateXIRR } from '@/lib/utils/finance';
 import { searchSchemesMerged, type MergedFundScheme, getSchemeLatestNAV, resolveSchemeCode } from '@/lib/mfapi';
 import { getSupabaseClient } from '@/lib/supabase';
+import { resolveAmfiSchemeCode, fetchNavHistory, FUND_NOT_RESOLVED_MSG } from '@/lib/navHistory';
 import type { SIP, Transaction } from '@/lib/types/database';
 
 function formatCurrency(amount: number): string {
@@ -146,31 +147,36 @@ export default function ClientDetailPage() {
         return () => clearTimeout(timer);
     }, [investFundSearch]);
 
-    const resolveInvestAmfiCode = useCallback(async (schemeCode: number, fundCode: string, isin: string): Promise<number> => {
-        if (schemeCode > 0) return schemeCode;
-        const parsed = parseInt(fundCode, 10);
-        if (parsed > 0) return parsed;
-        if (isin?.startsWith('IN')) {
-            try {
-                const res = await fetch(`/api/amfi/isin-lookup?isin=${encodeURIComponent(isin)}`);
-                if (res.ok) {
-                    const data = await res.json() as { schemeCode?: number };
-                    if (data.schemeCode && data.schemeCode > 0) return data.schemeCode;
-                }
-            } catch { /* best effort */ }
+    // Resolve AMFI code (schemeCode > fund code > ISIN > typed scheme name). If the fund was typed
+    // rather than picked from the dropdown, adopt the resolved code so the form counts it as selected.
+    const resolveInvestAmfiCode = useCallback(async (): Promise<number> => {
+        const code = await resolveAmfiSchemeCode({
+            schemeCode: investForm.schemeCode,
+            fundCode: investForm.selectedFundCode,
+            isin: investForm.selectedIsin,
+            name: investForm.schemeName || investFundSearch,
+        });
+        if (code > 0 && investForm.schemeCode <= 0) {
+            setInvestForm(prev => prev.schemeCode > 0 ? prev : {
+                ...prev,
+                schemeCode: code,
+                schemeName: prev.schemeName || investFundSearch.trim(),
+                selectedFundCode: prev.selectedFundCode || String(code),
+            });
         }
-        return 0;
-    }, []);
+        return code;
+    }, [investForm.schemeCode, investForm.selectedFundCode, investForm.selectedIsin, investForm.schemeName, investFundSearch]);
 
     const calculateInvestSIPValues = useCallback(async () => {
-        const effectiveAmfiCode = await resolveInvestAmfiCode(investForm.schemeCode, investForm.selectedFundCode, investForm.selectedIsin);
+        const effectiveAmfiCode = await resolveInvestAmfiCode();
         if (investForm.investmentType !== 'Transfer' || !investForm.startDate || !investForm.sipAmount || parseFloat(investForm.sipAmount) <= 0) {
             if (investForm.investmentType === 'Transfer' && !(effectiveAmfiCode > 0) && investForm.startDate)
-                setInvestSipCalc({ totalUnits: 0, currentValue: 0, totalInvested: 0, latestNav: 0, pnl: 0, pnlPct: 0, nextSipDate: '', nInstallments: 0, installments: [], isLoading: false, error: 'Historical NAV calculation requires an AMFI-listed fund.' });
+                setInvestSipCalc({ totalUnits: 0, currentValue: 0, totalInvested: 0, latestNav: 0, pnl: 0, pnlPct: 0, nextSipDate: '', nInstallments: 0, installments: [], isLoading: false, error: FUND_NOT_RESOLVED_MSG });
+            else setInvestSipCalc(null);
             return;
         }
         if (!(effectiveAmfiCode > 0)) {
-            setInvestSipCalc({ totalUnits: 0, currentValue: 0, totalInvested: 0, latestNav: 0, pnl: 0, pnlPct: 0, nextSipDate: '', nInstallments: 0, installments: [], isLoading: false, error: 'Historical NAV calculation requires an AMFI-listed fund.' });
+            setInvestSipCalc({ totalUnits: 0, currentValue: 0, totalInvested: 0, latestNav: 0, pnl: 0, pnlPct: 0, nextSipDate: '', nInstallments: 0, installments: [], isLoading: false, error: FUND_NOT_RESOLVED_MSG });
             return;
         }
         setInvestSipCalc(prev => ({ ...(prev ?? { totalUnits: 0, currentValue: 0, totalInvested: 0, latestNav: 0, pnl: 0, pnlPct: 0, nextSipDate: '', nInstallments: 0, installments: [] }), isLoading: true, error: null }));
@@ -178,11 +184,7 @@ export default function ClientDetailPage() {
             const sipAmount = parseFloat(investForm.sipAmount);
             const startDate = new Date(investForm.startDate + 'T00:00:00');
             const today = new Date(); today.setHours(0, 0, 0, 0);
-            const res = await fetch(`https://api.mfapi.in/mf/${effectiveAmfiCode}`);
-            if (!res.ok) throw new Error('Failed to fetch NAV history');
-            const data = await res.json();
-            const navHistory: { date: string; nav: string }[] = data.data;
-            if (!navHistory?.length) throw new Error('No NAV data available');
+            const navHistory = await fetchNavHistory(effectiveAmfiCode);
             let totalUnits = 0; let nInstallments = 0;
             const installments: SipInstallment[] = [];
             const sipDate = new Date(startDate);
@@ -215,28 +217,25 @@ export default function ClientDetailPage() {
         if (investForm.investmentType !== 'Transfer') { setInvestSipCalc(null); return; }
         const t = setTimeout(calculateInvestSIPValues, 600);
         return () => clearTimeout(t);
-    }, [investForm.investmentType, investForm.schemeCode, investForm.selectedFundCode, investForm.selectedIsin, investForm.startDate, investForm.sipAmount, calculateInvestSIPValues]);
+    }, [investForm.investmentType, investForm.schemeCode, investForm.selectedFundCode, investForm.selectedIsin, investForm.startDate, investForm.sipAmount, investFundSearch, calculateInvestSIPValues]);
 
     const calculateInvestLumpsumValues = useCallback(async () => {
-        const effectiveAmfiCode = await resolveInvestAmfiCode(investForm.schemeCode, investForm.selectedFundCode, investForm.selectedIsin);
+        const effectiveAmfiCode = await resolveInvestAmfiCode();
         if (investForm.investmentType !== 'Lumpsum' || !investForm.startDate || !investForm.amount || parseFloat(investForm.amount) <= 0) {
             if (investForm.investmentType === 'Lumpsum' && !(effectiveAmfiCode > 0) && investForm.startDate)
-                setInvestLumpCalc({ units: 0, currentValue: 0, investedAmount: 0, navOnDate: 0, latestNav: 0, pnl: 0, pnlPct: 0, isLoading: false, error: 'Historical NAV calculation requires an AMFI-listed fund.' });
+                setInvestLumpCalc({ units: 0, currentValue: 0, investedAmount: 0, navOnDate: 0, latestNav: 0, pnl: 0, pnlPct: 0, isLoading: false, error: FUND_NOT_RESOLVED_MSG });
+            else setInvestLumpCalc(null);
             return;
         }
         if (!(effectiveAmfiCode > 0)) {
-            setInvestLumpCalc({ units: 0, currentValue: 0, investedAmount: 0, navOnDate: 0, latestNav: 0, pnl: 0, pnlPct: 0, isLoading: false, error: 'Historical NAV calculation requires an AMFI-listed fund.' });
+            setInvestLumpCalc({ units: 0, currentValue: 0, investedAmount: 0, navOnDate: 0, latestNav: 0, pnl: 0, pnlPct: 0, isLoading: false, error: FUND_NOT_RESOLVED_MSG });
             return;
         }
         setInvestLumpCalc(prev => ({ ...(prev ?? { units: 0, currentValue: 0, investedAmount: 0, navOnDate: 0, latestNav: 0, pnl: 0, pnlPct: 0 }), isLoading: true, error: null }));
         try {
             const investedAmount = parseFloat(investForm.amount);
             const investmentDate = new Date(investForm.startDate + 'T00:00:00');
-            const res = await fetch(`https://api.mfapi.in/mf/${effectiveAmfiCode}`);
-            if (!res.ok) throw new Error('Failed to fetch NAV history');
-            const data = await res.json();
-            const navHistory: { date: string; nav: string }[] = data.data;
-            if (!navHistory?.length) throw new Error('No NAV data available');
+            const navHistory = await fetchNavHistory(effectiveAmfiCode);
             const navOnDate = findNavForDate(navHistory, investmentDate);
             if (navOnDate <= 0) throw new Error('Could not find NAV for the investment date. Try an earlier date.');
             const units = investedAmount / navOnDate;
@@ -254,7 +253,7 @@ export default function ClientDetailPage() {
         if (investForm.investmentType !== 'Lumpsum') { setInvestLumpCalc(null); return; }
         const t = setTimeout(calculateInvestLumpsumValues, 600);
         return () => clearTimeout(t);
-    }, [investForm.investmentType, investForm.schemeCode, investForm.selectedFundCode, investForm.selectedIsin, investForm.startDate, investForm.amount, calculateInvestLumpsumValues]);
+    }, [investForm.investmentType, investForm.schemeCode, investForm.selectedFundCode, investForm.selectedIsin, investForm.startDate, investForm.amount, investFundSearch, calculateInvestLumpsumValues]);
 
     const handleSelectInvestFund = (fund: MergedFundScheme) => {
         setInvestForm(prev => ({
@@ -1392,7 +1391,15 @@ export default function ClientDetailPage() {
                                         type="text"
                                         placeholder="Search mutual funds..."
                                         value={investFundSearch}
-                                        onChange={(e) => { setInvestFundSearch(e.target.value); setShowInvestFundDropdown(true); }}
+                                        onChange={(e) => {
+                                            const text = e.target.value;
+                                            setInvestFundSearch(text);
+                                            setShowInvestFundDropdown(true);
+                                            // Editing the text invalidates a previously picked fund
+                                            if (investForm.schemeName && text !== investForm.schemeName) {
+                                                setInvestForm(prev => ({ ...prev, schemeCode: 0, schemeName: '', selectedIsin: '', selectedNseCode: '', selectedFundCode: '' }));
+                                            }
+                                        }}
                                         onFocus={() => setShowInvestFundDropdown(true)}
                                         className="w-full pl-10 pr-9 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white placeholder-[var(--text-secondary)] focus:outline-none focus:border-[var(--accent-mint)]/50 text-sm"
                                     />

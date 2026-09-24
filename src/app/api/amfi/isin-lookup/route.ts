@@ -5,11 +5,17 @@ const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 
 let cachedMap: Map<number, string> | null = null;
 let cachedReverseMap: Map<string, number> | null = null;
+let cachedNameMap: Map<string, number> | null = null;
 let cacheTimestamp = 0;
 
-async function getAmfiIsinMap(): Promise<{ forward: Map<number, string>; reverse: Map<string, number> }> {
-    if (cachedMap && cachedReverseMap && Date.now() - cacheTimestamp < CACHE_TTL_MS) {
-        return { forward: cachedMap, reverse: cachedReverseMap };
+/** Lowercase + strip everything but letters/digits so "Fund - Regular Plan - Growth" matches "Fund;Regular Plan;Growth". */
+function normalizeName(name: string): string {
+    return name.toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+async function getAmfiIsinMap(): Promise<{ forward: Map<number, string>; reverse: Map<string, number>; byName: Map<string, number> }> {
+    if (cachedMap && cachedReverseMap && cachedNameMap && Date.now() - cacheTimestamp < CACHE_TTL_MS) {
+        return { forward: cachedMap, reverse: cachedReverseMap, byName: cachedNameMap };
     }
 
     const response = await fetch(AMFI_NAV_URL, { cache: 'no-store' });
@@ -20,6 +26,7 @@ async function getAmfiIsinMap(): Promise<{ forward: Map<number, string>; reverse
     const text = await response.text();
     const map = new Map<number, string>();
     const reverseMap = new Map<string, number>();
+    const nameMap = new Map<string, number>();
 
     for (const line of text.split('\n')) {
         const parts = line.trim().split(';');
@@ -27,6 +34,12 @@ async function getAmfiIsinMap(): Promise<{ forward: Map<number, string>; reverse
 
         const schemeCode = parseInt(parts[0], 10);
         const isin = parts[1]?.trim();
+
+        // Row: Code;ISIN Growth;ISIN Reinv;Name...;NAV;Date — some AMCs split the name across fields
+        if (!isNaN(schemeCode) && parts.length >= 6) {
+            const nameKey = normalizeName(parts.slice(3, parts.length - 2).join(' '));
+            if (nameKey && !nameMap.has(nameKey)) nameMap.set(nameKey, schemeCode);
+        }
 
         // Valid data row: numeric scheme code + valid ISIN (starts with 'IN')
         if (isNaN(schemeCode) || !isin || !isin.startsWith('IN')) continue;
@@ -38,16 +51,27 @@ async function getAmfiIsinMap(): Promise<{ forward: Map<number, string>; reverse
 
     cachedMap = map;
     cachedReverseMap = reverseMap;
+    cachedNameMap = nameMap;
     cacheTimestamp = Date.now();
-    return { forward: map, reverse: reverseMap };
+    return { forward: map, reverse: reverseMap, byName: nameMap };
 }
 
-/** GET /api/amfi/isin-lookup?isin=<ISIN>
- * Reverse lookup: returns { schemeCode } for the given ISIN.
+/** GET /api/amfi/isin-lookup?isin=<ISIN>  or  ?name=<exact scheme name>
+ * Reverse lookup: returns { schemeCode } for the given ISIN or scheme name.
  */
 export async function GET(request: NextRequest) {
     try {
-        const isin = new URL(request.url).searchParams.get('isin')?.trim().toUpperCase();
+        const params = new URL(request.url).searchParams;
+        const name = params.get('name')?.trim();
+        if (name) {
+            const { byName } = await getAmfiIsinMap();
+            const schemeCode = byName.get(normalizeName(name));
+            if (!schemeCode) {
+                return NextResponse.json({ error: 'Scheme name not found in AMFI data' }, { status: 404 });
+            }
+            return NextResponse.json({ schemeCode });
+        }
+        const isin = params.get('isin')?.trim().toUpperCase();
         if (!isin || !isin.startsWith('IN')) {
             return NextResponse.json({ error: 'Valid ISIN required' }, { status: 400 });
         }
