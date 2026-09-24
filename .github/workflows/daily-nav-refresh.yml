@@ -2,7 +2,7 @@ name: Daily NAV Refresh
 
 on:
   schedule:
-    - cron: '0 10 * * 1-5'  # 3:30 PM IST (UTC+5:30), Monday–Friday
+    - cron: '30 16 * * 1-5'  # 10:00 PM IST (UTC+5:30), Monday–Friday — after AMFI publishes NAVs
   workflow_dispatch:          # Manual trigger from GitHub Actions UI
 
 jobs:
